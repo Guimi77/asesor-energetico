@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Asesor Energético</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Asesor energético</p>
+        <h1>Procesado mensual de facturas eléctricas</h1>
+        <p class="subtitle">Arrastra las facturas del grupo, revisa incidencias y genera un informe Excel. Todo el procesado se realiza en tu navegador.</p>
+      </div>
+      <div class="hero-badge">MVP · Feníe</div>
+    </header>
+
+    <section class="grid stats" id="stats">
+      <article class="card stat"><span>Facturas</span><strong id="statInvoices">0</strong></article>
+      <article class="card stat"><span>Correctas</span><strong id="statOk">0</strong></article>
+      <article class="card stat"><span>Revisar</span><strong id="statReview">0</strong></article>
+      <article class="card stat"><span>Consumo</span><strong id="statKwh">0 kWh</strong></article>
+      <article class="card stat"><span>Importe</span><strong id="statTotal">0,00 €</strong></article>
+    </section>
+
+    <section class="card uploader" id="dropZone">
+      <input id="fileInput" type="file" accept="application/pdf,.pdf" multiple hidden />
+      <div class="upload-icon">PDF</div>
+      <h2>Arrastra aquí las facturas</h2>
+      <p>Puedes seleccionar muchas facturas de una vez. No se suben a ningún servidor.</p>
+      <button class="primary" id="pickFiles">Seleccionar PDFs</button>
+    </section>
+
+    <section class="toolbar">
+      <div>
+        <button class="secondary" id="exportExcel" disabled>Exportar Excel</button>
+        <button class="secondary" id="clearData">Limpiar sesión</button>
+      </div>
+      <span class="privacy">Procesado local · sin API de pago</span>
+    </section>
+
+    <section class="card table-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Resultado</p>
+          <h2>Facturas procesadas</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Estado</th><th>Empresa</th><th>CUPS</th><th>Periodo</th><th>Tarifa</th><th>kWh</th><th>Energía €</th><th>Potencia €</th><th>Excesos €</th><th>Reactiva €</th><th>Impuestos €</th><th>Total €</th><th>€/kWh</th><th>Oportunidad</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr class="empty"><td colspan="14">Aún no hay facturas procesadas.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
