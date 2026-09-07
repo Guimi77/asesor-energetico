@@ -26,7 +26,7 @@ function auditWorkbook(wb){
     if(close(pkwh,consumption,.1))consumptionOk++; else add('CONSUMO',`Suma P1-P6 = ${pkwh.toFixed(2)} kWh y consumo total = ${consumption.toFixed(2)} kWh.`,'ERROR');
     if(close(pcost,energy,.1))energyOk++; else add('ENERGÍA €',`Suma coste P1-P6 = ${pcost.toFixed(2)} € y término energía = ${energy.toFixed(2)} €.`,'ERROR');
     const accounted=energy+power+excess+reactive+comp+other+dist+tax+vat+igic;
-    if(close(accounted,total,.12))economicOk++; else add('CUADRE ECONÓMICO',`Conceptos guardados = ${accounted.toFixed(2)} € y total factura = ${total.toFixed(2)} € (dif. ${(total-accounted).toFixed(2)} €).`,'ERROR');
+    if(Math.abs(Math.round((total-accounted)*100))<=5)economicOk++; else add('CUADRE ECONÓMICO',`Conceptos guardados = ${accounted.toFixed(2)} € y total factura = ${total.toFixed(2)} € (dif. ${(total-accounted).toFixed(2)} €).`,'ERROR');
     if(consumption===0&&energy!==0)add('COHERENCIA','Consumo 0 kWh con término de energía distinto de 0 €.');
     if(total>0&&power===0&&consumption===0)add('FACTURA SIN CONSUMO','Factura con importe y 0 kWh: comprobar que potencia/derechos/otros conceptos estén capturados.');
   }
