@@ -2,6 +2,7 @@
 let auditMode=false;
 const n=v=>Number(v)||0,txt=v=>String(v??'').trim();
 const close=(a,b,t=.05)=>Math.abs(a-b)<=t;
+const parserVersion=()=>String(window.IBT_PARSER_VERSION||'desconocida');
 function getRows(wb,name){const ws=wb?.Sheets?.[name];return ws?XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(3):[]}
 function auditWorkbook(wb){
   const summary=getRows(wb,'Resumen').filter(r=>txt(r[1]));
@@ -30,14 +31,14 @@ function auditWorkbook(wb){
     if(total>0&&power===0&&consumption===0)add('FACTURA SIN CONSUMO','Factura con importe y 0 kWh: comprobar que potencia/derechos/otros conceptos estén capturados.');
   }
   const total=summary.length;
-  return{total,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues};
+  return{version:parserVersion(),total,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues};
 }
 function auditBook(a){
-  const wb=XLSX.utils.book_new();
+  const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser ${a.version}`};
   const pct=x=>a.total?x/a.total:0;
   const overview=[
     ['AUDITORÍA DEL PARSER · INSTAL·LACIONS BT'],
-    ['Objetivo: detectar incoherencias antes de guardar histórico en Supabase'],
+    [`Objetivo: detectar incoherencias antes de guardar histórico en Supabase · Parser ${a.version}`],
     ['Control','Correctas','Total','%'],
     ['Identidad esencial',a.identityOk,a.total,pct(a.identityOk)],
     ['Consumo P1-P6 = consumo total',a.consumptionOk,a.total,pct(a.consumptionOk)],
@@ -53,8 +54,8 @@ function auditBook(a){
   return wb;
 }
 function show(a){
-  const bad=a.issues.length,ok=a.total-bad;
-  const msg=`Auditoría terminada\n\nFacturas: ${a.total}\nIdentidad: ${a.identityOk}/${a.total}\nConsumos: ${a.consumptionOk}/${a.total}\nEnergía: ${a.energyOk}/${a.total}\nCuadre económico: ${a.economicOk}/${a.total}\nPeriodos/tarifa: ${a.periodOk}/${a.total}\n\nComprobaciones a revisar: ${bad}`;
+  const bad=a.issues.length;
+  const msg=`Auditoría terminada\n\nParser: ${a.version}\nFacturas: ${a.total}\nIdentidad: ${a.identityOk}/${a.total}\nConsumos: ${a.consumptionOk}/${a.total}\nEnergía: ${a.energyOk}/${a.total}\nCuadre económico: ${a.economicOk}/${a.total}\nPeriodos/tarifa: ${a.periodOk}/${a.total}\n\nComprobaciones a revisar: ${bad}`;
   alert(msg);
 }
 window.addEventListener('DOMContentLoaded',()=>{
