@@ -1,0 +1,1 @@
+window.addEventListener('DOMContentLoaded',()=>{const p=document.querySelector('#signupPanel .auth-copy');if(p)p.textContent='Crea tu cuenta. Por seguridad se dará de alta inicialmente sin privilegios; después asignaremos tu cuenta como Administrador desde Supabase.';});
