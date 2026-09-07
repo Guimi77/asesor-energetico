@@ -16,11 +16,42 @@ function setAuthMessage(text,type='info'){
 }
 
 async function loadProfile(user){
-  if(!user){currentProfile=null;return null;}
+  if(!user){currentProfile=null;window.ibtCurrentProfile=null;return null;}
   const {data,error}=await supabase.from('profiles').select('id,role,display_name,active').eq('id',user.id).maybeSingle();
   if(error) throw error;
   currentProfile=data||null;
+  window.ibtCurrentProfile=currentProfile;
   return currentProfile;
+}
+
+function hideInternalLocalViewsForClient(){
+  const restrictedViews=['facturasView','clientesView','cupsView','usersView'];
+  const restrictedLinks=['facturas','clientes','cups','users'];
+  restrictedViews.forEach(id=>document.getElementById(id)?.classList.add('hidden'));
+  document.querySelectorAll('.sidebar [data-view]').forEach(link=>{
+    if(restrictedLinks.includes(link.dataset.view))link.classList.add('hidden');
+  });
+  const historical=$('#historicoView');
+  if(historical){
+    historical.classList.remove('hidden');
+    historical.innerHTML='<section class="card placeholder-view"><div class="upload-icon">◷</div><h2>Portal de cliente</h2><p>Tu cuenta está correctamente aislada. Solo se mostrarán aquí los suministros, facturas e histórico que estén asignados a tu usuario en Supabase.</p><span class="status review">Sin datos asignados todavía</span></section>';
+  }
+  document.querySelectorAll('.sidebar [data-view]').forEach(link=>link.classList.toggle('active',link.dataset.view==='historico'));
+  if($('#pageTitle'))$('#pageTitle').textContent='Portal de cliente';
+  if($('#pageSubtitle'))$('#pageSubtitle').textContent='Consulta únicamente la información energética asignada a tu cuenta.';
+  if($('#pageEyebrow'))$('#pageEyebrow').textContent='Acceso cliente';
+}
+
+function restoreInternalLinksForStaff(){
+  ['facturas','clientes','cups'].forEach(view=>document.querySelector(`.sidebar [data-view="${view}"]`)?.classList.remove('hidden'));
+}
+
+function enforceRoleAccess(profile){
+  const role=profile?.role||null;
+  document.body.dataset.role=role||'';
+  if(role==='client')hideInternalLocalViewsForClient();
+  else restoreInternalLinksForStaff();
+  window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile}}));
 }
 
 function applySession(session,profile){
@@ -34,6 +65,7 @@ function applySession(session,profile){
   if(logout)logout.classList.toggle('hidden',!signed);
   const usersLink=$('#usersNav');
   if(usersLink)usersLink.classList.toggle('hidden',profile?.role!=='admin');
+  enforceRoleAccess(profile);
   if(profile?.active===false){
     setAuthMessage('Tu cuenta está desactivada. Contacta con el administrador.','error');
     supabase.auth.signOut();
@@ -58,7 +90,7 @@ async function renderUsers(){
     supabase.from('profiles').select('id,display_name,role,active,created_at').order('created_at',{ascending:true}),
     supabase.from('client_users').select('user_id,client_id')
   ]);
-  if(pErr||lErr){body.innerHTML=`<tr><td colspan="4">No se pudieron cargar usuarios.</td></tr>`;return;}
+  if(pErr||lErr){body.innerHTML='<tr><td colspan="4">No se pudieron cargar usuarios.</td></tr>';return;}
   const count=new Map();
   for(const x of links||[])count.set(x.user_id,(count.get(x.user_id)||0)+1);
   body.innerHTML='';
@@ -102,7 +134,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(data.session){setAuthMessage('Cuenta creada.','ok');await refreshAuth();}
     else setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso.','ok');
   });
-  $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();currentProfile=null;applySession(null,null);});
+  $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();location.reload();});
   $('#usersNav')?.addEventListener('click',async()=>{
     $('#pageTitle').textContent='Usuarios';
     $('#pageSubtitle').textContent='Gestiona roles y acceso a clientes.';
