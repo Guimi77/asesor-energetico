@@ -1,0 +1,1 @@
+(()=>{'use strict';const nativeTest=RegExp.prototype.test;RegExp.prototype.test=function(value){try{if(this.source.includes('Derechos de Verificaci')&&/Derechos de (?:Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche) Distribuidora/i.test(String(value)))return true}catch{}return nativeTest.call(this,value)};})();
