@@ -1,0 +1,50 @@
+name: Verify history resource candidate
+on:
+  push:
+    branches: ['fix/history-resource-cleanup']
+    paths:
+      - 'scripts/prepare-history-resource-fix.cjs'
+      - 'tests/pdf-lifecycle*'
+      - '.github/workflows/verify-history-resources.yml'
+permissions:
+  contents: write
+concurrency:
+  group: history-resource-candidate
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare minimal changes on candidate branch
+        run: node scripts/prepare-history-resource-fix.cjs
+      - name: Check syntax and unchanged extraction rules
+        run: |
+          node --check app.js
+          node --check xtra-history.js
+          node --check supply-enricher-v2.js
+          node --check history-ui.js
+          node --check auth-bootstrap.js
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs
+      - name: Install isolated browser test tools
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1 pdf-lib@1.17.1 pdfjs-dist@4.10.38
+          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Verify real PDF workers in Chromium
+        run: node tests/pdf-lifecycle-browser.cjs
+      - name: Commit only the tested candidate files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js xtra-history.js supply-enricher-v2.js history-ui.js auth-bootstrap.js index.html
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'Release every PDF task and clarify observed contractual changes'
+          git push origin HEAD:refs/heads/fix/history-resource-cleanup
+          echo "Tested candidate $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
