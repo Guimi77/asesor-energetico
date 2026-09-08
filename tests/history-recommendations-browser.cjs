@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true});
  try{
- const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});page.on('console',msg=>{if(msg.type()==='error')console.log('BROWSER ERROR',msg.text())});
  await page.setContent('<div id="historicoView"></div>');
  await page.evaluate(()=>{
   const supplies=Array.from({length:52},(_,i)=>({id:'s'+i,holder_id:'holder',cups:'TEST-CUPS-'+String(i).padStart(4,'0'),supply_name:'Local sintético '+i,current_tariff:'3.0TD'}));
@@ -15,10 +15,11 @@ const {chromium}=require('playwright');
  });
  await page.addStyleTag({path:'history-recommendations.css'});
  await page.addScriptTag({path:'history-recommendations.js'});
+ assert.equal(await page.evaluate(()=>typeof window.IBTHistoryRecommendations?.render),'function');
  await page.evaluate(()=>{const original=window.IBTHistoryRecommendations;window.recRenderCount=0;window.IBTHistoryRecommendations={...original,render(options){window.recRenderCount++;return original.render(options)}}});
  await page.addScriptTag({path:'history-ui.js'});
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}})));
- await page.waitForSelector('#historyRecommendations');
+ try{await page.waitForSelector('#historyRecommendations');}catch(e){console.log('SYNTHETIC DOM DIAGNOSTICS',await page.evaluate(()=>({content:document.body.textContent.slice(-2000),calls:window.recRenderCount,api:typeof window.IBTHistoryUI,html:document.querySelector('#historyRecommendations')?.outerHTML.slice(0,500)})));throw e;}
  assert.equal(await page.locator('.history-table tbody tr').count(),341);
  assert.equal(await page.locator('.history-rec').count(),104);
  await page.locator('.history-rec>summary').first().click();
