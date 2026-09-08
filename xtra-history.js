@@ -47,10 +47,20 @@ function isoDate(s){const m=norm(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return 
 function parsePeriod(s){const m=norm(s).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}}
 
 async function readPdf(file){
-  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,pages=[],raw=[];
-  for(let i=1;i<=Math.min(pdf.numPages,3);i++){const p=await pdf.getPage(i),c=await p.getTextContent();raw.push(c.items);pages.push(lines(c.items))}
-  return {pages,raw,text:pages.flat().join('\n')};
+  const task=pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())});
+  const pages=[],raw=[];
+  try{
+    const pdf=await task.promise;
+    for(let i=1;i<=Math.min(pdf.numPages,3);i++){
+      const p=await pdf.getPage(i),c=await p.getTextContent();
+      raw.push(c.items);pages.push(lines(c.items));
+    }
+    return {pages,raw,text:pages.flat().join('\n')};
+  }finally{
+    await task.destroy();
+  }
 }
+
 
 function extractFenie(d,file){
   const a=d.pages[0]||[],text=d.text;
@@ -94,8 +104,19 @@ async function waitForMainRow(cups,periodText){for(let i=0;i<600;i++){const r=ro
 function same(a,b,t=.05){return Math.abs((Number(a)||0)-(Number(b)||0))<=t}
 
 function historyStatus(text,type='ok'){
-  const el=$('#historySyncStatus');if(el){el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`}
+  let el=$('#historySyncStatus');
+  if(!el){
+    const host=$('#dropZone');
+    if(!host)return;
+    el=document.createElement('div');el.id='historySyncStatus';
+    el.setAttribute('role','status');el.setAttribute('aria-live','polite');
+    el.style.cssText='grid-column:1/-1;padding:8px 12px;margin-top:8px';
+    host.appendChild(el);
+  }
+  el.textContent=text;
+  el.className=`status ${type==='ok'?'ok':'review'}`;
 }
+
 
 async function persistOne(file){
   const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
@@ -122,7 +143,25 @@ async function renderSummary(){
 }
 
 let queue=Promise.resolve();
-function enqueue(files){const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;queue=queue.then(async()=>{let saved=0,skipped=0,failed=0;historyStatus(`Validando ${list.length} factura(s) antes de actualizar el histórico…`,'review');for(const file of list){try{const r=await persistOne(file);if(r?.ok)saved++;else skipped++}catch(e){failed++;console.warn('Histórico XTRA:',file.name,e)}}await renderSummary();historyStatus(`${saved} periodos actualizados · ${skipped} omitidos por validación${failed?` · ${failed} errores`:''}` ,failed?'review':'ok');window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed}}));}).catch(e=>console.warn('Cola histórico XTRA',e))}
+function enqueue(files){
+ const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));
+ if(!list.length)return;
+ queue=queue.then(async()=>{
+  let saved=0,skipped=0,failed=0,done=0;
+  historyStatus(`Histórico: 0/${list.length} · validación y guardado en curso`,'review');
+  for(const file of list){
+   try{const r=await persistOne(file);if(r?.ok)saved++;else skipped++;}
+   catch(e){failed++;console.warn('Histórico XTRA:',file.name,e);}
+   done++;
+   historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardados · ${skipped} omitidos · ${failed} errores`,'review');
+   // Yield to input/paint without depending on an active browser tab.
+   await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  await renderSummary();
+  historyStatus(`Histórico terminado: ${done}/${list.length} · ${saved} guardados · ${skipped} omitidos por validación · ${failed} errores`,failed||skipped?'review':'ok');
+  window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed}}));
+ }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review');});
+}
 
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
 const dz=$('#dropZone');if(dz)dz.addEventListener('drop',e=>enqueue(e.dataTransfer?.files||[]),{capture:true});

@@ -176,21 +176,25 @@ async function waitForMaster() {
 }
 
 async function inspect(file) {
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const task = pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   const allLines = [];
-  for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 3); pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-    allLines.push(...linesFromItems(content.items));
+  try {
+    const pdf = await task.promise;
+    for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 3); pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      allLines.push(...linesFromItems(content.items));
+    }
+  } finally {
+    await task.destroy();
   }
-
   const data = parseSupply(allLines);
   if (!data.cups) return { read: false, changed: false, data };
-
   const master = await waitForMaster();
   const result = master.learnInvoice(data);
   return { read: true, changed: Boolean(result?.enriched), result, data };
 }
+
 
 async function inspectFiles(files) {
   const pdfs = [...files].filter((file) => file.name?.toLowerCase().endsWith('.pdf'));

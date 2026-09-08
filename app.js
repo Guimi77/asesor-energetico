@@ -4,7 +4,21 @@ const PARSER_VERSION='2026.09.07.7';window.IBT_PARSER_VERSION=PARSER_VERSION;
 const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),round2=n=>Math.round((Number(n)||0)*100)/100,cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const num=s=>{if(s==null)return 0;let x=String(s).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');return Number(x)||0},euros=s=>[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])),lastEuro=s=>{const a=euros(s);return a.length?a.at(-1):0};
 function lines(items){const p=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x),g=[];for(const q of p){let z=g.find(v=>Math.abs(v.y-q.y)<=2.2);if(!z)g.push(z={y:q.y,a:[]});z.a.push(q)}return g.sort((a,b)=>b.y-a.y).map(z=>z.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ').replace(/\s+/g,' ').trim())}
-async function pdfData(file){const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,pages=[],rawPages=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),c=await p.getTextContent();rawPages.push(c.items);pages.push(lines(c.items))}return{pages,rawPages,text:pages.flat().join('\n')}}
+async function pdfData(file){
+ const task=pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())});
+ const pages=[],rawPages=[];
+ try{
+  const pdf=await task.promise;
+  for(let i=1;i<=pdf.numPages;i++){
+   const p=await pdf.getPage(i),c=await p.getTextContent();
+   rawPages.push(c.items);pages.push(lines(c.items));
+  }
+  return{pages,rawPages,text:pages.flat().join('\n')};
+ }finally{
+  // Close the document AND its owned worker, including failed reads.
+  await task.destroy();
+ }
+}
 const find=(a,re)=>a.find(x=>re.test(x))||'';
 function section(a,start,ends){const i=a.findIndex(x=>start.test(x));if(i<0)return[];let j=a.length;for(let k=i+1;k<a.length;k++)if(ends.some(r=>r.test(a[k]))){j=k;break}return a.slice(i,j)}
 function prow(a,p){return a.find(x=>new RegExp(`^\\s*P${p}:?\\b`,'i').test(x))||''}

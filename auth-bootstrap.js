@@ -40,14 +40,14 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=20260908-2';
+    script.src='xtra-history.js?v=20260908-4';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
 
   if(!document.querySelector('script[data-history-ui]')){
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260908-1';
+    script.src='history-ui.js?v=20260908-4';
     script.dataset.historyUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
