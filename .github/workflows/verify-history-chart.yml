@@ -1,0 +1,41 @@
+name: Verify history chart refresh candidate
+on:
+  push:
+    branches: [fix/history-chart-refresh]
+    paths: ['scripts/prepare-history-chart.cjs', 'tests/history-chart-refresh*', '.github/workflows/verify-history-chart.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare candidate without changing production
+        run: node scripts/prepare-history-chart.cjs
+      - name: Syntax and regression tests
+        run: |
+          node --check history-ui.js
+          node --check auth-bootstrap.js
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-chart-refresh.test.cjs
+      - name: Install browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1
+          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Reproduce old race and verify reloads, filters and chart gaps
+        run: |
+          node tests/history-chart-refresh-browser.cjs
+          node tests/history-recommendations-browser.cjs
+      - name: Commit only tested runtime files on candidate branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add history-ui.js auth-bootstrap.js index.html
+          git diff --cached --check
+          git commit -m 'Render cost chart with history instead of a startup-dependent sidecar'
+          git push origin HEAD:refs/heads/fix/history-chart-refresh
