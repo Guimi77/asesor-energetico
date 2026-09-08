@@ -112,7 +112,7 @@ async function renderUsers(){
   }));
 }
 
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));}
 
 window.addEventListener('DOMContentLoaded',()=>{
   const loginForm=$('#loginForm');
@@ -141,6 +141,9 @@ window.addEventListener('DOMContentLoaded',()=>{
     $('#pageEyebrow').textContent='Administración';
     await renderUsers();
   });
-  supabase.auth.onAuthStateChange(()=>setTimeout(refreshAuth,0));
+  supabase.auth.onAuthStateChange((event)=>{
+    if(event==='TOKEN_REFRESHED')return;
+    setTimeout(refreshAuth,0);
+  });
   refreshAuth();
 });
