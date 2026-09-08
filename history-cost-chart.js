@@ -31,40 +31,27 @@
       if(!map.has(key)) map.set(key,{key,kwh:0,eur:0});
       const x=map.get(key); x.kwh+=kwh; x.eur+=eur;
     }
-    return [...map.values()].sort((a,b)=>a.key.localeCompare(b.key)).map(x=>({...x,cost:x.kwh>0?x.eur/x.kwh:null}));
+    return [...map.values()].sort((a,b)=>a.key.localeCompare(b.key)).map(x=>({...x,cost:x.kwh?x.eur/x.kwh:0}));
   }
 
   function chart(points){
     if(!points.length) return '<div class="history-empty">Sin datos para este rango.</div>';
-    const valid=points.filter(p=>Number.isFinite(p.cost));
-    if(!valid.length) return '<div class="history-empty">Sin consumo suficiente para calcular el coste medio.</div>';
     const W=680,H=180,padL=52,padR=12,padT=12,padB=28;
-    const vals=valid.map(p=>p.cost);
+    const vals=points.map(p=>p.cost);
     const max=Math.max(...vals,0.01);
-    const min=Math.min(...vals);
+    const min=Math.min(...vals,0);
     const span=Math.max(max-min,0.01);
     const innerW=W-padL-padR,innerH=H-padT-padB;
     const step=points.length>1?innerW/(points.length-1):innerW;
-    const coords=points.map((p,i)=>({
-      x:padL+(points.length===1?innerW/2:i*step),
-      y:Number.isFinite(p.cost)?padT+innerH-((p.cost-min)/span)*innerH:null,
-      p
-    }));
-    let drawing=false;
-    const path=coords.map(c=>{
-      if(c.y==null){drawing=false;return '';}
-      const cmd=drawing?'L':'M';
-      drawing=true;
-      return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`;
-    }).filter(Boolean).join(' ');
+    const coords=points.map((p,i)=>({x:padL+(points.length===1?innerW/2:i*step),y:padT+innerH-((p.cost-min)/span)*innerH,p}));
+    const path=coords.map((c,i)=>`${i?'L':'M'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
     const guides=[0,.5,1].map(f=>{
       const val=min+span*f, y=padT+innerH-innerH*f;
       return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text x="${padL-7}" y="${y+4}" text-anchor="end" font-size="10" fill="#65758a">${esc(fmt(val,4))}</text>`;
     }).join('');
     const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>`<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="10" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
-    const dots=coords.filter(c=>c.y!=null).map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${esc(monthLabel(c.p.key))}: ${esc(fmt(c.p.cost,4))} €/kWh</title></circle>`).join('');
-    const missing=coords.filter(c=>c.y==null).map(c=>`<text x="${c.x}" y="${padT+innerH/2}" text-anchor="middle" font-size="10" fill="#8a97a8"><title>${esc(monthLabel(c.p.key))}: sin consumo</title>—</text>`).join('');
-    return `<svg class="history-svg" viewBox="0 0 ${W} ${H}" role="img">${guides}<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>${dots}${missing}${labels}</svg>`;
+    const dots=coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${esc(monthLabel(c.p.key))}: ${esc(fmt(c.p.cost,4))} €/kWh</title></circle>`).join('');
+    return `<svg class="history-svg" viewBox="0 0 ${W} ${H}" role="img">${guides}<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>${dots}${labels}</svg>`;
   }
 
   function enhance(){
