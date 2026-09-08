@@ -25,7 +25,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-bulk-performance]')){
     const script=document.createElement('script');
-    script.src='bulk-performance.js?v=20260908-1';
+    script.src='bulk-performance.js?v=20260908-2';
     script.dataset.bulkPerformance='1';
     document.body.appendChild(script);
   }
