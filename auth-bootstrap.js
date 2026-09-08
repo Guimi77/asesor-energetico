@@ -43,7 +43,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
-  document.querySelector('.sidebar [data-view="historico"]')?.addEventListener('click',()=>{
-    setTimeout(()=>window.IBTHistoryUI?.reload?.(),0);
-  });
+  // El histórico permanece montado en el DOM al cambiar de pestaña.
+  // No se recarga al volver a abrirlo: así evitamos el destello de "Cargando…".
 });
