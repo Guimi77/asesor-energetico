@@ -2,15 +2,27 @@
   'use strict';
 
   const BULK_MIN = 80;
+  const RENDER_EVERY = 10;
   const nativeAppend = Node.prototype.appendChild;
+  const innerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
   const buffers = new WeakMap();
   let bulkActive = false;
   let bulkTotal = 0;
+  let renderCycle = 0;
   let settleTimer = null;
   let lastCount = 0;
 
   function pdfCount(files){
     return [...(files || [])].filter(f => f?.name?.toLowerCase().endsWith('.pdf')).length;
+  }
+
+  function stateFor(el){
+    let state = buffers.get(el);
+    if (!state){
+      state = {frag: document.createDocumentFragment(), scheduled: false, skipRender: false};
+      buffers.set(el, state);
+    }
+    return state;
   }
 
   function ensureStatus(){
@@ -32,7 +44,7 @@
     lastCount = count;
     if (el){
       el.style.display = 'block';
-      el.textContent = `Procesando lote grande · ${count} facturas visibles · actualización optimizada por bloques`;
+      el.textContent = `Procesando lote grande · ${renderCycle}/${bulkTotal} PDF · ${count} facturas únicas`;
     }
   }
 
@@ -41,6 +53,7 @@
     if (total < BULK_MIN) return;
     bulkActive = true;
     bulkTotal = total;
+    renderCycle = 0;
     document.body.classList.add('ibt-bulk-processing');
     const wrap = document.querySelector('#facturasView .table-wrap');
     if (wrap) wrap.style.contentVisibility = 'auto';
@@ -57,19 +70,39 @@
       document.body.classList.remove('ibt-bulk-processing');
       const el = ensureStatus();
       if (el){
-        el.textContent = `Lote principal estabilizado · ${count} facturas visibles. El histórico puede seguir validando en segundo plano.`;
+        el.textContent = `Lote principal estabilizado · ${count} facturas únicas. El histórico puede seguir validando en segundo plano.`;
         setTimeout(() => { if (!bulkActive) el.style.display = 'none'; }, 5000);
       }
     }, 3500);
   }
 
-  // The parser rebuilds the full results table after every PDF. During a large
-  // batch, buffer synchronous row appends into a DocumentFragment so the browser
-  // does one DOM insertion per render instead of hundreds of layout operations.
+  // app.js reconstruye toda la tabla después de cada PDF. En lotes grandes,
+  // dejamos que haga el cálculo y actualice estadísticas en cada factura, pero
+  // solo reconstruimos físicamente la tabla cada 10 PDF (y siempre en el último).
+  // Esto evita el crecimiento cuadrático de trabajo DOM que bloqueaba Chrome.
+  if (innerHTMLDescriptor?.get && innerHTMLDescriptor?.set){
+    Object.defineProperty(HTMLTableSectionElement.prototype, 'innerHTML', {
+      configurable: true,
+      get(){ return innerHTMLDescriptor.get.call(this); },
+      set(value){
+        if (!bulkActive || this.id !== 'resultsBody') return innerHTMLDescriptor.set.call(this, value);
+        renderCycle += 1;
+        const state = stateFor(this);
+        state.skipRender = renderCycle % RENDER_EVERY !== 0 && renderCycle !== bulkTotal;
+        if (state.skipRender) return value;
+        state.frag = document.createDocumentFragment();
+        state.scheduled = false;
+        return innerHTMLDescriptor.set.call(this, value);
+      }
+    });
+  }
+
+  // En los ciclos que sí se pintan, agrupamos todas las filas en un fragmento
+  // para hacer una sola inserción al DOM en lugar de cientos de repintados.
   HTMLTableSectionElement.prototype.appendChild = function(node){
     if (!bulkActive || this.id !== 'resultsBody') return nativeAppend.call(this, node);
-    let state = buffers.get(this);
-    if (!state){ state = {frag: document.createDocumentFragment(), scheduled: false}; buffers.set(this, state); }
+    const state = stateFor(this);
+    if (state.skipRender) return node;
     nativeAppend.call(state.frag, node);
     if (!state.scheduled){
       state.scheduled = true;
