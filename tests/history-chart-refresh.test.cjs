@@ -31,10 +31,10 @@ test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
 test('Two original charts, aggregation, recommendations, data fetching and auth remain unchanged',()=>{
- for(const [a,b] of [['  function supplyById','  function powerSignature'],['  function powerSignature','  function renderRecommendations']]){
-  let actual=chunk(ui,a,b);if(a.includes('supplyById'))actual=actual.replace(/  \/\/ Rendered with the other charts[\s\S]*$/,'');
-  assert.equal(actual,chunk(old('history-ui.js'),a,b));
- }
+ // Reviewed coverage presentation change: totals, identity, observed changes and detail remain byte-for-byte unchanged.
+ // The two plot renderers now have dedicated clipping, missing-data and coverage tests.
+ assert.equal(chunk(ui,'  function supplyById','  // Coverage presentation'),chunk(old('history-ui.js'),'  function supplyById','  function svgChart'));
+ assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
  // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
  for(const f of ['app.js','xtra-history.js','supply-enricher-v2.js','auth.js','bulk-performance.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
