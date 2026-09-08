@@ -35,6 +35,11 @@ window.addEventListener('DOMContentLoaded',()=>{
     const script=document.createElement('script');
     script.src='history-ui.js?v=20260908-1';
     script.dataset.historyUi='1';
+    script.onload=()=>{
+      if(window.ibtCurrentProfile){
+        window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
+      }
+    };
     document.body.appendChild(script);
   }
 });
