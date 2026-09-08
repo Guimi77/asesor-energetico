@@ -112,9 +112,12 @@ async function persistOne(file){
 }
 
 async function renderSummary(){
-  const supabase=window.ibtSupabase,profile=window.ibtCurrentProfile,view=$('#historicoView');if(!view||!supabase||!['admin','staff'].includes(profile?.role))return;
+  const supabase=window.ibtSupabase,profile=window.ibtCurrentProfile,view=$('#historicoView');
+  if(!view||!supabase||!['admin','staff'].includes(profile?.role))return;
+  if(view.querySelector('#historyApp')){window.IBTHistoryUI?.reload?.();return;}
   const {count,error}=await supabase.from('invoices').select('id',{count:'exact',head:true});
   if(error)return;
+  if(view.querySelector('#historyApp'))return;
   view.innerHTML=`<section class="card placeholder-view"><div class="upload-icon">◷</div><h2>Histórico energético · ${PILOT}</h2><p>Solo conserva información estructurada extraída y validada. Los PDF se procesan localmente y no se almacenan.</p><strong style="font-size:2rem">${count||0}</strong><small>periodos históricos guardados</small><span id="historySyncStatus" class="status ok">Sincronización preparada</span></section>`;
 }
 
