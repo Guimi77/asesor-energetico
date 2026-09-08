@@ -1,0 +1,49 @@
+name: Verify history client export candidate
+on:
+  push:
+    branches: [feat/history-client-export]
+permissions:
+  contents: write
+concurrency:
+  group: history-client-export-candidate
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated integration
+        run: node scripts/prepare-history-client-export.cjs
+      - name: Syntax and regression tests
+        run: |
+          node --check history-ui.js
+          node --check history-client-export.js
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-chart-refresh.test.cjs tests/history-client-export.test.cjs
+      - name: Install browser and workbook test dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1 exceljs@4.4.0 jszip@3.10.1
+          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Verify actual workbooks and filtered downloads
+        run: |
+          node tests/history-client-export-browser.cjs
+          node tests/history-chart-refresh-browser.cjs
+          node tests/history-recommendations-browser.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: history-client-export-synthetic
+          path: test-output/
+          retention-days: 7
+      - name: Commit verified integration to candidate only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add history-ui.js auth-bootstrap.js index.html tests/history-chart-refresh.test.cjs
+          git diff --cached --check
+          git commit -m 'Wire tested filtered Excel client export into history'
+          git push origin HEAD:refs/heads/feat/history-client-export
