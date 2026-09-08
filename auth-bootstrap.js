@@ -16,6 +16,16 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(status)status.textContent='Piloto GRUPO XTRA · histórico estructurado';
   }
 
+  const ensureHistoryUi=()=>{
+    const view=document.querySelector('#historicoView');
+    if(!view||!window.ibtCurrentProfile||!window.IBTHistoryUI)return;
+    if(!view.querySelector('#historyApp')){
+      window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
+    }else{
+      window.IBTHistoryUI.reload?.();
+    }
+  };
+
   if(!document.querySelector('script[data-xtra-pilot]')){
     const script=document.createElement('script');
     script.src='supabase-xtra-pilot.js?v=20260908-1';
@@ -36,14 +46,28 @@ window.addEventListener('DOMContentLoaded',()=>{
     script.src='history-ui.js?v=20260908-1';
     script.dataset.historyUi='1';
     script.onload=()=>{
-      if(window.ibtCurrentProfile){
-        window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
-      }
+      ensureHistoryUi();
+      let attempts=0;
+      const timer=setInterval(()=>{
+        attempts+=1;
+        ensureHistoryUi();
+        if(attempts>=12)clearInterval(timer);
+      },500);
     };
     document.body.appendChild(script);
   }
 
+  const historyView=document.querySelector('#historicoView');
+  if(historyView){
+    const observer=new MutationObserver(()=>{
+      if(window.IBTHistoryUI&&window.ibtCurrentProfile&&!historyView.querySelector('#historyApp')){
+        setTimeout(ensureHistoryUi,0);
+      }
+    });
+    observer.observe(historyView,{childList:true});
+  }
+
   document.querySelector('.sidebar [data-view="historico"]')?.addEventListener('click',()=>{
-    setTimeout(()=>window.IBTHistoryUI?.reload?.(),0);
+    setTimeout(ensureHistoryUi,0);
   });
 });
