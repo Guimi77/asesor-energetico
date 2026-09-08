@@ -86,7 +86,7 @@
     const first=lastRow+3;
     [['kwh','Consumo mensual','kWh'],['energyPrice','Precio de energ\u00eda','\u20ac/kWh'],['total','Gasto total mensual','\u20ac']].forEach(([key,title,unit],i)=>{
       const row=first+i*17;for(let r=row;r<row+17;r++)ws.getRow(r).height=15;
-      const id=wb.addImage({base64:chartPng(mo,key,title,unit),extension:'png'});ws.addImage(id,{tl:{col:0,row:row-1},ext:{width:900,height:300}});
+      const id=wb.addImage({base64:chartPng(mo,key,title,unit),extension:'png'});let remaining=900,col=0;while(col<6){const width=Math.floor((ws.getColumn(col+1).width||8.43)*7+5);if(remaining<width)break;remaining-=width;col++;}const br={nativeCol:col,nativeColOff:Math.round(remaining*9525),nativeRow:row+14,nativeRowOff:0};ws.addImage(id,{tl:{col:0,row:row-1},br,editAs:'oneCell'});
     });
   }
   function monthlySheet(wb,name,title,rows,periodSheet,lastPeriodRow,cups,subtitle){
