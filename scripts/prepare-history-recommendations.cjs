@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs');
-function edit(file,old,next){let s=fs.readFileSync(file,'utf8');if(s.includes(next))return;if(s.split(old).length!==2)throw Error('Non-unique or missing target: '+file);fs.writeFileSync(file,s.replace(old,next));}
+function edit(file,old,next){let s=fs.readFileSync(file,'utf8');if(s.includes(next))return;if(s.split(old).length!==2)throw Error('Non-unique or missing target: '+file);fs.writeFileSync(file,s.replace(old,()=>next));}
 const helper=`  function renderRecommendations(records) {
     try {
       return window.IBTHistoryRecommendations?.render({ records, supplies:state.supplies, holders:state.holders }) || '';
