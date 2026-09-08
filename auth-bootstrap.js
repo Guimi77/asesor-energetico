@@ -16,6 +16,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(status)status.textContent='Piloto GRUPO XTRA · histórico estructurado';
   }
 
+  if(!document.querySelector('#historyUiTidy')){
+    const style=document.createElement('style');
+    style.id='historyUiTidy';
+    style.textContent='.history-badge{display:none!important}';
+    document.head.appendChild(style);
+  }
+
   if(!document.querySelector('script[data-xtra-pilot]')){
     const script=document.createElement('script');
     script.src='supabase-xtra-pilot.js?v=20260908-1';
