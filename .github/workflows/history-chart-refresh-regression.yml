@@ -1,0 +1,33 @@
+name: History chart refresh regression
+on:
+  push:
+    branches: [main]
+    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
+  pull_request:
+    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax and unchanged functionality
+        run: |
+          node --check history-ui.js
+          node --check auth-bootstrap.js
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-chart-refresh.test.cjs
+      - name: Install browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1
+          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Refresh and recommendation integration
+        run: |
+          node tests/history-chart-refresh-browser.cjs
+          node tests/history-recommendations-browser.cjs

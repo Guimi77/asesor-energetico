@@ -38,6 +38,7 @@
     style.id = 'historyUiStyles';
     style.textContent = `
       .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;align-items:end}.history-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{width:100%;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
+      @media(min-width:1400px){#historyContent .history-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:1100px){.history-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.history-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.history-grid{grid-template-columns:1fr}.history-detail-grid{grid-template-columns:1fr}.history-event{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
@@ -195,6 +196,38 @@
     return `<svg class="history-svg" viewBox="0 0 ${W} ${H}" role="img">${guides}<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>${dots}${labels}</svg>`;
   }
 
+  // Rendered with the other charts, from the same filtered numeric records.
+  // No independent startup, DOM scraping, observer, timer or extra query.
+  function svgCostChart(points) {
+    if (!points.length) return '<div class="history-empty">Sin datos para este rango.</div>';
+    const W=680,H=180,padL=68,padR=12,padT=12,padB=28;
+    const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
+    const valid=values.filter(v=>v!==null&&Number.isFinite(v));
+    const max=Math.max(...valid,0.01),min=Math.min(...valid,0),span=Math.max(max-min,0.01);
+    const innerW=W-padL-padR,innerH=H-padT-padB;
+    const step=points.length>1?innerW/(points.length-1):innerW;
+    const coords=points.map((p,i)=>{
+      const value=values[i];
+      return {p,value,x:padL+(points.length===1?innerW/2:i*step),y:value!==null&&Number.isFinite(value)?padT+innerH-(value-min)/span*innerH:null};
+    });
+    let connected=false;
+    const path=coords.map(c=>{
+      if(c.y===null){connected=false;return '';}
+      const command=connected?'L':'M';connected=true;
+      return command+' '+c.x.toFixed(1)+' '+c.y.toFixed(1);
+    }).filter(Boolean).join(' ');
+    const guides=[0,.5,1].map(f=>{
+      const value=min+span*f,y=padT+innerH-innerH*f;
+      return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#65758a">'+esc(qty(value,4))+'</text>';
+    }).join('');
+    const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="10" fill="#65758a">'+esc(monthLabel(c.p.key))+'</text>').join('');
+    const dots=coords.map(c=>c.y===null?
+      '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(monthLabel(c.p.key))+': sin dato calculable de €/kWh</title></text>':
+      '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(monthLabel(c.p.key))+': '+esc(qty(c.value,4))+' €/kWh</title></circle>'
+    ).join('');
+    return '<svg class="history-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
+  }
+
   function powerSignature(r) {
     return [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period).map(p => `P${p.period}:${n(p.contracted_kw).toFixed(3)}`).join('|');
   }
@@ -306,6 +339,7 @@
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(monthly,'kwh',v=>`${qty(v,0)} kWh`)}</div>
         <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(monthly,'eur',v=>`${money(v)} €`)}</div>
+        <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(monthly)}</div>
       </section>
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>

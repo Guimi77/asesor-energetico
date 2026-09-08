@@ -47,17 +47,11 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-history-ui]')){
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260908-rec1';
+    script.src='history-ui.js?v=20260908-chart1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
         window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
-      }
-      if(!document.querySelector('script[data-history-cost-chart]')){
-        const extra=document.createElement('script');
-        extra.src='history-cost-chart.js?v=20260908-3';
-        extra.dataset.historyCostChart='1';
-        document.body.appendChild(extra);
       }
     };
     document.body.appendChild(script);
