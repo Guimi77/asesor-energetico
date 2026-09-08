@@ -48,7 +48,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       }
       if(!document.querySelector('script[data-history-cost-chart]')){
         const extra=document.createElement('script');
-        extra.src='history-cost-chart.js?v=20260908-1';
+        extra.src='history-cost-chart.js?v=20260908-2';
         extra.dataset.historyCostChart='1';
         document.body.appendChild(extra);
       }
