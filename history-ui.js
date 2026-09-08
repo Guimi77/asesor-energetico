@@ -30,7 +30,36 @@
     currentSupply: '',
     initialized: false,
     loading: false,
+    scopeLoading: false,
+    refreshPending: false,
+    loadedScope: null,
+    exporting: false,
   };
+
+  function exportScopeKey() {
+    return JSON.stringify([window.ibtCurrentProfile?.id, window.ibtCurrentProfile?.role, state.currentClient, state.currentHolder, state.currentSupply, $('#historyFrom')?.value || '', $('#historyTo')?.value || '']);
+  }
+  function updateExportButton() {
+    const btn = $('#historyExportClient');
+    if (btn) btn.disabled = state.exporting || state.loading || state.scopeLoading || state.loadedScope !== exportScopeKey() || !state.records.length;
+  }
+  async function exportCurrentHistory() {
+    const key = exportScopeKey();
+    if (state.exporting || state.loading || state.scopeLoading || state.loadedScope !== key || !state.records.length) return;
+    const status = $('#historyExportStatus');
+    state.exporting = true;
+    updateExportButton();
+    if (status) status.textContent = 'Generando Excel de la selección...';
+    try {
+      if (!window.IBTHistoryClientExport) throw new Error('No se ha cargado el exportador. Recarga la página.');
+      const input = structuredClone({client:state.clients.find(c=>c.id===state.currentClient), holders:state.holders, supplies:state.supplies, records:state.records, holderId:state.currentHolder, supplyId:state.currentSupply, from:$('#historyFrom')?.value || '', to:$('#historyTo')?.value || ''});
+      const result = await window.IBTHistoryClientExport.exportSelection(input, {stillCurrent:()=>state.loadedScope===key && exportScopeKey()===key && !state.loading && !state.scopeLoading});
+      if (status) status.textContent = result.records + ' periodos exportados en ' + result.files + ' libro(s).';
+    } catch (error) {
+      console.error('Exportación del histórico', error);
+      if (status) status.textContent = error?.message || 'No se pudo generar el Excel.';
+    } finally { state.exporting = false; updateExportButton(); }
+  }
 
   function injectStyles() {
     if ($('#historyUiStyles')) return;
@@ -65,6 +94,10 @@
               <label>Hasta<input id="historyTo" type="date"></label>
             </div>
             <div class="history-mode-note" id="historyModeNote"></div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
+              <button id="historyExportClient" class="primary export" type="button" disabled>▤ Descargar Excel cliente</button>
+              <span id="historyExportStatus" class="history-scope" role="status" aria-live="polite"></span>
+            </div>
           </section>
           <div id="historyContent"><div class="history-loading">Cargando histórico…</div></div>
         </div>`;
@@ -86,10 +119,11 @@
     const holderIds = (holders || []).map(h => h.id);
     let supplies = [];
     if (holderIds.length) {
-      const { data, error } = await supabase.from('supplies').select('id,holder_id,cups,supply_name,address,current_tariff,status').in('holder_id', holderIds).order('cups');
+      const { data, error } = await supabase.from('supplies').select('id,holder_id,cups,supply_name,address,city,province,current_contract_number,current_tariff,status').in('holder_id', holderIds).order('cups');
       if (error) throw error;
       supplies = data || [];
     }
+    if (clientId !== state.currentClient) return;
     state.holders = holders || [];
     state.supplies = supplies;
     renderHolderOptions();
@@ -104,11 +138,19 @@
     if (internal) {
       host.innerHTML = `<select id="historyClient">${state.clients.map(c => `<option value="${esc(c.id)}" ${c.id===state.currentClient?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`;
       $('#historyClient')?.addEventListener('change', async (e) => {
-        state.currentClient = e.target.value;
+        const clientId = e.target.value;
+        state.currentClient = clientId;
         state.currentHolder = '';
         state.currentSupply = '';
-        await loadClientScope(state.currentClient);
-        await refreshRecords();
+        state.scopeLoading = true;
+        state.loadedScope = null;
+        updateExportButton();
+        try { await loadClientScope(clientId); }
+        catch (error) {
+          if (state.currentClient === clientId) { state.records = []; state.supplies = []; $('#historyContent').innerHTML = '<div class="history-error">No se pudo cargar el cliente: ' + esc(error?.message || error) + '</div>'; }
+          return;
+        } finally { if (state.currentClient === clientId) { state.scopeLoading = false; updateExportButton(); } }
+        if (state.currentClient === clientId) await refreshRecords();
       });
       if (note) note.textContent = 'Acceso interno: puedes cambiar de cliente. La base de datos aplica los permisos de acceso.';
     } else {
@@ -367,23 +409,33 @@
   }
 
   async function refreshRecords() {
-    if (state.loading) return;
+    if (state.loading || state.scopeLoading) { state.refreshPending = true; state.loadedScope = null; updateExportButton(); return; }
     state.loading = true;
+    state.refreshPending = false;
+    state.loadedScope = null;
+    updateExportButton();
+    const requestScope = exportScopeKey();
     const host = $('#historyContent');
     if (host) host.innerHTML = '<div class="history-loading">Cargando histórico…</div>';
     try {
       const supplyIds = state.currentSupply ? [state.currentSupply] : visibleSupplies().map(s=>s.id);
-      state.records = await fetchRecords(supplyIds);
+      const records = await fetchRecords(supplyIds);
+      if (requestScope !== exportScopeKey() || state.scopeLoading) { state.refreshPending = true; return; }
+      state.records = records;
       render(state.records);
+      state.loadedScope = requestScope;
     } catch (error) {
       console.error('Error cargando histórico', error);
       if (host) host.innerHTML = `<div class="history-error">No se ha podido cargar el histórico: ${esc(error?.message || error)}</div>`;
     } finally {
       state.loading = false;
+      updateExportButton();
+      if (state.refreshPending && !state.scopeLoading) { state.refreshPending = false; void refreshRecords(); }
     }
   }
 
   function bindFilters() {
+    $('#historyExportClient')?.addEventListener('click', exportCurrentHistory);
     $('#historyHolder')?.addEventListener('change', async e => {
       state.currentHolder = e.target.value;
       state.currentSupply = '';
@@ -403,6 +455,9 @@
     injectStyles();
     shell();
     state.role = profile.role;
+    state.scopeLoading = true;
+    state.loadedScope = null;
+    updateExportButton();
     try {
       state.clients = await getClients();
       if (!state.clients.length) {
@@ -413,12 +468,13 @@
       renderClientControl();
       await loadClientScope(state.currentClient);
       if (!state.initialized) { bindFilters(); state.initialized = true; }
+      state.scopeLoading = false;
       await refreshRecords();
     } catch (error) {
       console.error('No se pudo iniciar el histórico', error);
       const host = $('#historyContent');
       if (host) host.innerHTML = `<div class="history-error">No se ha podido iniciar el histórico: ${esc(error?.message || error)}</div>`;
-    }
+    } finally { state.scopeLoading = false; updateExportButton(); }
   }
 
   window.addEventListener('ibt-role-changed', e => init(e.detail?.profile));
