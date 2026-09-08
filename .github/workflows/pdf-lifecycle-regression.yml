@@ -1,0 +1,34 @@
+name: PDF resources and history regression
+on:
+  push:
+    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', '.github/workflows/pdf-lifecycle-regression.yml']
+  pull_request:
+    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', '.github/workflows/pdf-lifecycle-regression.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax, resource cleanup and observed changes
+        run: |
+          node --check app.js
+          node --check xtra-history.js
+          node --check supply-enricher-v2.js
+          node --check history-ui.js
+          node --check auth-bootstrap.js
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1 pdf-lib@1.17.1 pdfjs-dist@4.10.38
+          node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Synthetic PDF resource stress test
+        run: node tests/pdf-lifecycle-browser.cjs
