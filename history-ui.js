@@ -272,6 +272,15 @@
     return `<div class="history-detail"><div class="history-section-head"><div><strong>${esc(r.invoice_number)}</strong> · ${dateES(r.billing_start)} – ${dateES(r.billing_end)}</div><span class="history-pill">${esc(r.tariff||'—')}</span></div><div class="history-detail-grid"><div><h4>Energía por periodos</h4>${energyTable}</div><div><h4>Potencia y maxímetros</h4>${powerTable}</div><div><h4>Otros conceptos</h4>${extraHtml}</div></div></div>`;
   }
 
+  function renderRecommendations(records) {
+    try {
+      return window.IBTHistoryRecommendations?.render({ records, supplies:state.supplies, holders:state.holders }) || '';
+    } catch (error) {
+      console.error('No se pudieron preparar las recomendaciones', error);
+      return '<section class="card"><h2>Recomendaciones</h2><p class="history-scope">No se pudieron calcular las propuestas. El histórico sigue disponible.</p></section>';
+    }
+  }
+
   function render(records) {
     const host = $('#historyContent');
     if (!host) return;
@@ -311,7 +320,8 @@
         <div class="history-section-head"><div><p class="eyebrow">Hechos del histórico · no recomendaciones</p><h2 style="margin:0">Cambios observados en el suministro</h2></div><span class="history-scope">Tarifa y potencia contratada</span></div>
         <p class="history-scope">Comparamos los datos de dos periodos guardados. Estos cambios no son recomendaciones de ahorro. La fecha corresponde al inicio del periodo posterior; no confirma el día exacto del cambio contractual.</p>
         <div class="history-events">${events.length ? events.map(renderContractEvent).join('') : '<div class="history-empty">No se observan cambios comparables en esta selección. Los datos ausentes no se interpretan como un cambio.</div>'}</div>
-      </section>`;
+      </section>
+      ${renderRecommendations(records)}`;
 
     $$('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {
       const r = records.find(x => x.id === btn.dataset.id);
