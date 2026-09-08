@@ -42,4 +42,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     };
     document.body.appendChild(script);
   }
+
+  document.querySelector('.sidebar [data-view="historico"]')?.addEventListener('click',()=>{
+    setTimeout(()=>window.IBTHistoryUI?.reload?.(),0);
+  });
 });
