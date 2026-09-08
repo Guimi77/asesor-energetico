@@ -120,6 +120,7 @@
   window.addEventListener('ibt-role-changed', scheduleSync);
   window.addEventListener('energy-master-ready', scheduleSync);
   window.addEventListener('DOMContentLoaded', scheduleSync);
+  if (document.readyState !== 'loading') scheduleSync();
 
   window.XtraSupabasePilot = {
     reload: () => { lastSyncKey = ''; return syncPilot(); },
