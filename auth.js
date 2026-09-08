@@ -7,6 +7,7 @@ window.ibtSupabase=supabase;
 
 const $=s=>document.querySelector(s);
 let currentProfile=null;
+let lastAccessKey='';
 
 function setAuthMessage(text,type='info'){
   const el=$('#authMessage');
@@ -48,7 +49,10 @@ function restoreInternalLinksForStaff(){
 
 function enforceRoleAccess(profile){
   const role=profile?.role||null;
+  const accessKey=profile?`${profile.id}|${role}|${profile.active===false?'0':'1'}`:'signed-out';
   document.body.dataset.role=role||'';
+  if(accessKey===lastAccessKey)return;
+  lastAccessKey=accessKey;
   if(role==='client')hideInternalLocalViewsForClient();
   else restoreInternalLinksForStaff();
   window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile}}));
@@ -141,8 +145,11 @@ window.addEventListener('DOMContentLoaded',()=>{
     $('#pageEyebrow').textContent='Administración';
     await renderUsers();
   });
-  supabase.auth.onAuthStateChange((event)=>{
+  supabase.auth.onAuthStateChange((event,session)=>{
+    const incomingId=session?.user?.id||null;
+    const appliedId=window.ibtCurrentProfile?.id||null;
     if(event==='TOKEN_REFRESHED')return;
+    if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&incomingId&&incomingId===appliedId)return;
     setTimeout(refreshAuth,0);
   });
   refreshAuth();
