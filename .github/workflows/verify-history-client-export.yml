@@ -18,8 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Prepare isolated integration
-        run: node scripts/prepare-history-client-export.cjs
+      - name: Prepare isolated workbook compatibility fix
+        run: node scripts/fix-export-workbook-anchors.cjs
       - name: Syntax and regression tests
         run: |
           node --check history-ui.js
@@ -29,9 +29,11 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1 exceljs@4.4.0 jszip@3.10.1
           node node_modules/playwright/cli.js install --with-deps chromium
+          python -m pip install openpyxl==3.1.5 pillow==11.3.0
       - name: Verify actual workbooks and filtered downloads
         run: |
           node tests/history-client-export-browser.cjs
+          python tests/history-client-export-xml.py
           node tests/history-chart-refresh-browser.cjs
           node tests/history-recommendations-browser.cjs
       - uses: actions/upload-artifact@v4
@@ -39,11 +41,13 @@ jobs:
           name: history-client-export-synthetic
           path: test-output/
           retention-days: 7
-      - name: Commit verified integration to candidate only
+      - name: Commit verified compatibility fix to candidate only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add history-ui.js auth-bootstrap.js index.html tests/history-chart-refresh.test.cjs
+          git add history-client-export.js
           git diff --cached --check
-          git commit -m 'Wire tested filtered Excel client export into history'
-          git push origin HEAD:refs/heads/feat/history-client-export
+          if ! git diff --cached --quiet; then
+            git commit -m 'Use interoperable chart anchors verified by independent XLSX reader'
+            git push origin HEAD:refs/heads/feat/history-client-export
+          fi
