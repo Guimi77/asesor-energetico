@@ -46,6 +46,12 @@ window.addEventListener('DOMContentLoaded',()=>{
       if(window.ibtCurrentProfile){
         window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
       }
+      if(!document.querySelector('script[data-history-cost-chart]')){
+        const extra=document.createElement('script');
+        extra.src='history-cost-chart.js?v=20260908-1';
+        extra.dataset.historyCostChart='1';
+        document.body.appendChild(extra);
+      }
     };
     document.body.appendChild(script);
   }
