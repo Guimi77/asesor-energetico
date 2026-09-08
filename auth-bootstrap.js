@@ -47,7 +47,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-history-ui]')){
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260908-4';
+    script.src='history-ui.js?v=20260908-rec1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
