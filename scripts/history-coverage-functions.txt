@@ -1,0 +1,71 @@
+  // Coverage presentation: the existing totals and stored records stay unchanged.
+  function chartMonthly(records, from = '', to = '') {
+    const numeric = v => v != null && String(v).trim() !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v));
+    const validMonth = k => /^\d{4}-(0[1-9]|1[0-2])$/.test(k);
+    const groups = new Map();
+    for (const r of records) {
+      const key = monthKey(r.billing_end || r.billing_start);
+      if (!validMonth(key)) continue;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    }
+    const totals = new Map(aggregateMonthly(records).map(p => [p.key, p]));
+    const keys = [...groups.keys()].sort();
+    if (!keys.length) return [];
+    let first = keys[0], last = keys.at(-1);
+    const fm = monthKey(from), tm = monthKey(to);
+    if (validMonth(fm) && fm < first) first = fm;
+    if (validMonth(tm) && tm > last) last = tm;
+    const result = [];
+    for (let key = first; key <= last;) {
+      const rows = groups.get(key) || [], total = totals.get(key);
+      const ids = [...new Set(rows.map(r => r.supply_id).filter(Boolean))].sort();
+      const missingKwh = rows.filter(r => !numeric(r.consumption_kwh)).length;
+      const missingEur = rows.filter(r => !numeric(r.total_eur)).length;
+      result.push({ key, kwh: rows.length && !missingKwh ? total.kwh : null, eur: rows.length && !missingEur ? total.eur : null,
+        supplies: ids.length, supplySet: JSON.stringify(ids), records: rows.length, missingKwh, missingEur,
+        zeroRecords: rows.filter(r => numeric(r.consumption_kwh) && Number(r.consumption_kwh) === 0).length });
+      let y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) + 1;
+      if (m === 13) { y++; m = 1; }
+      key = String(y).padStart(4,'0') + '-' + String(m).padStart(2,'0');
+      if (result.length > 1200) throw Error('El intervalo supera 100 a\u00f1os. Revisa las fechas.');
+    }
+    return result;
+  }
+
+  function renderChartCoverage(points, expected) {
+    if (!points.length) return '';
+    const counts = points.map(p => p.supplies), min = Math.min(...counts), max = Math.max(...counts);
+    const variable = new Set(points.map(p => p.supplySet)).size > 1;
+    const partial = points.some(p => p.supplies < expected);
+    const incomplete = points.some(p => p.missingKwh || p.missingEur);
+    const title = variable ? 'Cobertura variable entre meses' : partial ? 'Cobertura parcial de la selecci\u00f3n' : 'Suministros con registros por mes';
+    const countText = min === max ? `${min} de ${expected}` : `Entre ${min} y ${max} de ${expected}`;
+    const warning = variable ? 'No se est\u00e1 comparando el mismo conjunto de CUPS en todos los meses. Una subida o bajada del total no demuestra por s\u00ed sola un cambio de consumo ni ahorro.' : partial ? 'No todos los CUPS seleccionados tienen registros en estos meses. La ausencia de registros no significa consumo cero ni demuestra que falten facturas.' : 'Los mismos CUPS aportan registros en estos meses; esto no confirma meses completos ni la misma duraci\u00f3n facturada.';
+    const rows = points.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.records}</td><td>${p.kwh === null ? '\u2014' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '\u2014' : money(p.eur) + ' \u20ac'}</td></tr>`).join('');
+    return `<section class="card history-coverage${variable || partial || incomplete ? ' history-coverage-warning' : ''}" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${countText} CUPS seleccionados aportan datos, seg\u00fan el mes. ${warning}</p><details><summary>Ver cobertura y cifras por mes</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con registros</th><th>Periodos</th><th>Consumo registrado</th><th>Gasto registrado</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">\u2014 = sin datos completos para ese valor; 0 = valor cero registrado. Cada periodo se asigna a su mes de fin de facturaci\u00f3n, sin reparto diario. El n\u00famero de CUPS no acredita cobertura mensual completa.${incomplete ? ' Hay valores incompletos: no se representan como ceros.' : ''}</p></section>`;
+  }
+
+  function svgChart(points, field, formatter) {
+    if (!points.length) return '<div class="history-empty">Sin datos para este rango.</div>';
+    const vals = points.map(p => Number.isFinite(p[field]) ? p[field] : null);
+    const valid = vals.filter(v => v !== null);
+    const min = Math.min(0, ...valid), max = Math.max(0, ...valid);
+    const span = max - min || 1;
+    const ticks = [0,.5,1].map(f => min + span * f);
+    const padL = Math.max(102, ...ticks.map(v => formatter(v).length * 7 + 18));
+    const W = Math.max(680, padL + 300), H = 180, padR = 40, padT = 12, padB = 28;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (vals[i] - min) / span * innerH }));
+    let connected = false;
+    const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
+    const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / 2; return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
+    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
+    const dots = coords.map(c => {
+      const coverage = Number.isInteger(c.p.supplies) ? ` \u00b7 ${c.p.supplies} CUPS con registros \u00b7 ${c.p.records} periodo(s)` : '';
+      const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
+      return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">\u2014<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
+    }).join('');
+    return `<svg class="history-svg" data-field="${esc(field)}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}</svg>`;
+  }
+
