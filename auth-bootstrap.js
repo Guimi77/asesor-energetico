@@ -30,4 +30,11 @@ window.addEventListener('DOMContentLoaded',()=>{
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
+
+  if(!document.querySelector('script[data-history-ui]')){
+    const script=document.createElement('script');
+    script.src='history-ui.js?v=20260908-1';
+    script.dataset.historyUi='1';
+    document.body.appendChild(script);
+  }
 });
