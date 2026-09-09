@@ -66,20 +66,101 @@
     el.dataset.remoteStatus = type;
   }
 
+  async function ensureCentralSupply(cups, button){
+    const existing = supplyByCups.get(cupsKey(cups));
+    if (existing) return existing;
+    if (!isInternal() || !window.ibtSupabase) return null;
+
+    const local = window.EnergyMaster?.find?.(cups);
+    if (!local) {
+      setMasterStatus(`${cups} no está disponible en el maestro local.`, 'error');
+      return null;
+    }
+
+    const client = norm(local.client || local.company);
+    const holder = norm(local.holder || local.company);
+    if (!client || !holder) {
+      setMasterStatus(`${cups} necesita cliente y titular antes de poder gestionar su estado.`, 'error');
+      return null;
+    }
+
+    const oldText = button?.textContent || 'Estado';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Preparando…';
+    }
+
+    try {
+      const {data,error} = await window.ibtSupabase.rpc('ensure_supply_from_master', {
+        p_client_name: client,
+        p_holder_name: holder,
+        p_cups: cups,
+        p_supply_name: norm(local.name),
+        p_address: norm(local.address),
+        p_city: norm(local.city),
+        p_province: norm(local.province),
+        p_postal_code: norm(local.postalCode || local.postal_code),
+        p_tariff: norm(local.tariff),
+        p_contract_number: norm(local.contract),
+        p_retailer: norm(local.retailer),
+        p_distributor: norm(local.distributor),
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        const messages = {
+          not_authorized: 'Tu usuario no tiene permisos para sincronizar este CUPS.',
+          invalid_cups: 'El CUPS no tiene un formato válido.',
+          client_not_found: 'El cliente todavía no existe en el maestro central.',
+          holder_not_found: 'El titular todavía no existe en el maestro central.',
+        };
+        setMasterStatus(`${cups} · ${messages[data?.reason] || 'No se ha podido sincronizar el suministro.'}`, 'error');
+        return null;
+      }
+
+      await reloadLifecycle();
+      const synced = supplyByCups.get(cupsKey(cups)) || null;
+      if (synced && data.mode === 'inserted') {
+        setMasterStatus(`${cups} incorporado al maestro central. Ya puede gestionarse su estado.`, 'ok');
+      }
+      return synced;
+    } catch (error) {
+      console.error('No se pudo sincronizar el CUPS antes de gestionar su estado', error);
+      setMasterStatus(`${cups} · no se ha podido preparar la gestión de estado: ${String(error?.message || error)}`, 'error');
+      return null;
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = oldText;
+      }
+    }
+  }
+
+  async function openByCups(cups, button){
+    let supply = supplyByCups.get(cupsKey(cups));
+    if (!supply) supply = await ensureCentralSupply(cups, button);
+    if (!supply) return;
+    renderModal(supply);
+  }
+
   function decorateCupsTable(){
     const body = $('#cupsBody');
     if (!body) return;
     for (const row of body.querySelectorAll('tr')) {
       const cells = row.children;
       if (cells.length < 9) continue;
-      const supply = supplyByCups.get(cupsKey(cells[3].textContent));
-      if (!supply) continue;
-      const state = lifecycleLabel(supply);
-      const statusCell = cells[0];
-      const current = statusCell.querySelector('.status');
-      if (!current || current.dataset.lifecycleText !== state.text) {
-        statusCell.innerHTML = `<span class="status ${state.type === 'ok' ? 'ok' : 'review'}" data-lifecycle-text="${esc(state.text)}" title="${esc(state.title)}">${esc(state.text)}</span>`;
+      const cups = norm(cells[3].textContent);
+      if (!cups || cups === '—') continue;
+      const supply = supplyByCups.get(cupsKey(cups));
+
+      if (supply) {
+        const state = lifecycleLabel(supply);
+        const statusCell = cells[0];
+        const current = statusCell.querySelector('.status');
+        if (!current || current.dataset.lifecycleText !== state.text) {
+          statusCell.innerHTML = `<span class="status ${state.type === 'ok' ? 'ok' : 'review'}" data-lifecycle-text="${esc(state.text)}" title="${esc(state.title)}">${esc(state.text)}</span>`;
+        }
       }
+
       const actionCell = cells[8];
       let button = actionCell.querySelector('.manage-lifecycle');
       if (!button) {
@@ -90,8 +171,10 @@
         button.style.marginLeft = '6px';
         actionCell.appendChild(button);
       }
-      button.dataset.supplyId = supply.id;
-      button.onclick = () => openModal(supply.id);
+      button.dataset.cups = cups;
+      button.dataset.supplyId = supply?.id || '';
+      button.title = supply ? 'Gestionar estado e historial del CUPS' : 'Este CUPS se sincronizará con el maestro central al abrir su estado';
+      button.onclick = () => openByCups(cups, button);
     }
   }
 
@@ -324,5 +407,5 @@
   window.addEventListener('DOMContentLoaded', () => { observeTable(); scheduleReload(); });
   if (document.readyState !== 'loading') { observeTable(); scheduleReload(); }
 
-  window.SupplyLifecycle = {reload:reloadLifecycle};
+  window.SupplyLifecycle = {reload:reloadLifecycle,openByCups};
 })();
