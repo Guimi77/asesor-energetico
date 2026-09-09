@@ -126,6 +126,7 @@ await task.destroy();
 }
 function extractFenie(d,file){
 const a=d.pages[0]||[],text=d.text;
+const reading=window.IBTReadingStatus?.classify?.(text)||{status:'unknown',sourceLabel:null};
 const invoiceLine=find(a,/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)/i);
 const invoiceNumber=((invoiceLine.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)||text.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)||[])[1])||'';
 const cups=((find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||'';
@@ -187,7 +188,7 @@ tax_lines:taxLines.length?'extracted':'unreliable',distributor_rights:rights.sta
 integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
 };
 const assessment=Object.values(completeness).some(v=>v==='unreliable'||v==='needs_review')?'needs_review':'complete';
-return {file:file.name,invoiceNumber,cups,tariff,periodText,period,total,kwh,energy,power,excess,reactive,compensation,social,rental,tax,vat,igic,distributorCharges,other,accounted,diff,energyPeriods,powerPeriods,maximeterRows,excessPeriods,reactivePeriods,taxLines,adjustments,distributorRights:rights.items,distributor,retailer:'FENIE ENERGIA',contract,powerReliable:pd.reliable,holderName,holderTaxId,sourceSupplyAddress,accessContract,issueDate,contractType,contractEndDate,meterNumber,completeness,assessment};
+return {file:file.name,invoiceNumber,cups,tariff,periodText,period,total,kwh,energy,power,excess,reactive,compensation,social,rental,tax,vat,igic,distributorCharges,other,accounted,diff,energyPeriods,powerPeriods,maximeterRows,excessPeriods,reactivePeriods,taxLines,adjustments,distributorRights:rights.items,distributor,retailer:'FENIE ENERGIA',contract,powerReliable:pd.reliable,holderName,holderTaxId,sourceSupplyAddress,accessContract,issueDate,contractType,contractEndDate,meterNumber,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,completeness,assessment};
 }
 function parseUiNumber(s){return num(String(s||'').replace(/\s*€/g,''))}
 function rowSnapshot(cups,periodText){
@@ -209,11 +210,20 @@ const ui=await waitForMainRow(x.cups,x.periodText);if(!ui)return {skipped:true,r
 const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'&&same(ui.kwh,x.kwh,.02)&&same(ui.energy,x.energy)&&same(ui.power,x.power)&&same(ui.excess,x.excess)&&same(ui.reactive,x.reactive)&&same(ui.total,x.total);
 if(!validated)return {skipped:true,reason:'crosscheck_failed'};
 const payload={validated:true,cups:x.cups,invoice_number:x.invoiceNumber,billing_start:x.period.start,billing_end:x.period.end,issue_date:x.issueDate,billing_days:x.period.days,tariff:x.tariff,retailer:x.retailer,distributor:x.distributor,
-source_holder_name:x.holderName,source_holder_tax_id:x.holderTaxId,source_supply_address:x.sourceSupplyAddress,access_contract_number:x.accessContract,contract_number:x.contract,contract_type:x.contractType,contract_end_date:x.contractEndDate,meter_number:x.meterNumber,
+source_holder_name:x.holderName,source_holder_tax_id:x.holderTaxId,source_supply_address:x.sourceSupplyAddress,access_contract_number:x.accessContract,contract_number:x.contract,contract_type:x.contractType,contract_end_date:x.contractEndDate,meter_number:x.meterNumber,reading_status:x.readingStatus,reading_source_label:x.readingSourceLabel,
 consumption_kwh:x.kwh,energy_cost_eur:x.energy,power_cost_eur:x.power,excess_cost_eur:x.excess,reactive_cost_eur:x.reactive,compensation_eur:x.compensation,social_bonus_eur:x.social,meter_rental_eur:x.rental,distributor_charges_eur:x.distributorCharges,electricity_tax_eur:x.tax,vat_eur:x.vat,igic_eur:x.igic,other_cost_eur:x.other,total_eur:x.total,accounted_eur:x.accounted,difference_eur:x.diff,average_total_eur_kwh:x.kwh?x.total/x.kwh:null,
 parser_version:window.IBT_PARSER_VERSION||'FENIE',validation_message:'Validado contra parser principal antes de guardar histórico',completeness_assessment_status:x.assessment,source_completeness:x.completeness,
 energy_periods:x.energyPeriods,power_periods:x.powerPeriods,maximeters:x.maximeterRows,excess_periods:x.excessPeriods,reactive_periods:x.reactivePeriods,tax_lines:x.taxLines,distributor_rights:x.distributorRights,adjustments:x.adjustments};
-const {data,error}=await supabase.rpc('upsert_xtra_energy_history',{p_payload:payload});if(error)throw error;return data||{ok:false};
+const {data,error}=await supabase.rpc('upsert_xtra_energy_history',{p_payload:payload});if(error)throw error;
+const result=data||{ok:false};
+if(result?.ok){
+  try{
+    const {data:readingData,error:readingError}=await supabase.rpc('enrich_xtra_invoice_reading_status',{p_payload:{validated:true,cups:x.cups,invoice_number:x.invoiceNumber,billing_start:x.period.start,billing_end:x.period.end,consumption_kwh:x.kwh,total_eur:x.total,reading_status:x.readingStatus,reading_source_label:x.readingSourceLabel}});
+    if(readingError)console.warn('Calidad lectura XTRA:',file.name,readingError);
+    else if(readingData?.ok===false)console.warn('Calidad lectura XTRA:',file.name,readingData);
+  }catch(readingError){console.warn('Calidad lectura XTRA:',file.name,readingError)}
+}
+return result;
 }
 async function renderSummary(){
 const supabase=window.ibtSupabase,profile=window.ibtCurrentProfile,view=$('#historicoView');
