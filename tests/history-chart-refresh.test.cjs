@@ -5,7 +5,7 @@ const BASE='c2a3e38daf5c064960c166941692f01691f1d7fa';
 const source=f=>fs.readFileSync(f,'utf8'),old=f=>execFileSync('git',['show',BASE+':'+f],{encoding:'utf8'});
 const ui=source('history-ui.js');
 const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
-const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),monthLabel:v=>v};
+const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c])),monthLabel:v=>v};
 vm.createContext(ctx);vm.runInContext(chunk(ui,'  function svgCostChart','  function powerSignature')+'\nglobalThis.chart=svgCostChart;',ctx);
 test('Third chart belongs to the core history renderer and old sidecar is not loaded',()=>{
  assert(ui.includes('id="historyCostChart"'));assert(ui.includes('${svgCostChart(monthly)}'));
@@ -37,5 +37,6 @@ test('Two original charts, aggregation, recommendations, data fetching and auth 
  assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
  // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
- for(const f of ['app.js','supply-enricher-v2.js','auth.js','bulk-performance.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
+ // bulk-performance.js is intentionally covered by the dedicated bulk-import regression.
+ for(const f of ['app.js','supply-enricher-v2.js','auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
 });
