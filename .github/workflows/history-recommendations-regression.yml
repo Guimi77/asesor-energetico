@@ -1,9 +1,9 @@
 name: History recommendations regression
 on:
   push:
-    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', '.github/workflows/history-recommendations-regression.yml']
   pull_request:
-    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', '.github/workflows/history-recommendations-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
