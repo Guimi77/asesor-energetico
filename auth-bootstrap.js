@@ -46,7 +46,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-supply-lifecycle]')){
     const script=document.createElement('script');
-    script.src='supply-lifecycle.js?v=20260909-1';
+    script.src='supply-lifecycle.js?v=20260909-2';
     script.dataset.supplyLifecycle='1';
     document.body.appendChild(script);
   }
