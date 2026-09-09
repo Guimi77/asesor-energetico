@@ -11,7 +11,7 @@
     minimumPowerDays: 80,
     maximumUseRatio: 0.5,
   });
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   function number(v) {
     if ((typeof v !== 'number' && typeof v !== 'string') || String(v).trim() === '') return null;
     const x = Number(v); return Number.isFinite(x) ? x : null;
@@ -71,6 +71,32 @@
     }
     return [...byPeriod.values()].sort((a,b) => a.period-b.period).map(x => ({...x, amount:Math.round(x.amount*100)/100}));
   }
+  function reactivePeriodMeasurements(list) {
+    const byPeriod = new Map();
+    for (const r of list) {
+      const seenInInvoice = new Set();
+      for (const row of Array.isArray(r.invoice_reactive) ? r.invoice_reactive : []) {
+        const period = number(row.period), amount = number(row.amount_eur), reactiveKvarh = number(row.reactive_kvarh);
+        if (!Number.isInteger(period) || period < 1 || period > 6 || amount == null || amount <= 0) continue;
+        if (!byPeriod.has(period)) byPeriod.set(period, {period, invoices:0, amount:0, totalReactiveKvarh:0, maximumReactiveKvarh:0, kvarhRows:0});
+        const stat = byPeriod.get(period);
+        stat.amount += amount;
+        if (reactiveKvarh != null && reactiveKvarh > 0) {
+          stat.totalReactiveKvarh += reactiveKvarh;
+          stat.maximumReactiveKvarh = Math.max(stat.maximumReactiveKvarh, reactiveKvarh);
+          stat.kvarhRows++;
+        }
+        if (!seenInInvoice.has(period)) { stat.invoices++; seenInInvoice.add(period); }
+      }
+    }
+    return [...byPeriod.values()].sort((a,b) => a.period-b.period).map(x => ({
+      period:x.period,
+      invoices:x.invoices,
+      amount:Math.round(x.amount*100)/100,
+      totalReactiveKvarh:x.kvarhRows ? Math.round(x.totalReactiveKvarh*100)/100 : null,
+      maximumReactiveKvarh:x.kvarhRows ? Math.round(x.maximumReactiveKvarh*100)/100 : null,
+    }));
+  }
   function powerReview(list, supplyId, sources) {
     const tariff = String(list[0]?.tariff || '').toUpperCase();
     if (list.length < RULES.minimumPowerRecords || !/^(3\.0TD|6\.[1-4]TD)$/.test(tariff)) return null;
@@ -128,17 +154,6 @@
     for (const [supplyId, source] of groups) {
       const list = [...source].sort((a,b) => a.billing_start.localeCompare(b.billing_start) || a.billing_end.localeCompare(b.billing_end));
       const sources = list.map(reference);
-      function charge(type, field, title, action) {
-        const withAmounts = list.filter(r => number(r[field]) != null);
-        const entries = withAmounts.filter(r => number(r[field]) !== 0);
-        const gross = entries.reduce((s,r) => s + Math.max(cents(number(r[field])), 0), 0);
-        const credits = entries.reduce((s,r) => s + Math.min(cents(number(r[field])), 0), 0);
-        if (gross + credits <= 0) return;
-        items.push({ type, supplyId, title, action, amount:(gross+credits)/100,
-          evidence:`${entries.filter(r=>number(r[field])>0).length} registro(s) con cargos de ${withAmounts.length} con dato de este concepto. Cargos: ${format(gross/100)} €. Abonos del mismo concepto: ${format(credits/100)} €. Saldo: ${format((gross+credits)/100)} €.`,
-          caveat:'Importe identificado en este concepto, no ahorro previsto. Revisar también regularizaciones y el detalle de las facturas antes de valorar una actuación.',
-          sources:entries.map(r=>({...reference(r), amount:number(r[field])})), measurements:[], detailKind:'generic' });
-      }
 
       const excessWithAmounts = list.filter(r => number(r.excess_cost_eur) != null);
       const excessEntries = excessWithAmounts.filter(r => number(r.excess_cost_eur) !== 0);
@@ -162,8 +177,29 @@
         });
       }
 
-      charge('reactive', 'reactive_cost_eur', 'Revisar la energía reactiva',
-        'Comprobar el origen de la reactiva y el funcionamiento de la compensación existente, si la hay. Valorar una corrección tras revisar las mediciones y el coste de la intervención.');
+      const reactiveWithAmounts = list.filter(r => number(r.reactive_cost_eur) != null);
+      const reactiveEntries = reactiveWithAmounts.filter(r => number(r.reactive_cost_eur) !== 0);
+      const reactiveGross = reactiveEntries.reduce((s,r) => s + Math.max(cents(number(r.reactive_cost_eur)), 0), 0);
+      const reactiveCredits = reactiveEntries.reduce((s,r) => s + Math.min(cents(number(r.reactive_cost_eur)), 0), 0);
+      if (reactiveGross + reactiveCredits > 0) {
+        const positiveInvoices = reactiveEntries.filter(r=>number(r.reactive_cost_eur)>0).length;
+        const repeated = positiveInvoices >= 2;
+        const measurements = reactivePeriodMeasurements(list);
+        const periodText = measurements.length
+          ? ` Periodos con coste identificado: ${measurements.map(m=>`P${m.period}`).join(', ')}.`
+          : ' No hay desglose por periodos suficiente para localizar el cargo dentro de P1-P6.';
+        items.push({
+          type:'reactive', supplyId,
+          title:repeated ? 'Energía reactiva recurrente' : 'Revisar la energía reactiva',
+          action:repeated
+            ? 'Comprobar el origen de la reactiva, el estado y regulación de la compensación existente, si la hay, y si los cargos se concentran en periodos concretos. Si se confirma el patrón, estudiar técnicamente la compensación y su coste antes de dimensionar o sustituir equipos.'
+            : 'Comprobar si el cargo corresponde a una situación puntual o a un patrón que empieza a repetirse. Revisar la instalación y la compensación existente, si la hay, antes de plantear una intervención.',
+          amount:(reactiveGross+reactiveCredits)/100,
+          evidence:`${positiveInvoices} factura(s) con cargo por reactiva de ${reactiveWithAmounts.length} con dato. Cargos: ${format(reactiveGross/100)} €. Abonos: ${format(reactiveCredits/100)} €. Saldo: ${format((reactiveGross+reactiveCredits)/100)} €.${periodText}`,
+          caveat:'El coste de reactiva registrado no equivale a ahorro posible ni demuestra por sí solo que sea necesario instalar o sustituir una batería de condensadores. Hay que revisar la instalación y las mediciones antes de dimensionar una solución.',
+          sources:reactiveEntries.map(r=>({...reference(r), amount:number(r.reactive_cost_eur)})), measurements, detailKind:'reactive', repeated,
+        });
+      }
 
       // Do not suggest a reduction when any excess exists, is unknown, or when
       // powers/tariffs changed. Never infer 2.0TD demand from a six-period table.
@@ -186,6 +222,9 @@
     if (!item.measurements?.length) return '';
     if (item.detailKind === 'excess') {
       return `<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Facturas con exceso</th><th>Máximo exceso</th><th>Coste registrado</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${p.invoices}</td><td>${format(p.maximumExcessKw,2)} kW</td><td>${format(p.amount)} €</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    if (item.detailKind === 'reactive') {
+      return `<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Facturas con cargo</th><th>Reactiva registrada</th><th>Máximo por factura</th><th>Coste registrado</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${p.invoices}</td><td>${p.totalReactiveKvarh==null?'—':format(p.totalReactiveKvarh,2)+' kVArh'}</td><td>${p.maximumReactiveKvarh==null?'—':format(p.maximumReactiveKvarh,2)+' kVArh'}</td><td>${format(p.amount)} €</td></tr>`).join('')}</tbody></table></div>`;
     }
     if (item.detailKind === 'power') {
       return `<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Contratada</th><th>Máximo observado</th><th>Utilización máxima</th><th>Facturas comparadas</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${format(p.contracted,3)} kW</td><td>${format(p.maximum,3)} kW</td><td>${format(p.ratio*100,1)} %</td><td>${p.observations}</td></tr>`).join('')}</tbody></table></div>`;
