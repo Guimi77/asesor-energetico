@@ -44,6 +44,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-supply-lifecycle]')){
+    const script=document.createElement('script');
+    script.src='supply-lifecycle.js?v=20260909-1';
+    script.dataset.supplyLifecycle='1';
+    document.body.appendChild(script);
+  }
+
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
