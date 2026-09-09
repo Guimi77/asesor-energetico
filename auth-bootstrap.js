@@ -45,13 +45,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
-  if(!document.querySelector('script[data-xtra-completeness]')){
-    const script=document.createElement('script');
-    script.type='module';
-    script.src='xtra-completeness.js?v=20260909-1';
-    script.dataset.xtraCompleteness='1';
-    document.body.appendChild(script);
-  }
+  // xtra-completeness.js queda temporalmente fuera del cargador.
+  // Su versión 2026.09.09.1 puede competir con xtra-history v2 y degradar
+  // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
+  // auditando y guardando el histórico validado mientras se finaliza el sidecar v2.
 
   if(!document.querySelector('script[data-history-ui]')){
     const script=document.createElement('script');
