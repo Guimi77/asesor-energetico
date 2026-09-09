@@ -51,6 +51,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-lifecycle-analysis-guard]')){
+    const script=document.createElement('script');
+    script.src='lifecycle-analysis-guard.js?v=20260909-1';
+    script.dataset.lifecycleAnalysisGuard='1';
+    document.body.appendChild(script);
+  }
+
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
