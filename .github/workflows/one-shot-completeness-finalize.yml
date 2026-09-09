@@ -89,6 +89,15 @@ jobs:
           q=q[:start]+block+q[end:]
           q=q.replace("'tax_lines:x.taxLines','adjustments:x.adjustments'","'tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'")
           t.write_text(q)
+
+          u=Path('tests/pdf-lifecycle.test.cjs')
+          r=u.read_text()
+          r=r.replace("'tax_lines:x.taxLines','adjustments:x.adjustments'","'tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'")
+          r=r.replace("const COMPLETENESS_VERSION='fenie-2026.09.09.1'","const COMPLETENESS_VERSION='fenie-2026.09.09.2'")
+          r=r.replace("for(const state of [\"'extracted'\",\"'not_present'\",\"'not_applicable'\",\"'unreliable'\"])","for(const state of [\"'extracted'\",\"'not_present'\",\"'not_applicable'\",\"'unreliable'\",\"'needs_review'\"])")
+          r=r.replace('assert(s.includes("if(rightsComplete)adjustments.push(...rights.items);"));','assert(!s.includes("adjustments.push(...rights.items)"));')
+          r=r.replace('assert(s.includes("distributor_rights:rights.text?(rightsComplete?\'extracted\':\'unreliable\'):\'not_present\'"));','assert(s.includes("distributor_rights:rights.status"));')
+          u.write_text(r)
           PY
       - name: Run parser regression suite
         run: |
@@ -102,6 +111,6 @@ jobs:
           rm .github/workflows/one-shot-completeness-finalize.yml
           git config user.name 'Guimi77'
           git config user.email 'tecnico1@electricabt.com'
-          git add xtra-history.js tests/xtra-completeness.test.cjs .github/workflows/one-shot-completeness-finalize.yml
+          git add xtra-history.js tests/xtra-completeness.test.cjs tests/pdf-lifecycle.test.cjs .github/workflows/one-shot-completeness-finalize.yml
           git commit -m 'Finalize FENIE completeness persistence'
           git push origin HEAD:tmp-completeness-safety-6
