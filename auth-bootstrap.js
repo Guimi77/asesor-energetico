@@ -45,6 +45,14 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-xtra-completeness]')){
+    const script=document.createElement('script');
+    script.type='module';
+    script.src='xtra-completeness.js?v=20260909-1';
+    script.dataset.xtraCompleteness='1';
+    document.body.appendChild(script);
+  }
+
   if(!document.querySelector('script[data-history-ui]')){
     const script=document.createElement('script');
     script.src='history-ui.js?v=20260908-coverage1';
