@@ -1,9 +1,9 @@
 name: Parser regression
 on:
   push:
-    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'tests/**', '.github/workflows/parser-regression.yml']
   pull_request:
-    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'tests/**', '.github/workflows/parser-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,5 +22,7 @@ jobs:
         run: |
           node --check app.js
           node --check parser-audit.js
+          node --check bulk-performance.js
+          node --check folder-upload.js
       - name: Run synthetic regression cases
         run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs
