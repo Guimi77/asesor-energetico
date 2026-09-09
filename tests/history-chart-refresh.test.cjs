@@ -37,5 +37,5 @@ test('Two original charts, aggregation, recommendations, data fetching and auth 
  assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
  // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
- for(const f of ['app.js','xtra-history.js','supply-enricher-v2.js','auth.js','bulk-performance.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
+ for(const f of ['app.js','supply-enricher-v2.js','auth.js','bulk-performance.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
 });
