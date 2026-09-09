@@ -1,0 +1,142 @@
+name: One-shot FENIE sidecar finalizer
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/one-shot-sidecar-finalize.yml']
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch completeness sidecar safely
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('xtra-completeness.js')
+          s=p.read_text()
+
+          def once(old,new,label):
+              global s
+              n=s.count(old)
+              if n!=1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {n}')
+              s=s.replace(old,new,1)
+
+          once("const VERSION='2026.09.09.1';","const VERSION='fenie-2026.09.09.2';",'version')
+          once("const euros=s=>[...String(s||'').matchAll(/(-?[\\d.]+,\\d{2})\\s*€/g)].map(m=>num(m[1])).filter(v=>v!=null);","const euros=s=>[...String(s||'').matchAll(/(-?[\\d.]+,\\d{2})\\s*€(?!\\s*\\/)/g)].map(m=>num(m[1])).filter(v=>v!=null);",'euros')
+
+          new_rights=r'''function parseRights(a){
+  const signal=/Derechos\s+(?:de\s+)?(Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche|Actuaci[oó]n Equipos)\s+Distribuidora/ig;
+  const block=[];let active=false;
+  for(const line of a){
+    signal.lastIndex=0;
+    if(signal.test(line)){active=true;block.push(line);continue}
+    if(active){if(/^(?:Impuesto electricidad|Alquiler Equipo|IVA\b|IGIC\b|TOTAL FACTURA)/i.test(line))break;block.push(line)}
+  }
+  const text=clean(block.join(' '));
+  if(!text)return {rows:[],signalCount:0,status:'not_present',residual:0};
+  signal.lastIndex=0;
+  const matches=[...text.matchAll(signal)],rows=[];
+  for(let i=0;i<matches.length;i++){
+    const m=matches[i],start=m.index??0,end=i+1<matches.length?(matches[i+1].index??text.length):text.length;
+    const segment=text.slice(start,end),values=euros(segment),amount=values.length?values.at(-1):null;
+    if(amount==null)continue;
+    const legal=(segment.match(/\(([^\)]*(?:R\.D\.|Art\.)[^\)]*)\)/i)||[])[1]||null;
+    rows.push({concept:`Derechos ${m[1]} Distribuidora`,amount_eur:amount,legal_reference:legal,source_text:segment.slice(0,220)});
+  }
+  const totalMarker=text.match(/Derechos\s+de\s+(-?[\d.]+,\d{2})\s*€(?!\s*\/)/i);
+  const known=round2(rows.reduce((sum,row)=>sum+Number(row.amount_eur||0),0));
+  const total=totalMarker?Number(num(totalMarker[1])):null;
+  const residual=total==null?0:round2(total-known);
+  if(total!=null&&Math.abs(residual)>.05){
+    if(residual>0)rows.push({concept:'Derecho distribuidora no identificado',amount_eur:residual,legal_reference:null,source_text:text.slice(0,220)});
+    return {rows,signalCount:matches.length,status:'needs_review',residual};
+  }
+  const complete=matches.length===rows.length;
+  return {rows,signalCount:matches.length,status:complete?(rows.length?'extracted':'not_present'):'needs_review',residual:0};
+}'''
+          pat=r'function parseRights\(a\)\{.*?\n\}\n\nfunction parseMaximeters'
+          s2,n=re.subn(pat,lambda m:new_rights+'\n\nfunction parseMaximeters',s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'parseRights replacement: {n}')
+          s=s2
+          once("distributor_rights:{status:rights.status,count:rights.rows.length}","distributor_rights:{status:rights.status,count:rights.rows.length,residual_eur:rights.residual}",'rights completeness metadata')
+          p.write_text(s)
+
+          a=Path('auth-bootstrap.js')
+          q=a.read_text()
+          old="script.src='xtra-completeness.js?v=20260909-1';"
+          new="script.src='xtra-completeness.js?v=20260909-2';"
+          if q.count(old)!=1:
+              raise SystemExit(f'cache key: expected 1 occurrence, found {q.count(old)}')
+          a.write_text(q.replace(old,new,1))
+
+          test=Path('tests/xtra-sidecar-completeness.test.cjs')
+          test.write_text(r'''\'use strict\';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const source=fs.readFileSync('xtra-completeness.js','utf8');
+const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
+const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
+vm.createContext(ctx);
+vm.runInContext(beforePdf+'\nglobalThis.api={euros,parseRights};',ctx);
+const plain=v=>JSON.parse(JSON.stringify(v));
+
+test('Sidecar uses the final semantic completeness version',()=>{
+  assert(source.includes("const VERSION='fenie-2026.09.09.2';"));
+});
+
+test('Sidecar monetary extraction ignores unit prices',()=>{
+  const values=plain(ctx.api.euros('0,123456 €/kWh 0,20 €/kWh = 15,47 €'));
+  assert.deepEqual(values,[15.47]);
+});
+
+test('Sidecar keeps explicit distributor rights and the unknown residual',()=>{
+  const r=plain(ctx.api.parseRights([
+    'Derechos de Verificación Distribuidora (R.D. 1048/2013, Art. 29). (8,01€).Derechos de Extensión Distribuidora (R.D.',
+    '1048/2013, Art. 25). (39,09€).Derechos Actuación Equipos Distribuidora (R.D. 1048/2013, Art. 29). (9,04€).Derechos de 91,43 €',
+    'Impuesto electricidad 1,00 €'
+  ]));
+  assert.equal(r.status,'needs_review');
+  assert.equal(r.rows.length,4);
+  assert.equal(r.rows.at(-1).concept,'Derecho distribuidora no identificado');
+  assert.equal(r.rows.at(-1).amount_eur,35.29);
+  assert.equal(r.residual,35.29);
+});
+
+test('Sidecar payload persists distributor rights and residual metadata',()=>{
+  assert(source.includes('distributor_rights:rights.rows'));
+  assert(source.includes('residual_eur:rights.residual'));
+  const bootstrap=fs.readFileSync('auth-bootstrap.js','utf8');
+  assert(bootstrap.includes("xtra-completeness.js?v=20260909-2"));
+});
+'''.replace("\\'use strict\\';","'use strict';"))
+          PY
+      - name: Run regression suite
+        run: |
+          node --check xtra-completeness.js
+          node --test tests/xtra-sidecar-completeness.test.cjs tests/xtra-completeness.test.cjs tests/pdf-lifecycle.test.cjs tests/power-regression.test.cjs
+          git diff --check
+      - name: Commit tested patch and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-sidecar-finalize.yml
+          git config user.name 'Guimi77'
+          git config user.email 'tecnico1@electricabt.com'
+          git add xtra-completeness.js auth-bootstrap.js tests/xtra-sidecar-completeness.test.cjs .github/workflows/one-shot-sidecar-finalize.yml
+          git commit -m 'Finalize FENIE completeness sidecar'
+          git push origin HEAD:main
