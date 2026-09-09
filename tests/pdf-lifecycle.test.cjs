@@ -41,14 +41,27 @@ for(const [path,name,end] of readerSpec){
   assert.equal(r.stats().opened,1);assert.equal(r.stats().closed,1);
  });
 }
-test('Fenie calculations and historical validation are byte-for-byte unchanged',()=>{
+test('Fenie main calculations and unrelated persistence/auth/export code remain byte-for-byte unchanged',()=>{
  assert.equal(slice(source('app.js'),'const find=','async function process'),slice(old('app.js'),'const find=','async function process'));
  assert.equal(slice(source('app.js'),'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('app.js'),'async function process','const XL='),slice(old('app.js'),'async function process','const XL='));
  assert.equal(source('app.js').slice(source('app.js').indexOf('const XL=')),old('app.js').slice(old('app.js').indexOf('const XL=')));
- for(const [a,b] of [['function extractFenie','function parseUiNumber'],['async function persistOne','async function renderSummary']])assert.equal(slice(source('xtra-history.js'),a,b),slice(old('xtra-history.js'),a,b));
  assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
  for(const path of ['auth.js','auth.css','parser-audit.js','bulk-performance.js','history-cost-chart.js','client-report-export.js'])assert.equal(source(path),old(path),path+' must not change');
+});
+test('Historical completeness persistence remains fail-closed, cross-checked and PDF-free',()=>{
+ const s=source('xtra-history.js');
+ const persist=slice(s,'async function persistOne','async function renderSummary');
+ for(const token of ["/Correcta/i.test(ui.status)","ui.balance==='OK'","same(ui.kwh,x.kwh,.02)","same(ui.energy,x.energy)","same(ui.power,x.power)","same(ui.excess,x.excess)","same(ui.reactive,x.reactive)","same(ui.total,x.total)"])assert(persist.includes(token),token);
+ assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history'"));
+ const payload=persist.slice(persist.indexOf('const payload={'),persist.indexOf("const {data,error}=await"));
+ for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/pdfData/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
+ for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','adjustments:x.adjustments'])assert(payload.includes(required),required);
+ assert(s.includes("const COMPLETENESS_VERSION='fenie-2026.09.09.1'"));
+ for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'"])assert(s.includes(state),state);
+ assert(s.includes("if(rightsComplete)adjustments.push(...rights.items);"));
+ assert(s.includes("distributor_rights:rights.text?(rightsComplete?'extracted':'unreliable'):'not_present'"));
+ assert(s.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
 function eventsApi(){
  const context={Map,Number,Math,String,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),dateES:v=>String(v).split('-').reverse().join('/'),supplyById:()=>({supply_name:'Suministro de prueba',cups:'CUPS SINTETICO'}),holderForSupply:()=>({legal_name:'Titular de prueba'})};
