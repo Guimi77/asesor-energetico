@@ -1,9 +1,9 @@
 name: History recommendations regression
 on:
   push:
-    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', '.github/workflows/history-recommendations-regression.yml']
   pull_request:
-    paths: ['history-recommendations*', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', '.github/workflows/history-recommendations-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,10 +20,11 @@ jobs:
           node-version: '22'
       - name: Check syntax and regressions
         run: |
+          node --check reading-status.js
           node --check history-recommendations.js
           node --check history-ui.js
           node --check auth-bootstrap.js
-          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-reactive.test.cjs
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-reactive.test.cjs tests/reading-status.test.cjs
       - name: Install isolated browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
