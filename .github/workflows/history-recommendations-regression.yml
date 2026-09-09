@@ -23,7 +23,7 @@ jobs:
           node --check history-recommendations.js
           node --check history-ui.js
           node --check auth-bootstrap.js
-          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs
+          node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/history-recommendations.test.cjs tests/history-reactive.test.cjs
       - name: Install isolated browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
