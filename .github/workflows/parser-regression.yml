@@ -1,9 +1,9 @@
 name: Parser regression
 on:
   push:
-    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-lifecycle.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   pull_request:
-    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-lifecycle.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,5 +25,6 @@ jobs:
           node --check bulk-performance.js
           node --check folder-upload.js
           node --check supply-lifecycle.js
+          node --check lifecycle-analysis-guard.js
       - name: Run synthetic regression cases
-        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs
+        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs
