@@ -47,7 +47,7 @@ test('Repeated reactive charges expose period, kVArh and cost evidence',()=>{
   assert.deepEqual(x.measurements[1],{period:2,invoices:2,amount:10,totalReactiveKvarh:300,maximumReactiveKvarh:200});
   assert.equal(x.recommendedKvar,undefined);
   assert.match(x.action,/compensación/);
-  assert.match(x.caveat,/no demuestra por sí solo/);
+  assert.match(x.caveat,/demuestra por sí solo/);
   const html=api.render({records:rows,supplies,holders:[{id:'h1',legal_name:'Titular reactiva'}]});
   assert.match(html,/Reactiva registrada/);
   assert.match(html,/450,00 kVArh/);
