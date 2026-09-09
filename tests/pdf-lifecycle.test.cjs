@@ -47,7 +47,21 @@ test('Fenie main calculations and unrelated persistence/auth/export code remain 
  assert.equal(slice(source('app.js'),'async function process','const XL='),slice(old('app.js'),'async function process','const XL='));
  assert.equal(source('app.js').slice(source('app.js').indexOf('const XL=')),old('app.js').slice(old('app.js').indexOf('const XL=')));
  assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
- for(const path of ['auth.js','auth.css','parser-audit.js','bulk-performance.js','history-cost-chart.js','client-report-export.js'])assert.equal(source(path),old(path),path+' must not change');
+ for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js','client-report-export.js'])assert.equal(source(path),old(path),path+' must not change');
+});
+test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
+ const s=source('bulk-performance.js');
+ for(const token of [
+  "const isChange = this?.id === 'fileInput' && type === 'change' && src.includes('enqueue')",
+  "const isDrop = this?.id === 'dropZone' && type === 'drop' && src.includes('enqueue')",
+  "historyText = 'Histórico: esperando a que termine la lectura principal…'",
+  "args[0] === 'Error leyendo'",
+  "'xtra-history-updated'",
+  'const duplicates = Math.max(0, processed - added - readErrors)',
+  'Tiempo empleado:'
+ ])assert(s.includes(token),token);
+ assert(s.includes('if (slot === 1)'));
+ assert(s.includes('deferredHistory = () => listener.call'));
 });
 test('Historical completeness persistence remains fail-closed, cross-checked and PDF-free',()=>{
  const s=source('xtra-history.js');
