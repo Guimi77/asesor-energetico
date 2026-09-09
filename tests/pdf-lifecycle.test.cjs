@@ -56,11 +56,11 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history'"));
  const payload=persist.slice(persist.indexOf('const payload={'),persist.indexOf("const {data,error}=await"));
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/pdfData/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
- for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','adjustments:x.adjustments'])assert(payload.includes(required),required);
- assert(s.includes("const COMPLETENESS_VERSION='fenie-2026.09.09.1'"));
- for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'"])assert(s.includes(state),state);
- assert(s.includes("if(rightsComplete)adjustments.push(...rights.items);"));
- assert(s.includes("distributor_rights:rights.text?(rightsComplete?'extracted':'unreliable'):'not_present'"));
+ for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
+ assert(s.includes("const COMPLETENESS_VERSION='fenie-2026.09.09.2'"));
+ for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'","'needs_review'"])assert(s.includes(state),state);
+ assert(!s.includes("adjustments.push(...rights.items)"));
+ assert(s.includes("distributor_rights:rights.status"));
  assert(s.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
 function eventsApi(){

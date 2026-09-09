@@ -7,13 +7,13 @@ const source=fs.readFileSync('xtra-history.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
-vm.runInContext(beforePdf+'\nglobalThis.api={status,excessRows,reactiveRows,taxRows,rightsDetail};',ctx);
+vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,excessRows,reactiveRows,taxRows,rightsDetail};',ctx);
 const plain=v=>JSON.parse(JSON.stringify(v));
 test('Completeness states distinguish missing, not applicable and unreliable data',()=>{
  assert.equal(ctx.api.status('dato',false),'extracted');
  assert.equal(ctx.api.status('',false),'not_present');
  assert.equal(ctx.api.status('',true),'unreliable');
- for(const state of ['extracted','not_present','not_applicable','unreliable'])assert(source.includes("'"+state+"'"));
+ for(const state of ['extracted','not_present','not_applicable','unreliable','needs_review'])assert(source.includes("'"+state+"'"));
 });
 test('Period excess detail keeps measured kW, unit price and exact amount',()=>{
  const rows=plain(ctx.api.excessRows(['P1: 2,50 x 3,20 = 8,00 €','P2: 0,00 x 3,20 = 0,00 €']));
@@ -27,17 +27,22 @@ test('Multiple tax lines remain separate instead of being collapsed',()=>{
  const rows=plain(ctx.api.taxRows(['IVA Reducido 10,00 % s/ 100,00 = 10,00 €','IVA 21,00 % s/ 50,00 = 10,50 €']));
  assert.equal(rows.length,2);assert.equal(rows[0].rate_pct,10);assert.equal(rows[0].taxable_base_eur,100);assert.equal(rows[0].amount_eur,10);assert.equal(rows[1].rate_pct,21);assert.equal(rows[1].amount_eur,10.5);
 });
-test('Distributor rights are only itemized when source allocation is explicit',()=>{
- const one=plain(ctx.api.rightsDetail(['Derechos Actuación Equipos Distribuidora (9,04 €)'],9.04));
- assert.equal(one.items.length,1);assert.equal(one.items[0].amount_eur,9.04);
- const ambiguous=plain(ctx.api.rightsDetail(['Derechos Acceso Distribuidora','Derechos Enganche Distribuidora'],48.13));
- assert.equal(ambiguous.items.length,0);
- assert(source.includes('if(rightsComplete)adjustments.push(...rights.items);'));
- assert(source.includes("rightsComplete?'extracted':'unreliable'"));
+test('Monetary extraction never mistakes unit prices for billed euros',()=>{
+ const values=plain(ctx.api.euros('0,123456 €/kWh 0,20 €/kWh = 15,47 €'));
+ assert.deepEqual(values,[15.47]);
+});
+test('Distributor rights keep explicit detail and surface any unknown residual',()=>{
+ const one=plain(ctx.api.rightsDetail(['Derechos Actuación Equipos Distribuidora (R.D. 1048/2013, Art. 29). 9,04 €'],9.04));
+ assert.equal(one.status,'extracted');assert.equal(one.items.length,1);assert.equal(one.items[0].amount_eur,9.04);
+ const truncated=plain(ctx.api.rightsDetail(['Derechos de Verificación Distribuidora (R.D. 1048/2013, Art. 29). (8,01€).Derechos de Extensión Distribuidora (R.D.','1048/2013, Art. 25). (39,09€).Derechos Actuación Equipos Distribuidora (R.D. 1048/2013, Art. 29). (9,04€).Derechos de 91,43 €'],91.43));
+ assert.equal(truncated.status,'needs_review');assert.equal(truncated.items.length,4);
+ assert.equal(truncated.items.at(-1).concept,'Derecho distribuidora no identificado');assert.equal(truncated.items.at(-1).amount_eur,35.29);
+ assert(!source.includes('adjustments.push(...rights.items)'));
+ assert(source.includes('distributor_rights:rights.status'));
 });
 test('Structured payload carries completeness detail and never carries PDF bytes or filenames',()=>{
  const start=source.indexOf('const payload={'),end=source.indexOf("const {data,error}=await",start);assert(start>=0&&end>start);const payload=source.slice(start,end);
- for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','adjustments:x.adjustments'])assert(payload.includes(required),required);
+ for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
 });
 test('Automatic history write cannot bypass the validated main parser row',()=>{
