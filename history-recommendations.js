@@ -206,13 +206,27 @@
       const power = powerReview(list, supplyId, sources);
       if (power) items.push(power);
 
-      if (list.length>=2 && continuous(list,42) && list.every(r=>number(r.consumption_kwh)===0 && number(r.energy_cost_eur)===0 && number(r.total_eur)>0)) {
-        items.push({type:'zero-consumption',supplyId,title:'Comprobar un suministro sin consumo registrado',
-          amount:list.reduce((s,r)=>s+cents(number(r.total_eur)),0)/100,
-          evidence:`Los ${list.length} registros de la selección tienen 0 kWh y siguen teniendo importe facturado.`,
-          action:'Confirmar si el suministro está en uso, es estacional o debe mantenerse para servicios esenciales. Revisar sus costes fijos y las condiciones del contrato antes de plantear cambios.',
-          caveat:'El total facturado no equivale a ahorro posible. No se recomienda dar de baja el suministro ni reducir potencia sin comprobar su función.',
-          sources:list.map(r=>({...reference(r),amount:number(r.total_eur)})),measurements:[],detailKind:'generic'});
+      const zeroSequence=list.length>=2 && continuous(list,42) && list.every(r=>number(r.consumption_kwh)===0 && number(r.energy_cost_eur)===0 && number(r.total_eur)>0);
+      if (zeroSequence) {
+        const actual=list.every(r=>r.reading_status==='actual');
+        if(actual){
+          items.push({type:'zero-consumption',supplyId,title:'Comprobar un suministro con lectura real y consumo cero',
+            amount:list.reduce((s,r)=>s+cents(number(r.total_eur)),0)/100,
+            evidence:`Los ${list.length} registros de la selección tienen lectura real confirmada, 0 kWh y siguen teniendo importe facturado.`,
+            action:'Confirmar si el suministro está en uso, es estacional o debe mantenerse para servicios esenciales. Revisar sus costes fijos y las condiciones del contrato antes de plantear cambios.',
+            caveat:'El total facturado no equivale a ahorro posible. No se recomienda dar de baja el suministro ni reducir potencia sin comprobar su función.',
+            sources:list.map(r=>({...reference(r),amount:number(r.total_eur)})),measurements:[],detailKind:'generic'});
+        } else {
+          const noReading=list.filter(r=>r.reading_status==='no_distributor_reading').length;
+          const estimated=list.filter(r=>r.reading_status==='estimated').length;
+          const unknown=list.filter(r=>!['actual','estimated','no_distributor_reading'].includes(r.reading_status)).length;
+          items.push({type:'reading-quality',supplyId,title:noReading?'Revisar periodos sin lectura de distribuidora':'0 kWh sin lectura real confirmada',
+            amount:null,
+            evidence:`Hay ${list.length} registros consecutivos con 0 kWh facturados, pero la lectura real no está confirmada en todos ellos. Sin lectura distribuidora: ${noReading}. Estimada: ${estimated}. No determinada: ${unknown}.`,
+            action:'Verificar las lecturas de distribuidora/comercializadora antes de interpretar estos periodos como consumo cero. No utilizar esta secuencia como base para una baja, una reducción de potencia ni una anomalía de consumo.',
+            caveat:'0 kWh facturados no demuestran que el suministro no haya consumido. Puede faltar la lectura, existir una estimación o llegar una regularización posterior.',
+            sources:list.map(r=>({...reference(r),amount:null})),measurements:[],detailKind:'generic'});
+        }
       }
     }
     items.sort((a,b)=>(b.amount??-1)-(a.amount??-1)||a.supplyId.localeCompare(b.supplyId)||a.type.localeCompare(b.type));
