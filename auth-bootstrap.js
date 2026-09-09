@@ -3,7 +3,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(signupCopy)signupCopy.textContent='Crea tu cuenta. El rol se asigna de forma segura desde Supabase según las reglas de acceso internas.';
 
   const uploadCopy=document.querySelector('#dropZone p');
-  if(uploadCopy)uploadCopy.textContent='Puedes cargar PDF sueltos o una carpeta completa. La aplicación leerá todos los PDF de la carpeta, también los de sus subcarpetas. Los documentos se procesan únicamente en este navegador y no se almacenan.';
+  if(uploadCopy)uploadCopy.textContent='Puedes cargar PDF sueltos, seleccionar una carpeta completa o arrastrar directamente la carpeta al recuadro. Se leerán todos los PDF que contenga, también los de sus subcarpetas. Los documentos se procesan únicamente en este navegador y no se almacenan.';
 
   const privacy=document.querySelector('.privacy');
   if(privacy)privacy.textContent='● Procesado local · los PDF no salen de tu equipo ni se almacenan';
@@ -32,7 +32,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-folder-upload]')){
     const script=document.createElement('script');
-    script.src='folder-upload.js?v=20260909-1';
+    script.src='folder-upload.js?v=20260909-2';
     script.dataset.folderUpload='1';
     document.body.appendChild(script);
   }
