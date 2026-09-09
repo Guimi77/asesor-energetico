@@ -187,7 +187,7 @@
       id,supply_id,invoice_number,billing_start,billing_end,billing_days,tariff,retailer,distributor,
       consumption_kwh,energy_cost_eur,power_cost_eur,excess_cost_eur,reactive_cost_eur,compensation_eur,
       social_bonus_eur,meter_rental_eur,distributor_charges_eur,electricity_tax_eur,vat_eur,igic_eur,
-      other_cost_eur,total_eur,accounted_eur,difference_eur,average_total_eur_kwh,validation_status,validation_message,
+      other_cost_eur,total_eur,accounted_eur,difference_eur,average_total_eur_kwh,validation_status,validation_message,reading_status,reading_source_label,
       invoice_energy_periods(period,consumption_kwh,energy_cost_eur,unit_price_eur_kwh),
       invoice_power_periods(period,contracted_kw,billed_power_eur,unit_price_eur_kw_day),
       invoice_maximeters(period,maximeter_kw,reliable,source),
@@ -207,6 +207,12 @@
   function supplyById(id) { return state.supplies.find(s => s.id === id); }
   function holderById(id) { return state.holders.find(h => h.id === id); }
   function holderForSupply(supply) { return holderById(supply?.holder_id); }
+  function readingLabel(r) {
+    const labels={actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'};
+    const base=labels[r?.reading_status]||'No determinada';
+    const source=String(r?.reading_source_label||'').trim();
+    return source ? `${base} · ${source}` : base;
+  }
 
   function aggregateMonthly(records) {
     const map = new Map();
@@ -251,7 +257,7 @@
       let y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) + 1;
       if (m === 13) { y++; m = 1; }
       key = String(y).padStart(4,'0') + '-' + String(m).padStart(2,'0');
-      if (result.length > 1200) throw Error('El intervalo supera 100 a\u00f1os. Revisa las fechas.');
+      if (result.length > 1200) throw Error('El intervalo supera 100 años. Revisa las fechas.');
     }
     return result;
   }
@@ -262,11 +268,11 @@
     const variable = new Set(points.map(p => p.supplySet)).size > 1;
     const partial = points.some(p => p.supplies < expected);
     const incomplete = points.some(p => p.missingKwh || p.missingEur);
-    const title = variable ? 'Cobertura variable entre meses' : partial ? 'Cobertura parcial de la selecci\u00f3n' : 'Suministros con registros por mes';
+    const title = variable ? 'Cobertura variable entre meses' : partial ? 'Cobertura parcial de la selección' : 'Suministros con registros por mes';
     const countText = min === max ? `${min} de ${expected}` : `Entre ${min} y ${max} de ${expected}`;
-    const warning = variable ? 'No se est\u00e1 comparando el mismo conjunto de CUPS en todos los meses. Una subida o bajada del total no demuestra por s\u00ed sola un cambio de consumo ni ahorro.' : partial ? 'No todos los CUPS seleccionados tienen registros en estos meses. La ausencia de registros no significa consumo cero ni demuestra que falten facturas.' : 'Los mismos CUPS aportan registros en estos meses; esto no confirma meses completos ni la misma duraci\u00f3n facturada.';
-    const rows = points.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.records}</td><td>${p.kwh === null ? '\u2014' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '\u2014' : money(p.eur) + ' \u20ac'}</td></tr>`).join('');
-    return `<section class="card history-coverage${variable || partial || incomplete ? ' history-coverage-warning' : ''}" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${countText} CUPS seleccionados aportan datos, seg\u00fan el mes. ${warning}</p><details><summary>Ver cobertura y cifras por mes</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con registros</th><th>Periodos</th><th>Consumo registrado</th><th>Gasto registrado</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">\u2014 = sin datos completos para ese valor; 0 = valor cero registrado. Cada periodo se asigna a su mes de fin de facturaci\u00f3n, sin reparto diario. El n\u00famero de CUPS no acredita cobertura mensual completa.${incomplete ? ' Hay valores incompletos: no se representan como ceros.' : ''}</p></section>`;
+    const warning = variable ? 'No se está comparando el mismo conjunto de CUPS en todos los meses. Una subida o bajada del total no demuestra por sí sola un cambio de consumo ni ahorro.' : partial ? 'No todos los CUPS seleccionados tienen registros en estos meses. La ausencia de registros no significa consumo cero ni demuestra que falten facturas.' : 'Los mismos CUPS aportan registros en estos meses; esto no confirma meses completos ni la misma duración facturada.';
+    const rows = points.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.records}</td><td>${p.kwh === null ? '—' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '—' : money(p.eur) + ' €'}</td></tr>`).join('');
+    return `<section class="card history-coverage${variable || partial || incomplete ? ' history-coverage-warning' : ''}" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${countText} CUPS seleccionados aportan datos, según el mes. ${warning}</p><details><summary>Ver cobertura y cifras por mes</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con registros</th><th>Periodos</th><th>Consumo registrado</th><th>Gasto registrado</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">— = sin datos completos para ese valor; 0 = valor cero registrado. Cada periodo se asigna a su mes de fin de facturación, sin reparto diario. El número de CUPS no acredita cobertura mensual completa.${incomplete ? ' Hay valores incompletos: no se representan como ceros.' : ''}</p></section>`;
   }
 
   function svgChart(points, field, formatter) {
@@ -285,9 +291,9 @@
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / 2; return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
     const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
     const dots = coords.map(c => {
-      const coverage = Number.isInteger(c.p.supplies) ? ` \u00b7 ${c.p.supplies} CUPS con registros \u00b7 ${c.p.records} periodo(s)` : '';
+      const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
       const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
-      return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">\u2014<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
+      return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
     return `<svg class="history-svg" data-field="${esc(field)}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}</svg>`;
   }
@@ -385,7 +391,6 @@
     return '<div class="history-event"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p></div></div>';
   }
 
-
   function rowDetail(r) {
     const energy = [...(r.invoice_energy_periods || [])].sort((a,b)=>a.period-b.period);
     const power = [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period);
@@ -398,7 +403,7 @@
       ['Excesos', r.excess_cost_eur], ['Reactiva', r.reactive_cost_eur], ['Compensación', r.compensation_eur], ['Bono social', r.social_bonus_eur], ['Alquiler contador', r.meter_rental_eur], ['Derechos distribuidora', r.distributor_charges_eur], ['Impuesto electricidad', r.electricity_tax_eur], ['IVA', r.vat_eur], ['IGIC', r.igic_eur], ['Otros', r.other_cost_eur]
     ].filter(([,v])=>Math.abs(n(v))>0.0001);
     const extraHtml = `<div>${extras.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #e3e9f0"><span>${esc(k)}</span><strong>${money(v)} €</strong></div>`).join('') || '<div class="history-empty">Sin conceptos adicionales.</div>'}${adjustments.map(a=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #e3e9f0"><span>${esc(a.concept)}</span><strong>${money(a.amount_eur)} €</strong></div>`).join('')}</div>`;
-    return `<div class="history-detail"><div class="history-section-head"><div><strong>${esc(r.invoice_number)}</strong> · ${dateES(r.billing_start)} – ${dateES(r.billing_end)}</div><span class="history-pill">${esc(r.tariff||'—')}</span></div><div class="history-detail-grid"><div><h4>Energía por periodos</h4>${energyTable}</div><div><h4>Potencia y maxímetros</h4>${powerTable}</div><div><h4>Otros conceptos</h4>${extraHtml}</div></div></div>`;
+    return `<div class="history-detail"><div class="history-section-head"><div><strong>${esc(r.invoice_number)}</strong> · ${dateES(r.billing_start)} – ${dateES(r.billing_end)}<div class="history-scope">Lectura: ${esc(readingLabel(r))}</div></div><span class="history-pill">${esc(r.tariff||'—')}</span></div><div class="history-detail-grid"><div><h4>Energía por periodos</h4>${energyTable}</div><div><h4>Potencia y maxímetros</h4>${powerTable}</div><div><h4>Otros conceptos</h4>${extraHtml}</div></div></div>`;
   }
 
   function renderRecommendations(records) {
@@ -441,8 +446,8 @@
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>
         <div class="history-table-wrap">
-          <table class="history-table"><thead><tr><th>Periodo</th><th>Titular</th><th>CUPS</th><th>Tarifa</th><th>kWh</th><th>Energía €</th><th>Potencia €</th><th>Excesos €</th><th>Reactiva €</th><th>Otros/recargos €</th><th>Impuestos €</th><th>Total €</th><th>€/kWh</th><th></th></tr></thead><tbody>
-            ${records.length ? records.map(r=>{const s=supplyById(r.supply_id),h=holderForSupply(s);const other=n(r.compensation_eur)+n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur);const taxes=n(r.electricity_tax_eur)+n(r.vat_eur)+n(r.igic_eur);return `<tr data-history-id="${esc(r.id)}"><td>${dateES(r.billing_start)} – ${dateES(r.billing_end)}</td><td>${esc(h?.legal_name||'—')}</td><td>${esc(s?.cups||'—')}</td><td>${esc(r.tariff||'—')}</td><td>${qty(r.consumption_kwh)}</td><td>${money(r.energy_cost_eur)}</td><td>${money(r.power_cost_eur)}</td><td>${money(r.excess_cost_eur)}</td><td>${money(r.reactive_cost_eur)}</td><td>${money(other)}</td><td>${money(taxes)}</td><td><strong>${money(r.total_eur)}</strong></td><td>${n(r.average_total_eur_kwh)?qty(r.average_total_eur_kwh,4):'—'}</td><td><button class="history-detail-btn" data-id="${esc(r.id)}">Detalle</button></td></tr>`}).join('') : '<tr><td colspan="14" class="history-empty">No hay periodos históricos para la selección actual.</td></tr>'}
+          <table class="history-table"><thead><tr><th>Periodo</th><th>Titular</th><th>CUPS</th><th>Tarifa</th><th>kWh</th><th>Lectura</th><th>Energía €</th><th>Potencia €</th><th>Excesos €</th><th>Reactiva €</th><th>Otros/recargos €</th><th>Impuestos €</th><th>Total €</th><th>€/kWh</th><th></th></tr></thead><tbody>
+            ${records.length ? records.map(r=>{const s=supplyById(r.supply_id),h=holderForSupply(s);const other=n(r.compensation_eur)+n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur);const taxes=n(r.electricity_tax_eur)+n(r.vat_eur)+n(r.igic_eur);return `<tr data-history-id="${esc(r.id)}"><td>${dateES(r.billing_start)} – ${dateES(r.billing_end)}</td><td>${esc(h?.legal_name||'—')}</td><td>${esc(s?.cups||'—')}</td><td>${esc(r.tariff||'—')}</td><td>${qty(r.consumption_kwh)}</td><td>${esc(readingLabel(r))}</td><td>${money(r.energy_cost_eur)}</td><td>${money(r.power_cost_eur)}</td><td>${money(r.excess_cost_eur)}</td><td>${money(r.reactive_cost_eur)}</td><td>${money(other)}</td><td>${money(taxes)}</td><td><strong>${money(r.total_eur)}</strong></td><td>${n(r.average_total_eur_kwh)?qty(r.average_total_eur_kwh,4):'—'}</td><td><button class="history-detail-btn" data-id="${esc(r.id)}">Detalle</button></td></tr>`}).join('') : '<tr><td colspan="15" class="history-empty">No hay periodos históricos para la selección actual.</td></tr>'}
           </tbody></table>
         </div>
         <div id="historyDetailHost"></div>
