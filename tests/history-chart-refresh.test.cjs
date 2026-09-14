@@ -1,7 +1,8 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
-const BASE='c2a3e38daf5c064960c166941692f01691f1d7fa';
+// Stable production baseline after the approved reading-quality and recommendation work.
+const BASE='851c3e19a94382ea266d5447250cc867f273d2f4';
 const source=f=>fs.readFileSync(f,'utf8'),old=f=>execFileSync('git',['show',BASE+':'+f],{encoding:'utf8'});
 const ui=source('history-ui.js');
 const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
@@ -30,16 +31,13 @@ test('Valid zero cost, small positive consumption and negative totals remain num
 test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
-test('Two original charts, aggregation, recommendations, data fetching and auth remain unchanged',()=>{
- // Reading labels are intentional additions. Compare the surrounding legacy logic after removing only those additions.
+test('Approved history logic, reading fields, fetching and unrelated modules remain unchanged',()=>{
  assert(ui.includes("actual:'Real confirmada'"));
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
- assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  function svgChart'));
- assert.equal(chunk(ui,'  function powerSignature','  function rowDetail').trimEnd(),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail').trimEnd());
- const currentFetch=chunk(ui,'  async function fetchRecords','  function supplyById').replace(',reading_status,reading_source_label','');
- assert.equal(currentFetch,chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
- // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
- // bulk-performance.js is intentionally covered by the dedicated bulk-import regression.
+ assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
+ assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
+ assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
+ // Only the new consumption module and its loader are allowed to differ after BASE.
  for(const f of ['app.js','supply-enricher-v2.js','auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
 });
