@@ -158,5 +158,6 @@
 
   const wrapped=Object.freeze({...base,render,__humanLanguage:true,__consumptionAnomalies:base.__consumptionAnomalies===true});
   root.IBTHistoryRecommendations=wrapped;
+  root.IBTHumanLanguage=Object.freeze({plain});
   injectStyles();
 })(typeof globalThis!=='undefined'?globalThis:this);
