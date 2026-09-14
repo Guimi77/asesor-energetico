@@ -105,19 +105,19 @@
     const excess=byType('excess'),reactive=byType('reactive'),power=byType('power');
     const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down');
     const reading=byType('reading-quality');
-    if(excess.length)blocks.push(`<div class="history-human-kpi"><small>Costes extra por potencia</small><strong>${fmt(cost('excess'))} €</strong><span>${excess.length} suministro${excess.length===1?'':'s'} para revisar</span></div>`);
-    if(reactive.length)blocks.push(`<div class="history-human-kpi"><small>Costes extra por reactiva</small><strong>${fmt(cost('reactive'))} €</strong><span>${reactive.length} suministro${reactive.length===1?'':'s'} para revisar</span></div>`);
+    const confirmedCost=cost('excess')+cost('reactive');
+    if(confirmedCost>0)blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>Costes adicionales detectados</small><strong>${fmt(confirmedCost)} €</strong><span>Excesos de potencia y energía reactiva registrados en las facturas analizadas</span></div>`);
     if(power.length)blocks.push(`<div class="history-human-kpi"><small>Potencia posiblemente alta</small><strong>${power.length}</strong><span>suministro${power.length===1?'':'s'} para estudiar</span></div>`);
     if(consumption.length)blocks.push(`<div class="history-human-kpi"><small>Cambios importantes de consumo</small><strong>${consumption.length}</strong><span>cambio${consumption.length===1?'':'s'} detectado${consumption.length===1?'':'s'}</span></div>`);
     if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Datos de consumo a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'} sin lectura suficientemente clara</span></div>`);
     if(!blocks.length)return'';
-    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Son costes y señales detectadas en el histórico; todavía no son una promesa de ahorro.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
+    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Los euros son costes que ya aparecen en el histórico, no una promesa de ahorro.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
   }
 
   function section({id,title,intro,items,supplyMap,holderMap,limit=999,empty=''}){
     const visible=items.slice(0,limit),rest=items.slice(limit);
     const cards=visible.map(x=>card(x,supplyMap,holderMap)).join('');
-    const more=rest.length?`<details class="history-more-signals"><summary>Ver otros ${rest.length} cambios detectados</summary><div class="history-rec-list">${rest.map(x=>card(x,supplyMap,holderMap)).join('')}</div></details>`:'';
+    const more=rest.length?`<details class="history-more-signals"><summary>Ver otros ${rest.length} avisos</summary><div class="history-rec-list">${rest.map(x=>card(x,supplyMap,holderMap)).join('')}</div></details>`:'';
     return`<section class="card history-recommendations" id="${esc(id)}"><div class="history-section-head"><div><h2>${esc(title)}</h2></div><span class="history-pill">${items.length} ${items.length===1?'aviso':'avisos'}</span></div><p class="history-scope history-human-intro">${esc(intro)}</p><div class="history-rec-list">${cards||`<div class="history-empty">${esc(empty)}</div>`}</div>${more}</section>`;
   }
 
@@ -126,26 +126,33 @@
     const supplyMap=new Map((options.supplies||[]).map(s=>[s.id,s]));
     const holderMap=new Map((options.holders||[]).map(h=>[h.id,h]));
     const items=Array.isArray(result.items)?result.items:[];
-    const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down');
-    const opportunities=items.filter(x=>x.type!=='consumption-up'&&x.type!=='consumption-down');
-    const first=section({
-      id:'historyRecommendations',title:'Qué merece la pena revisar',items:opportunities,supplyMap,holderMap,
-      intro:'Primero te mostramos la conclusión en lenguaje sencillo. Si necesitas comprobar cómo hemos llegado a ella, abre “Ver detalle técnico”. Los importes detectados son costes históricos, no ahorros garantizados.',
-      empty:'No hemos encontrado avisos claros con los datos disponibles. Esto no confirma que el suministro esté optimizado: puede faltar histórico o detalle fiable.'
+    const costs=items.filter(x=>x.type==='excess'||x.type==='reactive').sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
+    const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down').sort((a,b)=>Math.abs(Number(b.changeRatio)||0)-Math.abs(Number(a.changeRatio)||0));
+    const study=items.filter(x=>!['excess','reactive','consumption-up','consumption-down'].includes(x.type));
+
+    const costSection=costs.length?section({
+      id:'historyConfirmedCosts',title:'Costes que ya aparecen en las facturas',items:costs,supplyMap,holderMap,limit:5,
+      intro:'Empezamos por aquí porque son euros que ya se están pagando. Revisarlos no garantiza que podamos eliminarlos, pero nos dice dónde merece la pena estudiar primero.',
+      empty:''
+    }):'';
+    const studySection=section({
+      id:'historyRecommendations',title:'Otras cosas que conviene estudiar',items:study,supplyMap,holderMap,limit:5,
+      intro:'Aquí hay señales que pueden esconder una mejora, pero todavía necesitan contexto o más comprobaciones antes de convertirlas en una propuesta económica.',
+      empty:'No hemos encontrado otros avisos claros con los datos disponibles. Esto no confirma que el suministro esté optimizado: puede faltar histórico o detalle fiable.'
     });
-    const second=consumption.length?section({
+    const consumptionSection=consumption.length?section({
       id:'historyConsumptionChanges',title:'Cambios importantes en el consumo',items:consumption,supplyMap,holderMap,limit:5,
       intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema o un ahorro.',
       empty:''
     }):'';
-    return overview(items)+first+second;
+    return overview(items)+costSection+studySection+consumptionSection;
   }
 
   function injectStyles(){
     if(root.document?.getElementById('humanLanguageStyles'))return;
     const style=root.document?.createElement('style');if(!style)return;
     style.id='humanLanguageStyles';
-    style.textContent='.history-rec-simple{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#3f5066}.history-human-answer{padding:2px 0 4px}.history-human-answer h4{font-size:14px}.history-tech-detail{margin-top:10px;border-top:1px solid #dce4ed;padding-top:8px}.history-tech-detail>summary,.history-more-signals>summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:8px 0}.history-tech-body{margin-top:6px;padding:10px;border-radius:8px;background:#fff}.history-human-intro{font-size:13px;line-height:1.5}.history-more-signals{margin-top:12px;border-top:1px solid #e3e9f0;padding-top:4px}.history-more-signals>.history-rec-list{margin-top:6px}.history-rec-human>summary strong{font-size:16px}.history-rec-human .history-rec-status{min-width:124px}.history-human-overview{padding:18px}.history-human-overview h2{margin:0}.history-human-overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}.history-human-kpi{border:1px solid #dce4ed;border-radius:10px;padding:13px;background:#fff}.history-human-kpi small,.history-human-kpi span{display:block;color:#65758a}.history-human-kpi strong{display:block;font-size:22px;color:#061b38;margin:5px 0}.history-human-kpi span{font-size:12px;line-height:1.35}';
+    style.textContent='.history-rec-simple{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#3f5066}.history-human-answer{padding:2px 0 4px}.history-human-answer h4{font-size:14px}.history-tech-detail{margin-top:10px;border-top:1px solid #dce4ed;padding-top:8px}.history-tech-detail>summary,.history-more-signals>summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:8px 0}.history-tech-body{margin-top:6px;padding:10px;border-radius:8px;background:#fff}.history-human-intro{font-size:13px;line-height:1.5}.history-more-signals{margin-top:12px;border-top:1px solid #e3e9f0;padding-top:4px}.history-more-signals>.history-rec-list{margin-top:6px}.history-rec-human>summary strong{font-size:16px}.history-rec-human .history-rec-status{min-width:124px}.history-human-overview{padding:18px}.history-human-overview h2{margin:0}.history-human-overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}.history-human-kpi{border:1px solid #dce4ed;border-radius:10px;padding:13px;background:#fff}.history-human-kpi-main{border-left:4px solid #1834b8}.history-human-kpi small,.history-human-kpi span{display:block;color:#65758a}.history-human-kpi strong{display:block;font-size:22px;color:#061b38;margin:5px 0}.history-human-kpi span{font-size:12px;line-height:1.35}';
     root.document.head.appendChild(style);
   }
 
