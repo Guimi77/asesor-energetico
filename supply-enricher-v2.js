@@ -167,33 +167,36 @@ function parseSupply(lines) {
   };
 }
 
+function splitEndesaPlace(address){
+  const normalized=norm(address),match=normalized.match(/\b(\d{5})\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
+  return match?{city:clean(match[2]),province:clean(match[3]||'')}:{city:'',province:''};
+}
 function endesaAddress(lines,fallback=''){
+  const fromParser=clean(fallback).replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i)[0].replace(/\.{3,}/g,'').trim();
+  if(fromParser&&/\b\d{5}\b/.test(fromParser))return fromParser;
   const idx=lines.findIndex(l=>/Direcci[oó]n\s+de\s+suministro\s*:/i.test(l));
-  if(idx<0)return clean(fallback);
-  const first=lines[idx].replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Referencia\s+del\s+contrato|CUPS|Distribuidora|Peaje)\s*:/i)[0].replace(/\.{3,}/g,'').trim();
-  const extra=[];
-  for(let i=idx+1;i<Math.min(lines.length,idx+3);i++){
-    const q=clean(lines[i]);if(!q||/(?:Contrato|Permanencia|CUPS|Distribuidora|Peaje|Segmento|DESTINO|INFORMACI[ÓO]N)/i.test(q))break;
-    if(/\b\d{5}\b|^[A-ZÁÉÍÓÚÜÑ .,'()-]+$/i.test(q))extra.push(q);else break;
+  if(idx<0)return fromParser;
+  const stop=/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i;
+  const cut=s=>{let q=clean(s).replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').replace(/\.{3,}/g,'');const k=q.search(stop);if(k>=0)q=q.slice(0,k);return clean(q).replace(/\s*,\s*,+/g,',').replace(/[\s,;:-]+$/,'')};
+  const parts=[cut(lines[idx])].filter(Boolean);
+  for(let i=idx+1;i<Math.min(lines.length,idx+4);i++){
+    const q=cut(lines[i]);if(!q)break;
+    if(/^(?:Contrato|Referencia|Potencias?|Potencia\s+contratada|Fin\s+de\s+contrato|Permanencia|CUPS|Distribuidora|Peaje|Segmento|DESTINO|INFORMACI[ÓO]N)/i.test(q))break;
+    if(/\b\d{5}\b/.test(q)||/^[A-ZÁÉÍÓÚÜÑ .,'()-]{2,45}$/i.test(q))parts.push(q);else break;
   }
-  return clean([first,...extra].filter(Boolean).join(' '))||clean(fallback);
+  let address=parts[0]||'';
+  for(const part of parts.slice(1))address+=/^[A-ZÁÉÍÓÚÜÑ .'-]{2,30}$/.test(part)&&/\b\d{5}\b/.test(address)?`, ${part}`:` ${part}`;
+  return clean(address)||fromParser;
 }
 function parseEndesaSupply(pages,file){
   const lines=(pages||[]).flat(),text=lines.join('\n'),formats=window.IBTInvoiceFormats;
   const row=formats?.parseEndesa?.({pages,text},file,{readingClassifier:window.IBTReadingStatus?.classify});
   if(!row||row.unsupported||!row.cups)return{};
-  const address=endesaAddress(lines,row.supplyAddress),place=splitPlace(address);
-  const contractLine=firstLine(lines,/Referencia\s+de\s+contrato\s+de\s+suministro\s*:/i);
-  const accessLine=firstLine(lines,/Referencia\s+del\s+contrato\s+de\s+acceso\s*:/i);
-  const distributorLine=firstLine(lines,/Distribuidora\s*:/i);
-  const renewalLine=firstLine(lines,/Fin\s+de\s+contrato\s+de\s+suministro\s*:/i);
-  const contract=(contractLine.match(/:\s*([A-Z0-9._\/-]+)/i)||[])[1]||'';
-  const accessContract=(accessLine.match(/:\s*([A-Z0-9._\/-]+)/i)||[])[1]||'';
-  const distributor=valueAfter(distributorLine,/^.*?Distribuidora\s*:\s*/i).split(/\s+(?:Referencia|Peaje|Segmento)\s*:/i)[0].trim();
-  const renewalDate=(renewalLine.match(/(\d{2}\/\d{2}\/\d{4})/)||[])[1]||'';
+  const address=endesaAddress(lines,row.supplyAddress),place={city:clean(row.supplyCity)||splitEndesaPlace(address).city,province:clean(row.supplyProvince)||splitEndesaPlace(address).province};
+  const contract=clean(row.contract||row.contractNumber),accessContract=clean(row.accessContract),distributor=clean(row.distributor),renewalDate=clean(row.renewalDate);
   const periodEnd=(String(row.period||'').match(/-\s*(\d{2}\/\d{2}\/\d{4})/)||[])[1]||'';
   const powers={};for(let p=1;p<=6;p++)if(Object.prototype.hasOwnProperty.call(row.contracted||{},`P${p}`))powers[`p${p}`]=row.contracted[`P${p}`];
-  return{company:row.company,taxId:'',cups:row.cups,tariff:row.tariff,contract,address,city:place.city,province:place.province,distributor,retailer:'Endesa Energía S.A.U.',accessContract,supplyName:address,invoiceNumber:row.invoiceNumber,periodEnd,contractType:'',renewalDate,...powers};
+  return{company:row.company,taxId:row.taxId||'',cups:row.cups,tariff:row.tariff,contract,address,city:place.city,province:place.province,distributor,retailer:'Endesa Energía S.A.U.',accessContract,supplyName:address,invoiceNumber:row.invoiceNumber,periodEnd,contractType:row.contractType||'',renewalDate,...powers};
 }
 
 async function waitForMaster() {
