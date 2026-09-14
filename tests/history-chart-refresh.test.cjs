@@ -5,7 +5,7 @@ const BASE='c2a3e38daf5c064960c166941692f01691f1d7fa';
 const source=f=>fs.readFileSync(f,'utf8'),old=f=>execFileSync('git',['show',BASE+':'+f],{encoding:'utf8'});
 const ui=source('history-ui.js');
 const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
-const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),monthLabel:v=>v};
+const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c])),monthLabel:v=>v};
 vm.createContext(ctx);vm.runInContext(chunk(ui,'  function svgCostChart','  function powerSignature')+'\nglobalThis.chart=svgCostChart;',ctx);
 test('Third chart belongs to the core history renderer and old sidecar is not loaded',()=>{
  assert(ui.includes('id="historyCostChart"'));assert(ui.includes('${svgCostChart(monthly)}'));
@@ -31,9 +31,10 @@ test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
 test('Two original charts, aggregation, recommendations, data fetching and auth remain unchanged',()=>{
- // Reviewed coverage presentation change: totals, identity, observed changes and detail remain byte-for-byte unchanged.
- // The two plot renderers now have dedicated clipping, missing-data and coverage tests.
- assert.equal(chunk(ui,'  function supplyById','  // Coverage presentation'),chunk(old('history-ui.js'),'  function supplyById','  function svgChart'));
+ // Reading labels are intentionally inserted before aggregation. Keep the actual aggregation comparison strict.
+ assert(ui.includes("actual:'Real confirmada'"));
+ assert(ui.includes("estimated:'Estimada'"));
+ assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  function svgChart'));
  assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
  // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
