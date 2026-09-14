@@ -10,10 +10,15 @@
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
   const line=(a,re)=>(a||[]).find(x=>re.test(String(x||'')))||'';
   const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])).filter(v=>v!=null);return a.length?a.at(-1):null};
-  const amount=(a,re)=>lastEuro(line(a,re));
+  const amount=(a,re)=>{for(const raw of a||[]){const s=String(raw||'');if(re.test(s)&&/(-?[\d.]+,\d{2})\s*€/.test(s)){const v=lastEuro(s);if(v!=null)return v;}}return null};
   const findMatch=(s,re)=>String(s||'').match(re);
   const normalizeTariff=s=>{const m=String(s||'').match(/\b(2\.0\s*TD|3\.0\s*TD|6\.[1-4]\s*TD)\b/i);return m?m[1].replace(/\s+/g,'').toUpperCase():'—';};
   const numericToken='(-?[\\d.]+,\\d+)';
+  const addressStop=/\s+(?:Contrato\s+de\s+mercado\s+libre|Referencia\s+(?:de|del)\s+contrato(?:\s+de\s+suministro|\s+de\s+acceso)?|Potencias?\s+contratadas?|Potencia\s+contratada|Fin\s+de\s+contrato|Permanencia|CUPS|Distribuidora|N[uú]mero\s+de\s+contador|N[º°o.]?\s*contador|Su\s+comercializadora|Peaje\s+de\s+transporte|Segmento\s+de\s+cargos|DESTINO\s+DEL\s+IMPORTE|INFORMACI[ÓO]N\s+DEL\s+CONSUMO)\s*:/i;
+  const cutAddress=s=>{let v=String(s||'').replace(/\.{3,}/g,' ').trim();const i=v.search(addressStop);if(i>=0)v=v.slice(0,i);return v.replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').replace(/\s*,\s*,+/g,',').replace(/\s+/g,' ').replace(/[\s,;:-]+$/,'').trim();};
+  const splitPlace=address=>{const s=cutAddress(address),m=s.match(/\b(\d{5})\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);return m?{city:text(m[2]),province:text(m[3]||'')}:{city:'',province:''};};
+  const digitsAfter=(a,re)=>{const l=line(a,re);if(!l)return'';const tail=l.replace(/^.*?:\s*/,'');const m=tail.match(/((?:\d[\s.]*){8,20})/);return m?m[1].replace(/\D/g,''):'';};
+  const valueAfter=(a,re)=>{const l=line(a,re);if(!l)return'';return cutAddress(l.replace(/^.*?:\s*/,''));};
   function detect(value){
     const s=Array.isArray(value)?value.flat().join('\n'):String(value||'');
     if(/Endesa\s+Energ[ií]a\s*,?\s*S\.A\./i.test(s)&&/\bP\d{2}CON\d+\b/i.test(s))return'endesa';
@@ -21,8 +26,11 @@
     return'unknown';
   }
   function parsePeriod(p1){
-    const s=(p1||[]).join(' '),m=s.match(/Periodo\s+de\s+facturaci[oó]n\s*:\s*(?:del\s*)?(\d{2}\/\d{2}\/\d{4})[^0-9]{0,12}(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);
-    return m?`${m[1]} - ${m[2]}${m[3]?` (${m[3]} días)`:''}`:'Por identificar';
+    const s=(p1||[]).join('\n'),i=s.search(/Periodo\s+de\s+facturaci[oó]n\s*:/i),chunk=i>=0?s.slice(i,i+900):s;
+    const dates=[...chunk.matchAll(/\b(\d{2}\/\d{2}\/\d{4})\b/g)].map(m=>m[1]);
+    if(dates.length<2)return'Por identificar';
+    const days=(chunk.match(/\((\d+)\s*d[ií]as\)/i)||[])[1];
+    return`${dates[0]} - ${dates[1]}${days?` (${days} días)`:''}`;
   }
   function cleanHolder(p2){
     const l=line(p2,/Titular\s+del\s+contrato\s*:/i);if(!l)return'';
@@ -31,8 +39,23 @@
     return s.trim();
   }
   function parseSupplyAddress(p2){
-    const l=line(p2,/Direcci[oó]n\s+de\s+suministro\s*:/i);if(!l)return'';
-    return l.replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Su\s+comercializadora|Referencia\s+del\s+contrato\s+de\s+acceso|CUPS)\s*:/i)[0].replace(/\.{3,}/g,'').trim();
+    const idx=(p2||[]).findIndex(l=>/Direcci[oó]n\s+de\s+suministro\s*:/i.test(String(l||'')));if(idx<0)return'';
+    const parts=[];const first=cutAddress(p2[idx]);if(first)parts.push(first);
+    for(let i=idx+1;i<Math.min(p2.length,idx+4);i++){
+      const raw=String(p2[i]||''),part=cutAddress(raw);if(!part)break;
+      if(addressStop.test(' '+raw)&&!part)break;
+      if(/\b\d{5}\b/.test(part)||/^[A-ZÁÉÍÓÚÜÑ .,'()/-]{2,40}$/i.test(part))parts.push(part);else break;
+      if(addressStop.test(' '+raw))break;
+    }
+    return cutAddress(parts.join(' '));
+  }
+  function parseContractMeta(p2){
+    const all=(p2||[]).join('\n'),contract=digitsAfter(p2,/Referencia\s+(?:de|del)\s+contrato(?:\s+de\s+suministro)?\s*:/i),accessContract=digitsAfter(p2,/Referencia\s+del\s+contrato\s+de\s+acceso\s*:/i);
+    const distLine=line(p2,/^.*?Distribuidora\s*:/i),distributor=distLine?distLine.replace(/^.*?Distribuidora\s*:\s*/i,'').split(/\s+(?:Referencia|Peaje|Segmento|N[º°o.]?\s*contador)\s*:/i)[0].replace(/\.{3,}/g,'').trim():'';
+    const renewalDate=(all.match(/Fin\s+de\s+contrato\s+de\s+suministro\s*:\s*(\d{2}\/\d{2}\/\d{4})/i)||[])[1]||'';
+    const contractType=valueAfter(p2,/Contrato\s+de\s+mercado\s+libre\s*:/i);
+    const taxLine=line(p2,/^.*?NIF\s*:/i),taxId=((taxLine.match(/NIF\s*:\s*([A-Z0-9-]{7,15})/i)||[])[1])||'';
+    return{contract,accessContract,distributor,renewalDate,contractType,taxId};
   }
   function parseReadingPeriods(p2,tariff){
     const periods={},all=(p2||[]).join('\n');
@@ -91,9 +114,12 @@
     const paymentTotal=pay?num(pay[1]):round2((electricityTotal||0)+serviceTotal);
     return{serviceTotal,paymentTotal,serviceInvoices:totals.length};
   }
-  function explicitCharge(p2,labelRe){const l=line(p2,labelRe);return l?lastEuro(l):null;}
+  function explicitCharge(p2,labelRe){for(const raw of p2||[]){const s=String(raw||'').trim();if(!labelRe.test(s)||/Incluido\s+en\s+el\s+importe\s+facturado/i.test(s))continue;const v=lastEuro(s);if(v!=null)return v;}return null;}
   function endesaReading(textValue){
-    const s=text(textValue);
+    const s=String(textValue||'').replace(/\s+/g,' '),m=s.search(/(?:ENERG[IÍ]A\s+ACTIVA\s+kWh|Energ[ií]a\s+kWh)/i),near=m>=0?s.slice(Math.max(0,m-500),m+80):s;
+    const estimated=(near.match(/\bestimada\b/gi)||[]).length,actual=(near.match(/\breal\b/gi)||[]).length;
+    if(estimated>=2)return{status:'estimated',sourceLabel:'Lectura estimada / estimada'};
+    if(actual>=2)return{status:'actual',sourceLabel:'Lectura real / real'};
     if(/Lectura\s+Lectura\s+estimada\s+estimada/i.test(s))return{status:'estimated',sourceLabel:'Lectura estimada / estimada'};
     if(/Lectura\s+Lectura\s+real\s+real/i.test(s)||/consumo\s+horario\s+real\s+proporcionado\s+por\s+su\s+distribuidora/i.test(s))return{status:'actual',sourceLabel:'Lectura real / real'};
     return{status:'unknown',sourceLabel:null};
@@ -107,19 +133,19 @@
     return false;
   }
   function parseEndesa(d,file,options={}){
-    const pages=d?.pages||[],p1=pages[0]||[],p2=pages[1]||[],all=pages.flat().join('\n');
+    const pages=d?.pages||[],p1=pages[0]||[],p2=pages[1]||[],all=pages.flat().join('\n'),p2text=p2.join('\n');
     const invoiceLine=line(p1,/N[º°o.]?\s*(?:de\s+)?factura\s*:/i),invoiceNumber=(invoiceLine.match(/\b(P\d{2}CON\d+)\b/i)||all.match(/\b(P\d{2}CON\d+)\b/i)||[])[1]||'Por identificar';
-    const holder=cleanHolder(p2),supplyAddress=parseSupplyAddress(p2);
+    const holder=cleanHolder(p2),supplyAddress=parseSupplyAddress(p2),place=splitPlace(supplyAddress),meta=parseContractMeta(p2);
     const cups=(all.match(/\bES[A-Z0-9]{18,24}\b/i)||[])[0]||'';
     const tariff=normalizeTariff(all),period=parsePeriod(p1);
-    const total=amount(p1,/IMPORTE\s+FACTURA\s*:/i)??amount(p1,/(?:^|\s)Total\b.*€/i);
-    const power=amount(p1,/(?:^|\s)Potencia\b/i),energy=amount(p1,/(?:^|\s)Energ[ií]a\b/i),discounts=amount(p1,/(?:^|\s)Descuentos\b/i)??0,summaryOther=amount(p1,/(?:^|\s)Otros\b/i)??0,adjustments=amount(p1,/Ajustes?\s+de\s+peajes/i)??0,summaryTaxes=amount(p1,/(?:^|\s)Impuestos\b/i);
+    const total=amount(p1,/^\s*IMPORTE\s+FACTURA\s*:/i)??amount(p1,/^\s*Total\b/i);
+    const power=amount(p1,/^\s*Potencia\b/i),energy=amount(p1,/^\s*Energ[ií]a\b/i),discounts=amount(p1,/^\s*Descuentos\b/i)??0,summaryOther=amount(p1,/^\s*(?:Otros|Varios)\b/i)??0,adjustments=amount(p1,/^\s*Ajustes?\s+de\s+peajes/i)??0,summaryTaxes=amount(p1,/^\s*Impuestos\b/i);
     const kwh=(all.match(/Consumo\s+Total\s+([\d.]+,\d+)\s*kWh/i)||[])[1],consumption=num(kwh);
-    const iva=explicitCharge(p2,/\bIVA\s+(?:normal\s*)?(?:\(|\d|%)/i)??0,igic=explicitCharge(p2,/\bIGIC\b/i)??0,electricTax=explicitCharge(p2,/\bImpuesto\s+(?:de\s+)?electricidad/i),tax=electricTax!=null?electricTax:summaryTaxes!=null?round2(summaryTaxes-iva-igic):0;
+    const iva=explicitCharge(p2,/^\s*IVA\s+(?:normal\s*)?(?:\(|\d|%)/i)??0,igic=explicitCharge(p2,/^\s*IGIC\b/i)??0,electricTax=explicitCharge(p2,/^\s*Impuesto\s+(?:de\s+)?electricidad/i),tax=electricTax!=null?electricTax:summaryTaxes!=null?round2(summaryTaxes-iva-igic):0;
     const compensationLine=line(p2,/Compensaci[oó]n.*Excedente/i);let compensation=compensationLine?lastEuro(compensationLine)??0:0;if(compensation>0)compensation=-compensation;
     const other=round2(discounts+summaryOther+adjustments);
     const periods=parseReadingPeriods(p2,tariff),contracted=parseContracted(p2,tariff),maximeters=parseMaximeters(p2,tariff),powerDetail=parsePowerDetail(p2,power);
-    const excess=explicitCharge(p2,/\bExcesos?\s+de\s+potencia\b.*€/i)??0,reactive=explicitCharge(p2,/\bEnerg[ií]a\s+reactiva\b.*€/i)??0;
+    const excess=explicitCharge(p2,/^\s*Excesos?\s+de\s+potencia\b/i)??0,reactive=explicitCharge(p2,/^\s*Energ[ií]a\s+reactiva\b/i)??0;
     const unresolvedExcess=excess===0&&nonzeroAccessTable(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),unresolvedReactive=reactive===0&&nonzeroAccessTable(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i);
     const periodKwh=round2(Object.values(periods).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=consumption==null||(Object.keys(periods).length>0&&Math.abs(periodKwh-consumption)<=.1);
     const accounted=round2((energy||0)+(power||0)+excess+reactive+compensation+other+tax+iva+igic),diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
@@ -129,8 +155,8 @@
     const usable=maximeters._reliable?Object.keys(maximeters).filter(k=>/^P\d$/.test(k)&&(contracted[k]||0)>0):[];
     if(usable.length){const mc=Math.max(...usable.map(k=>contracted[k])),md=Math.max(...usable.map(k=>maximeters[k])),ratio=mc?md/mc:1;if(mc>=10&&md>0&&ratio<=.5)alerts.push(`Posible potencia sobredimensionada: ${money(mc)} kW contratados / demanda máx. ${money(md)} kW (${Math.round(ratio*100)}%). Validar con histórico`);}
     const service=parseServiceInfo(pages,total);if(service.serviceTotal>0)alerts.push(`El PDF incluye servicios adicionales por ${money(service.serviceTotal)} € fuera de la factura eléctrica. Conviene revisarlos.`);
-    const classified=options.readingClassifier?.(all),reading=classified&&classified.status&&classified.status!=='unknown'?classified:endesaReading(all);
-    return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',cups,period,tariff,kwh:consumption,energy,power,excess,reactive,compensation,social:0,rental:0,integratorAdjustment:0,regularizationReactive:0,other,tax,vat:iva,igic,distributorCharges:0,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:consumption?total/consumption:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods,contracted,maximeters,parserVersion:options.parserVersion||'',powerDetail,sourceFormat:'endesa',supplier:'Endesa Energía S.A.U.',retailer:'Endesa Energía S.A.U.',commercializer:'Endesa Energía S.A.U.',supplyAddress,serviceTotal:service.serviceTotal,paymentTotal:service.paymentTotal,serviceInvoices:service.serviceInvoices,discounts,adjustments};
+    const classified=options.readingClassifier?.(p2text),reading=classified&&classified.status&&classified.status!=='unknown'?classified:endesaReading(p2text);
+    return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',taxId:meta.taxId,cups,period,tariff,kwh:consumption,energy,power,excess,reactive,compensation,social:0,rental:0,integratorAdjustment:0,regularizationReactive:0,other,tax,vat:iva,igic,distributorCharges:0,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:consumption?total/consumption:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods,contracted,maximeters,parserVersion:options.parserVersion||'',powerDetail,sourceFormat:'endesa',supplier:'Endesa Energía S.A.U.',retailer:'Endesa Energía S.A.U.',commercializer:'Endesa Energía S.A.U.',supplyAddress,supplyCity:place.city,supplyProvince:place.province,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.contractType,renewalDate:meta.renewalDate,serviceTotal:service.serviceTotal,paymentTotal:service.paymentTotal,serviceInvoices:service.serviceInvoices,discounts,summaryOther,adjustments};
   }
   function unsupportedRow(file){return{unsupported:true,file:file?.name||'',invoiceNumber:'—',company:'Formato no compatible todavía',cups:'',period:'—',tariff:'—',kwh:null,energy:null,power:null,excess:null,reactive:null,compensation:null,social:null,rental:null,integratorAdjustment:null,regularizationReactive:null,other:null,tax:null,vat:null,igic:null,distributorCharges:null,total:null,accounted:null,diff:null,balanced:false,readOk:false,readMessage:'Factura no compatible todavía',readingStatus:'unknown',readingSourceLabel:'',avg:null,opportunity:'Factura no compatible todavía. No se ha interpretado ni guardado ningún dato.',periods:{},contracted:{},maximeters:{},powerDetail:{reliable:false},sourceFormat:'unknown'};}
   return Object.freeze({detect,parseEndesa,unsupportedRow,endesaReading});
