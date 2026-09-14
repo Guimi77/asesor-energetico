@@ -19,7 +19,8 @@
     const direct=chunk.match(/Periodo\s+de\s+facturaci[oó]n\s*:\s*(?:del\s*)?(\d{2}\/\d{2}\/\d{4})\s*(?:a|al|-)\s*(\d{2}\/\d{2}\/\d{4})/i);
     const dates=[...chunk.matchAll(/\b(\d{2}\/\d{2}\/\d{4})\b/g)].map(m=>m[1]);
     const start=direct?.[1]||dates[0];
-    const end=direct?.[2]||dates.slice(1).find(d=>d!==start);
+    const directEnd=direct?.[2];
+    const end=(directEnd&&directEnd!==start?directEnd:null)||dates.slice(1).find(d=>d!==start);
     if(!start||!end)return fallback;
     const days=(chunk.match(/\((\d+)\s*d[ií]as\)/i)||[])[1];
     return `${start} - ${end}${days?` (${days} días)`:''}`;
