@@ -19,7 +19,22 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('#historyUiTidy')){
     const style=document.createElement('style');
     style.id='historyUiTidy';
-    style.textContent='.history-badge{display:none!important}';
+    style.textContent=`
+      .history-badge{display:none!important}
+      #historicoView,#historyApp,#historyContent{min-width:0;max-width:100%}
+      #historicoView{overflow-x:hidden}
+      @media(min-width:1101px){
+        #historicoView .history-rec>summary{
+          grid-template-columns:minmax(0,980px) minmax(124px,170px) minmax(0,1fr);
+          justify-content:start;
+        }
+        #historicoView .history-rec-status{
+          justify-self:start;
+          width:100%;
+          max-width:170px;
+        }
+      }
+    `;
     document.head.appendChild(style);
   }
 
