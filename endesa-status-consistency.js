@@ -22,7 +22,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.14.2';
+  const VERSION='2026.09.14.3';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -54,7 +54,7 @@
 
   function placeFromAddress(address){
     const s=text(address);
-    const m=s.match(/\b\d{5}\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
+    const m=s.match(/\b\d{5}[,\s]+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
     return m?{city:text(m[1]),province:text(m[2]||'')}:{city:'',province:''};
   }
 
