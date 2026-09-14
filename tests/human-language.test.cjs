@@ -21,8 +21,9 @@ test('Excess is explained in plain language while keeping technical detail',()=>
   const api=load([{type:'excess',supplyId:'s1',title:'Excesos de potencia repetidos',repeated:true,amount:125.5,evidence:'Dos facturas con exceso.',action:'Comparar escenarios.',caveat:'No demuestra que deba aumentarse la potencia.',sources:[{invoice:'A',start:'2026-01-01',end:'2026-01-31',amount:60},{invoice:'B',start:'2026-02-01',end:'2026-02-28',amount:65.5}],measurements:[],detailKind:'excess'}]);
   const html=api.render({supplies:[supply],holders:[holder]});
   assert.match(html,/Resumen rápido/);
-  assert.match(html,/Costes extra por potencia/);
+  assert.match(html,/Costes adicionales detectados/);
   assert.match(html,/125,50 €/);
+  assert.match(html,/Costes que ya aparecen en las facturas/);
   assert.match(html,/Estás pagando penalizaciones por superar la potencia contratada/);
   assert.match(html,/Por qué importa/);
   assert.match(html,/Qué recomendamos/);
@@ -42,11 +43,20 @@ test('Consumption change leads with the percentage and hides jargon in technical
   assert.match(html,/Confianza media/);
 });
 
+test('Confirmed historical costs are ordered before study signals',()=>{
+  const api=load([
+    {type:'power',supplyId:'s1',title:'Potencia alta',amount:null,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]},
+    {type:'reactive',supplyId:'s1',title:'Reactiva',amount:20,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]},
+  ]);
+  const html=api.render({supplies:[supply],holders:[holder]});
+  assert(html.indexOf('Costes que ya aparecen en las facturas')<html.indexOf('Otras cosas que conviene estudiar'));
+});
+
 test('Long anomaly lists show the most important five first and collapse the rest',()=>{
   const items=Array.from({length:8},(_,i)=>({type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',changeRatio:0.5+i/100,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]}));
   const api=load(items),html=api.render({supplies:[supply],holders:[holder]});
   assert.match(html,/Cambios importantes en el consumo/);
-  assert.match(html,/Ver otros 3 cambios detectados/);
+  assert.match(html,/Ver otros 3 avisos/);
 });
 
 test.after(()=>{delete global.IBTHistoryRecommendations;});
