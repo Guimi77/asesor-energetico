@@ -61,3 +61,26 @@ test('Reactive measurements with zero billed amount stay zero and all six contra
   assert.match(r.opportunity,/demanda máx\. 6,87 kW \(46%\)/);
   assert.ok(learned);assert.equal(learned.cups,'ES0031500151907001DN0F');assert.equal(learned.contract,'12089360530');assert.equal(learned.supplyAddress,'MIRAMAR, 07191 BANYALBUFAR, BALEARES');
 });
+
+test('Explicit Endesa power summary stays valid when PDF line fragmentation hides the per-period power breakdown',()=>{
+  const raw={
+    company:'ELSEBETH SVENDSEN',cups:'ES0031500151907001DN0F',period:'11/05/2026 - 04/06/2026 (24 días)',tariff:'3.0TD',
+    kwh:2853.101,energy:525.89,power:52.14,excess:0,reactive:0,compensation:-71.36,other:8.98,tax:25.93,vat:113.73,igic:0,distributorCharges:0,
+    total:655.31,periods:{P1:{consumption:178.319},P2:{consumption:762.808},P3:{consumption:485.423},P4:{consumption:0},P5:{consumption:0},P6:{consumption:1426.55}},
+    contracted:{P1:15.01,P2:15.01,P3:15.01,P4:15.01,P5:15.01,P6:15.01},maximeters:{P1:5.628,P2:6.067,P3:5.795,P4:0,P5:0,P6:6.873,_reliable:true},
+    powerDetail:{reliable:false,message:'Potencia: detalle Endesa no cuadra con el resumen'},readOk:false,readMessage:'Falta o revisar: Potencia: detalle Endesa no cuadra con el resumen',
+    serviceTotal:0,supplyAddress:'MIRAMAR, 07191 BANYALBUFAR, BALEARES',contract:'12089360530',accessContract:'010018513094'
+  };
+  const api=fix.patch({parseEndesa:()=>raw},{});
+  const p1=['Periodo de facturación: del 11/05/2026 al 04/06/2026 (24 días)','Potencia 52,14 €','Impuestos 139,66 €','Total 655,31 €'];
+  const p2=['Dirección de suministro: MIRAMAR, 07191 BANYALBUFAR,','BALEARES','Potencia contratada [kW]: P1 15,010; P2 15,010; P3 15,010; P4 15,010; P5 15,010; P6 15,010.','EXCESOS DE POTENCIA kW','Periodo horario Contratada Demandada A facturar','P1 15,010 5,628 0,000','P2 15,010 6,067 0,000','P3 15,010 5,795 0,000','P4 15,010 0,000 0,000','P5 15,010 0,000 0,000','P6 15,010 6,873 0,000','ENERGÍA REACTIVA INDUCTIVA kWh','Periodo horario Consumo Cos A facturar','P1 85,000 1,00 0,000','P2 210,000 1,00 0,000','P3 104,000 1,00 0,000','P4 29,000 0,00 0,000','P5 82,000 0,00 0,000','P6 91,000 1,00 0,000'];
+  const r=api.parseEndesa(doc(p1,p2),{name:'fragmentada.pdf'});
+  assert.equal(r.balanced,true);
+  assert.equal(r.readOk,true);
+  assert.equal(r.readMessage,'Lectura correcta');
+});
+
+test('Source period ignores a duplicated start date introduced by PDF text grouping',()=>{
+  const pages=[['Periodo de facturación: del 07/04/2024 a','07/04/2024','11/05/2024 (34 días)']];
+  assert.equal(fix.sourcePeriod(pages,'Por identificar'),'07/04/2024 - 11/05/2024 (34 días)');
+});
