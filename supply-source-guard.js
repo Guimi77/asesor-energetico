@@ -3,6 +3,7 @@ const txt=v=>String(v??'').replace(/\s+/g,' ').trim();
 const polluted=v=>/(?:Direcci[oó]n\s+de\s+suministro|Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Peaje\s+de\s+transporte|CUPS\s*:|Distribuidora\s*:)/i.test(txt(v));
 const cleanAddress=v=>txt(v).replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i)[0].replace(/\.{3,}/g,'').replace(/\s*,\s*,+/g,',').trim();
 const validRef=v=>/^\d{8,20}$/.test(txt(v).replace(/\D/g,''));
+const placeFromAddress=v=>{const m=cleanAddress(v).match(/\b\d{5}\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);return m?{city:txt(m[1]),province:txt(m[2]||'')}:{city:'',province:''}};
 function wrap(){
   const master=window.EnergyMaster;
   if(!master?.learnInvoice||master.__sourceGuard)return;
@@ -23,7 +24,7 @@ function wrap(){
       const currentAddress=txt(s.address),currentName=txt(s.name);
       if(address&&(!currentAddress||polluted(currentAddress))&&currentAddress!==address){s.address=address;changed=true;}
       if(address&&(!currentName||polluted(currentName)||currentName===currentAddress)&&currentName!==address){s.name=address;changed=true;}
-      const city=txt(patched.supplyCity||patched.city),province=txt(patched.supplyProvince||patched.province);
+      const place=placeFromAddress(address),city=place.city||txt(patched.supplyCity||patched.city),province=place.province||txt(patched.supplyProvince||patched.province);
       if(city&&(!txt(s.city)||polluted(s.city))&&txt(s.city)!==city){s.city=city;changed=true;}
       if(province&&(!txt(s.province)||polluted(s.province))&&txt(s.province)!==province){s.province=province;changed=true;}
       const contract=txt(patched.contract||patched.contractNumber),access=txt(patched.accessContract);
