@@ -43,15 +43,20 @@ for(const [path,name,end] of readerSpec){
   assert.equal(r.stats().opened,1);assert.equal(r.stats().closed,1);
  });
 }
-test('Fenie calculations stay locked while report presentation can evolve safely',()=>{
- const parserSnapshot=at(PARSER_BASE,'app.js');
- assert.equal(slice(source('app.js'),'const find=','async function process'),slice(parserSnapshot,'const find=','async function process'));
- assert.equal(slice(source('app.js'),'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
+test('Fenie calculations stay locked while reading metadata and format routing can evolve safely',()=>{
+ const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');
+ // Lock the complete FENIE calculation path up to the point where later metadata
+ // (reading status) is attached. New format routing lives after this boundary.
+ assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','return{file:file.name'));
+ assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
  for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
- const app=source('app.js'),report=source('client-report-export.js');
+ const app=current,report=source('client-report-export.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
+ assert(app.includes("format==='fenie')return parseFenie"));
+ assert(app.includes("format==='endesa')return formats.parseEndesa"));
+ assert(app.includes('Factura no compatible todavía'));
 });
 test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
  const s=source('bulk-performance.js');
