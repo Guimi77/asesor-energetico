@@ -1,0 +1,139 @@
+/* Client-first presentation for energy findings.
+ * Business rule: explain the conclusion first, keep technical evidence behind
+ * "Ver detalle técnico", and never present historical costs as guaranteed savings.
+ * Detection logic remains in the underlying recommendation modules.
+ */
+(function(root){
+  'use strict';
+  const base=root.IBTHistoryRecommendations;
+  if(!base||base.__humanLanguage)return;
+
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt=(v,d=2)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const date=v=>String(v||'').slice(0,10).split('-').reverse().join('/');
+
+  function plain(item){
+    const amount=item.amount==null?null:Number(item.amount);
+    const sources=Array.isArray(item.sources)?item.sources:[];
+    if(item.type==='excess')return{
+      title:item.repeated?'Estás pagando penalizaciones por superar la potencia contratada':'Has pagado una penalización por superar la potencia contratada',
+      summary:item.repeated?`El cargo aparece en ${sources.length} facturas y suma ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado un cargo de ${fmt(amount)} € por superar la potencia contratada.`,
+      importance:'Es un coste adicional. Antes de cambiar la potencia conviene saber si los picos son puntuales o se repiten por el funcionamiento habitual del suministro.',
+      recommendation:'Revisar cuándo se producen los picos y comparar qué sale mejor: reducirlos, reorganizar cargas o modificar la potencia.',
+      badge:'Conviene revisarlo',badgeDetail:`${fmt(amount)} € detectados`
+    };
+    if(item.type==='reactive')return{
+      title:item.repeated?'Estás pagando un coste adicional por energía reactiva':'Ha aparecido un coste adicional por energía reactiva',
+      summary:item.repeated?`Este coste aparece en varias facturas y suma ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado ${fmt(amount)} € de coste por energía reactiva.`,
+      importance:'La energía reactiva puede generar cargos que no aportan consumo útil. Si se repite, merece revisar la instalación y la compensación existente.',
+      recommendation:'Comprobar el origen de la reactiva y el estado de la compensación antes de proponer equipos o cambios.',
+      badge:'Conviene revisarlo',badgeDetail:`${fmt(amount)} € detectados`
+    };
+    if(item.type==='power'){
+      const periods=Array.isArray(item.measurements)?item.measurements.length:0;
+      return{
+        title:'Podrías tener más potencia contratada de la que necesitas',
+        summary:`Durante ${item.coverageDays||'varios'} días, la potencia utilizada se ha mantenido baja en ${periods} periodo${periods===1?'':'s'} y no hemos visto penalizaciones por exceso.`,
+        importance:'Si este patrón se mantiene durante un ciclo completo, podría existir margen para reducir costes fijos.',
+        recommendation:'Revisar un año completo y la estacionalidad antes de calcular una nueva potencia. No proponemos todavía ningún valor de kW.',
+        badge:'Estudiar',badgeDetail:'Sin ahorro calculado'
+      };
+    }
+    if(item.type==='zero-consumption')return{
+      title:'Este suministro aparece sin consumo pero sigue teniendo costes',
+      summary:`Hay ${sources.length} facturas consecutivas con lectura real, 0 kWh y un importe facturado.`,
+      importance:'Puede ser un suministro sin uso, estacional o necesario para algún servicio que no vemos en la factura.',
+      recommendation:'Confirmar para qué se utiliza antes de plantear una baja o cualquier cambio de potencia.',
+      badge:'Conviene comprobarlo',badgeDetail:amount==null?'':`${fmt(amount)} € facturados`
+    };
+    if(item.type==='reading-quality')return{
+      title:'Faltan datos fiables de consumo en algunas facturas',
+      summary:`Hay ${sources.length} periodos con 0 kWh, pero no podemos confirmar que el consumo real haya sido cero.`,
+      importance:'Sin una lectura fiable podríamos confundir una falta de datos con una bajada real de consumo.',
+      recommendation:'Revisar las lecturas de distribuidora o comercializadora antes de usar estos periodos para tomar decisiones.',
+      badge:'Revisar datos',badgeDetail:'No sacar conclusiones aún'
+    };
+    if(item.type==='consumption-up'||item.type==='consumption-down'){
+      const up=item.type==='consumption-up',pct=Math.abs(Number(item.changeRatio)||0)*100;
+      return{
+        title:`Tu consumo ha ${up?'aumentado':'bajado'} un ${fmt(pct,0)} %`,
+        summary:`En las 2 últimas facturas, el consumo diario es aproximadamente un ${fmt(pct,0)} % ${up?'mayor':'menor'} que en los 3 periodos anteriores.`,
+        importance:up?'Puede deberse a más actividad, horarios, climatización, nuevos equipos o un cambio de uso. Merece revisar qué ha cambiado.':'Puede deberse a menos actividad, cambios de horario, cierre parcial o un cambio de uso. Conviene confirmar la causa antes de interpretarlo como ahorro.',
+        recommendation:up?'Comprobar si han cambiado la actividad, los horarios, la climatización, la ocupación o los equipos del suministro.':'Comprobar si ha cambiado la actividad o el uso del suministro y confirmar que las lecturas sean coherentes.',
+        badge:'Conviene revisarlo',badgeDetail:`${up?'+':'-'}${fmt(pct,0)} %`
+      };
+    }
+    return{
+      title:item.title||'Hay algo que merece revisión',
+      summary:'Hemos detectado un dato que se sale del comportamiento habitual del suministro.',
+      importance:'Conviene revisarlo antes de tomar decisiones.',
+      recommendation:item.action||'Revisar el detalle y confirmar el contexto del suministro.',
+      badge:'Revisar',badgeDetail:''
+    };
+  }
+
+  function measurementTable(item){
+    if(!Array.isArray(item.measurements)||!item.measurements.length)return'';
+    if(item.detailKind==='excess')return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Facturas con exceso</th><th>Máximo exceso</th><th>Coste registrado</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${p.invoices}</td><td>${fmt(p.maximumExcessKw,2)} kW</td><td>${fmt(p.amount)} €</td></tr>`).join('')}</tbody></table></div>`;
+    if(item.detailKind==='reactive')return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Facturas con cargo</th><th>Reactiva registrada</th><th>Máximo por factura</th><th>Coste registrado</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${p.invoices}</td><td>${p.totalReactiveKvarh==null?'—':fmt(p.totalReactiveKvarh,2)+' kVArh'}</td><td>${p.maximumReactiveKvarh==null?'—':fmt(p.maximumReactiveKvarh,2)+' kVArh'}</td><td>${fmt(p.amount)} €</td></tr>`).join('')}</tbody></table></div>`;
+    if(item.detailKind==='power')return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Periodo</th><th>Contratada</th><th>Máximo observado</th><th>Utilización máxima</th><th>Facturas comparadas</th></tr></thead><tbody>${item.measurements.map(p=>`<tr><td>P${p.period}</td><td>${fmt(p.contracted,3)} kW</td><td>${fmt(p.maximum,3)} kW</td><td>${fmt(p.ratio*100,1)} %</td><td>${p.observations}</td></tr>`).join('')}</tbody></table></div>`;
+    return'';
+  }
+
+  function sourceTable(item){
+    const sources=Array.isArray(item.sources)?item.sources:[];
+    if(!sources.length)return'';
+    if(item.type==='consumption-up'||item.type==='consumption-down'){
+      const rows=sources.map((r,i)=>`<tr><td>${i<3?'Referencia':'Reciente'}</td><td>${esc(r.invoice)}</td><td>${esc(date(r.start))} – ${esc(date(r.end))}</td><td>${r.kwh==null?'—':fmt(r.kwh,2)+' kWh'}</td><td>${r.kwhDay==null?'—':fmt(r.kwhDay,2)+' kWh/día'}</td><td>${r.readingStatus==='actual'?'Real confirmada':'No determinada'}</td></tr>`).join('');
+      return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Grupo</th><th>Factura</th><th>Periodo</th><th>Consumo</th><th>Consumo diario</th><th>Lectura</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Factura</th><th>Periodo facturado</th><th>Importe del concepto</th></tr></thead><tbody>${sources.map(r=>`<tr><td>${esc(r.invoice)}</td><td>${esc(date(r.start))} – ${esc(date(r.end))}</td><td>${r.amount==null?'—':fmt(r.amount)+' €'}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function card(item,supplyMap,holderMap){
+    const s=supplyMap.get(item.supplyId),h=holderMap.get(s?.holder_id),p=plain(item);
+    const name=s?.supply_name||s?.address||'Suministro';
+    const identity=[h?.legal_name,s?.cups].filter(Boolean).join(' · ');
+    const techTable=measurementTable(item),sources=sourceTable(item);
+    return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué recomendamos</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver detalle técnico</summary><div class="history-tech-body"><p><strong>Detección técnica:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Pendiente de revisión técnica.</strong> ${esc(item.caveat||'')} Ahorro estimado: pendiente de estudio. No es una estimación de ahorro.</p>${sources}</div></details></div></details>`;
+  }
+
+  function section({id,title,intro,items,supplyMap,holderMap,limit=999,empty=''}){
+    const visible=items.slice(0,limit),rest=items.slice(limit);
+    const cards=visible.map(x=>card(x,supplyMap,holderMap)).join('');
+    const more=rest.length?`<details class="history-more-signals"><summary>Ver otros ${rest.length} cambios detectados</summary><div class="history-rec-list">${rest.map(x=>card(x,supplyMap,holderMap)).join('')}</div></details>`:'';
+    return`<section class="card history-recommendations" id="${esc(id)}"><div class="history-section-head"><div><h2>${esc(title)}</h2></div><span class="history-pill">${items.length} ${items.length===1?'aviso':'avisos'}</span></div><p class="history-scope history-human-intro">${esc(intro)}</p><div class="history-rec-list">${cards||`<div class="history-empty">${esc(empty)}</div>`}</div>${more}</section>`;
+  }
+
+  function render(options={}){
+    const result=base.build(options);
+    const supplyMap=new Map((options.supplies||[]).map(s=>[s.id,s]));
+    const holderMap=new Map((options.holders||[]).map(h=>[h.id,h]));
+    const items=Array.isArray(result.items)?result.items:[];
+    const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down');
+    const opportunities=items.filter(x=>x.type!=='consumption-up'&&x.type!=='consumption-down');
+    const first=section({
+      id:'historyRecommendations',title:'Qué merece la pena revisar',items:opportunities,supplyMap,holderMap,
+      intro:'Primero te mostramos la conclusión en lenguaje sencillo. Si necesitas comprobar cómo hemos llegado a ella, abre “Ver detalle técnico”. Los importes detectados son costes históricos, no ahorros garantizados.',
+      empty:'No hemos encontrado avisos claros con los datos disponibles. Esto no confirma que el suministro esté optimizado: puede faltar histórico o detalle fiable.'
+    });
+    const second=consumption.length?section({
+      id:'historyConsumptionChanges',title:'Cambios importantes en el consumo',items:consumption,supplyMap,holderMap,limit:5,
+      intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema o un ahorro.',
+      empty:''
+    }):'';
+    return first+second;
+  }
+
+  function injectStyles(){
+    if(root.document?.getElementById('humanLanguageStyles'))return;
+    const style=root.document?.createElement('style');if(!style)return;
+    style.id='humanLanguageStyles';
+    style.textContent='.history-rec-simple{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#3f5066}.history-human-answer{padding:2px 0 4px}.history-human-answer h4{font-size:14px}.history-tech-detail{margin-top:10px;border-top:1px solid #dce4ed;padding-top:8px}.history-tech-detail>summary,.history-more-signals>summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:8px 0}.history-tech-body{margin-top:6px;padding:10px;border-radius:8px;background:#fff}.history-human-intro{font-size:13px;line-height:1.5}.history-more-signals{margin-top:12px;border-top:1px solid #e3e9f0;padding-top:4px}.history-more-signals>.history-rec-list{margin-top:6px}.history-rec-human>summary strong{font-size:16px}.history-rec-human .history-rec-status{min-width:124px}';
+    root.document.head.appendChild(style);
+  }
+
+  const wrapped=Object.freeze({...base,render,__humanLanguage:true,__consumptionAnomalies:base.__consumptionAnomalies===true});
+  root.IBTHistoryRecommendations=wrapped;
+  injectStyles();
+})(typeof globalThis!=='undefined'?globalThis:this);
