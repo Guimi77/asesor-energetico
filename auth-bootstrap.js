@@ -58,7 +58,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
-  if(!document.querySelector('script[data-consumption-anomalies]')){
+  if(!document.querySelector('script[data-consumption-anomalies],script[src*="consumption-anomalies.js"]')){
     const script=document.createElement('script');
     script.src='consumption-anomalies.js?v=20260914-1';
     script.dataset.consumptionAnomalies='1';
@@ -78,7 +78,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
   // auditando y guardando el histórico validado mientras se finaliza el sidecar v2.
 
-  if(!document.querySelector('script[data-history-ui]')){
+  const loadHistoryUi=()=>{
+    if(document.querySelector('script[data-history-ui]'))return;
     const script=document.createElement('script');
     script.src='history-ui.js?v=20260909-reading1';
     script.dataset.historyUi='1';
@@ -88,6 +89,25 @@ window.addEventListener('DOMContentLoaded',()=>{
       }
     };
     document.body.appendChild(script);
+  };
+
+  // La capa de lenguaje sencillo cambia solo la presentación. La lógica técnica
+  // de detección permanece intacta y queda accesible bajo "Ver detalle técnico".
+  if(window.IBTHistoryRecommendations?.__humanLanguage){
+    loadHistoryUi();
+  }else{
+    const existing=document.querySelector('script[data-human-language]');
+    if(existing){
+      existing.addEventListener('load',loadHistoryUi,{once:true});
+      existing.addEventListener('error',loadHistoryUi,{once:true});
+    }else{
+      const script=document.createElement('script');
+      script.src='human-language.js?v=20260914-1';
+      script.dataset.humanLanguage='1';
+      script.onload=loadHistoryUi;
+      script.onerror=()=>{console.warn('No se pudo cargar la capa de lenguaje sencillo');loadHistoryUi();};
+      document.body.appendChild(script);
+    }
   }
 
   // El histórico permanece montado en el DOM al cambiar de pestaña.
