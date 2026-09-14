@@ -32,7 +32,13 @@ for name in ['CUPS 1', 'RESUMEN EMPRESA']:
     assert ws['A17'].value == 'ENERO 2027'
     assert ws.sheet_view.showGridLines is False
     assert ws.freeze_panes == 'A5'
-assert formulas['SUMINISTROS'].max_column == 10
+# CUPS status was intentionally appended after the existing ten master columns.
+assert formulas['SUMINISTROS'].max_column == 11
+assert formulas['SUMINISTROS']['K4'].value == 'Estado CUPS'
+# Reading quality was appended to PERIODOS without moving the established columns.
+assert formulas['PERIODOS']['AC4'].value == 'Lectura'
+assert formulas['PERIODOS']['AD4'].value == 'Origen lectura'
+assert values['PERIODOS']['AC5'].value == 'No determinada'
 assert formulas['PERIODOS']['A5'].comment is not None
 assert 'A-JAN' in formulas['PERIODOS']['A5'].comment.text
 for ws in values:
@@ -51,4 +57,4 @@ with ZipFile(path) as z:
         root = ET.fromstring(z.read(name))
         assert len(root.findall('xdr:twoCellAnchor', ns)) == 3
         assert len(root.findall('xdr:oneCellAnchor', ns)) == 0
-print('PASS: independent openpyxl load without warnings; six retained images; valid drawing anchors without overlaps; cached totals, unit prices, source notes and XML. Synthetic test only.')
+print('PASS: independent openpyxl load without warnings; six retained images; valid drawing anchors without overlaps; cached totals, unit prices, reading quality, source notes and XML. Synthetic test only.')
