@@ -25,8 +25,8 @@ function wrap(){
       if(address&&(!currentAddress||polluted(currentAddress))&&currentAddress!==address){s.address=address;changed=true;}
       if(address&&(!currentName||polluted(currentName)||currentName===currentAddress)&&currentName!==address){s.name=address;changed=true;}
       const place=placeFromAddress(address),city=place.city||txt(patched.supplyCity||patched.city),province=place.province||txt(patched.supplyProvince||patched.province);
-      if(city&&(!txt(s.city)||polluted(s.city))&&txt(s.city)!==city){s.city=city;changed=true;}
-      if(province&&(!txt(s.province)||polluted(s.province))&&txt(s.province)!==province){s.province=province;changed=true;}
+      if(city&&txt(s.city)!==city&&(Boolean(place.city)||!txt(s.city)||polluted(s.city))){s.city=city;changed=true;}
+      if(province&&txt(s.province)!==province&&(Boolean(place.province)||!txt(s.province)||polluted(s.province))){s.province=province;changed=true;}
       const contract=txt(patched.contract||patched.contractNumber),access=txt(patched.accessContract);
       if(validRef(contract)&&(!validRef(s.contract)||txt(s.contract)!==contract)){s.contract=contract;changed=true;}
       if(validRef(access)&&(!validRef(s.accessContract)||txt(s.accessContract)!==access)){s.accessContract=access;changed=true;}
