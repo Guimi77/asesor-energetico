@@ -31,13 +31,19 @@ test('Valid zero cost, small positive consumption and negative totals remain num
 test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
-test('Approved history logic, reading fields, fetching and unrelated modules remain unchanged',()=>{
+test('Approved history logic and FENIE enrichment remain locked while Endesa routing may evolve',()=>{
  assert(ui.includes("actual:'Real confirmada'"));
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
  assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
  assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
+ // The FENIE supply parser stays byte-for-byte locked. Only the later format router may add Endesa.
+ const enricher=source('supply-enricher-v2.js'),oldEnricher=old('supply-enricher-v2.js');
+ assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
+ assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
+ // The audit can evolve only to distinguish unavailable detail from an actual zero/error.
+ const audit=source('parser-audit.js');assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));assert(audit.includes('Detalle energético coherente o no informado'));
  // app.js and client-report-export.js are intentionally allowed to evolve with approved report improvements.
- for(const f of ['supply-enricher-v2.js','auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js'])assert.equal(source(f),old(f),f);
+ for(const f of ['auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js'])assert.equal(source(f),old(f),f);
 });
