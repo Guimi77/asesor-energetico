@@ -14,7 +14,7 @@ function load(){
   return context.window.IBTClientReportExport;
 }
 const api=load();
-const row=(period,cups='A',kwh=100,total=20)=>({period,cups,kwh,energy:kwh*.1,total,periods:{P1:{kwh,cost:kwh*.1,price:.1,contracted:5,maximeter:2}}});
+const row=(period,cups='A',kwh=100,total=20,reading='No determinada',readingSource='')=>({period,cups,kwh,energy:kwh*.1,total,reading,readingSource,periods:{P1:{kwh,cost:kwh*.1,price:.1,contracted:5,maximeter:2}}});
 
 test('Same calendar month in different years is never merged',()=>{
   const m=api.monthly([row('01/07/2025 - 31/07/2025'),row('01/07/2026 - 31/07/2026')]);
@@ -45,6 +45,18 @@ test('Company chart hides months below 80 percent coverage without deleting tabl
   assert.equal(m[0].kwh,100,'stored table total remains available');
   assert.equal(view.months[0].kwh,null,'partial month is not drawn as comparable');
   assert.equal(view.months[1].kwh,200);
+});
+
+test('Reading quality is preserved and mixed readings are not presented as one reliable type',()=>{
+  const one=api.monthly([row('01/01/2026 - 31/01/2026','A',100,20,'Estimada','Estimada Distribuidora')])[0];
+  assert.equal(one.reading,'Estimada');
+  assert.equal(one.readingSource,'Estimada Distribuidora');
+  const mixed=api.monthly([
+    row('01/02/2026 - 28/02/2026','A',100,20,'Estimada','Estimada Distribuidora'),
+    row('01/02/2026 - 28/02/2026','A',50,10,'No determinada','Telegestión Distribuidora')
+  ])[0];
+  assert.equal(mixed.reading,'Mixta / revisar');
+  assert.equal(mixed.readingSource,'Varios orígenes');
 });
 
 test('Filename range reflects the real selected period instead of a hard-coded year',()=>{
