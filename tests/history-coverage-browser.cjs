@@ -28,7 +28,7 @@ const {chromium}=require('playwright');
   assert.match(coverageText,/menos de 3 de 3 CUPS/);
   assert.equal(await page.locator('svg[data-field="kwh"] circle[data-month="2026-01"]').getAttribute('data-value'),'0');
   assert.equal(await page.locator('svg[data-field="kwh"] circle[data-month="2026-02"]').count(),0);
-  assert.equal(await page.locator('svg[data-field="kwh"] .history-chart-missing').count(),1);
+  assert.equal(await page.locator('svg[data-field="kwh"] .history-chart-missing').count(),0);
   assert.match(await page.locator('svg[data-field="eur"] circle[data-month="2026-03"] title').textContent(),/3 CUPS con registros/);
   assert.equal(await page.locator('#historyCostChart circle').count(),2);
   const path=await page.locator('svg[data-field="kwh"] path').getAttribute('d');assert.equal((path.match(/M /g)||[]).length,2);
@@ -53,6 +53,6 @@ const {chromium}=require('playwright');
   const other=await browser.newPage();await other.bringToFront();await page.waitForTimeout(200);await page.bringToFront();await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>window.mutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
   await page.evaluate(()=>{const f=document.querySelector('#historyFrom'),t=document.querySelector('#historyTo');f.value='2027-01-01';t.value='2027-01-31';t.dispatchEvent(new Event('change'));});
   await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('.history-coverage').count(),0);assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
-  assert.deepEqual(errors,[]);console.log('PASS: 80% portfolio coverage, missing-month gaps, real zero, exact totals, full labels at five widths, scope/date filters, details, idle/tab stability and empty state. Synthetic records only.');
+  assert.deepEqual(errors,[]);console.log('PASS: 80% portfolio coverage, hidden low-coverage months, true gaps, real zero, exact totals, full labels at five widths, scope/date filters, details, idle/tab stability and empty state. Synthetic records only.');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
