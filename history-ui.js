@@ -18,6 +18,7 @@
     const names = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     return y && m ? `${names[Number(m)-1] || m} ${String(y).slice(2)}` : key;
   };
+  const CHART_MIN_COVERAGE_RATIO = 0.8;
 
   const state = {
     role: null,
@@ -67,7 +68,7 @@
     style.id = 'historyUiStyles';
     style.textContent = `
       .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;align-items:end}.history-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{width:100%;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
-      .history-coverage{margin:16px 0;padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-coverage-warning{border-left:4px solid #b58232;background:#fffcf6}.history-coverage>strong{font-size:15px;color:#10233f}.history-coverage p{font-size:13px;line-height:1.5;margin:8px 0}.history-coverage summary{cursor:pointer;color:#1834b8;font-size:13px;font-weight:700;padding:6px 0}.history-coverage summary:focus-visible{outline:2px solid #1834b8}.history-coverage-table{margin-top:8px;min-width:580px}.history-coverage-table td{white-space:nowrap}.history-coverage .history-scope{font-size:12px}
+      .history-coverage{margin:12px 0;padding:12px 14px;border:1px solid #dce4ed;border-radius:10px;background:#fff}.history-coverage-warning{border-left:4px solid #b58232;background:#fffcf6}.history-coverage>strong{font-size:14px;color:#10233f}.history-coverage p{font-size:12px;line-height:1.45;margin:6px 0}.history-coverage summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:5px 0}.history-coverage summary:focus-visible{outline:2px solid #1834b8}.history-coverage-table{margin-top:6px;min-width:520px}.history-coverage-table td{white-space:nowrap}.history-coverage .history-scope{font-size:11px}
       @media(min-width:1400px){#historyContent .history-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:1100px){.history-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.history-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.history-grid{grid-template-columns:1fr}.history-detail-grid{grid-template-columns:1fr}.history-event{grid-template-columns:1fr}}
     `;
@@ -262,21 +263,51 @@
     return result;
   }
 
-  function renderChartCoverage(points, expected) {
+  function chartCoverageView(points, expected) {
+    const total = Math.max(0, Number(expected) || 0);
+    const threshold = total > 1 ? Math.max(1, Math.ceil(total * CHART_MIN_COVERAGE_RATIO)) : total;
+    const prepared = points.map(p => {
+      const chartExcluded = total > 1 && p.supplies < threshold;
+      return chartExcluded ? {...p, kwh:null, eur:null, chartExcluded:true} : {...p, chartExcluded:false};
+    });
+    const excludedPoints = prepared.filter(p => p.chartExcluded);
+    let first = 0, last = prepared.length;
+    while (first < last && prepared[first].chartExcluded) first++;
+    while (last > first && prepared[last-1].chartExcluded) last--;
+    return { points:prepared.slice(first,last), threshold, expected:total, excluded:excludedPoints.length, excludedPoints };
+  }
+
+  function renderChartCoverage(points, expected, view = chartCoverageView(points, expected)) {
     if (!points.length) return '';
-    const counts = points.map(p => p.supplies), min = Math.min(...counts), max = Math.max(...counts);
     const variable = new Set(points.map(p => p.supplySet)).size > 1;
     const partial = points.some(p => p.supplies < expected);
     const incomplete = points.some(p => p.missingKwh || p.missingEur);
-    const title = variable ? 'Cobertura variable entre meses' : partial ? 'Cobertura parcial de la selección' : 'Suministros con registros por mes';
-    const countText = min === max ? `${min} de ${expected}` : `Entre ${min} y ${max} de ${expected}`;
-    const warning = variable ? 'No se está comparando el mismo conjunto de CUPS en todos los meses. Una subida o bajada del total no demuestra por sí sola un cambio de consumo ni ahorro.' : partial ? 'No todos los CUPS seleccionados tienen registros en estos meses. La ausencia de registros no significa consumo cero ni demuestra que falten facturas.' : 'Los mismos CUPS aportan registros en estos meses; esto no confirma meses completos ni la misma duración facturada.';
-    const rows = points.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.records}</td><td>${p.kwh === null ? '—' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '—' : money(p.eur) + ' €'}</td></tr>`).join('');
-    return `<section class="card history-coverage${variable || partial || incomplete ? ' history-coverage-warning' : ''}" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${countText} CUPS seleccionados aportan datos, según el mes. ${warning}</p><details><summary>Ver cobertura y cifras por mes</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con registros</th><th>Periodos</th><th>Consumo registrado</th><th>Gasto registrado</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">— = sin datos completos para ese valor; 0 = valor cero registrado. Cada periodo se asigna a su mes de fin de facturación, sin reparto diario. El número de CUPS no acredita cobertura mensual completa.${incomplete ? ' Hay valores incompletos: no se representan como ceros.' : ''}</p></section>`;
+    if (!view.excluded && !variable && !partial && !incomplete) return '';
+
+    let title = 'Los meses no tienen exactamente la misma cobertura';
+    let message = 'Los CUPS con datos cambian entre meses. Tenlo en cuenta al comparar los totales.';
+    let summary = 'Ver meses y cobertura';
+    if (view.excluded) {
+      title = 'Hay meses con pocos datos';
+      message = `Para no falsear las gráficas, no dibujamos ${view.excluded} ${view.excluded===1?'mes':'meses'} con menos de ${view.threshold} de ${expected} CUPS con datos.`;
+      summary = `Ver ${view.excluded} ${view.excluded===1?'mes no dibujado':'meses no dibujados'}`;
+    } else if (expected === 1 && partial) {
+      title = 'Hay meses sin datos';
+      message = 'Los meses sin una factura registrada se dejan como huecos; no se convierten en consumo o gasto cero.';
+    } else if (incomplete) {
+      title = 'Hay datos incompletos';
+      message = 'Los valores incompletos se dejan como huecos en la gráfica; no se convierten en cero.';
+    }
+
+    const excludedKeys = new Set(view.excludedPoints.map(p => p.key));
+    const problemPoints = points.filter(p => excludedKeys.has(p.key) || p.missingKwh || p.missingEur || p.supplies === 0);
+    const detailPoints = problemPoints.length ? problemPoints : points;
+    const rows = detailPoints.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.kwh === null ? '—' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '—' : money(p.eur) + ' €'}</td></tr>`).join('');
+    return `<section class="card history-coverage history-coverage-warning" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${message}</p><details><summary>${summary}</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con datos</th><th>Consumo</th><th>Gasto</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">Un 0 solo se muestra cuando el dato guardado es realmente cero. — significa que no hay dato suficiente.</p></section>`;
   }
 
   function svgChart(points, field, formatter) {
-    if (!points.length) return '<div class="history-empty">Sin datos para este rango.</div>';
+    if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? p[field] : null);
     const valid = vals.filter(v => v !== null);
     const min = Math.min(0, ...valid), max = Math.max(0, ...valid);
@@ -291,6 +322,7 @@
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / 2; return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
     const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
     const dots = coords.map(c => {
+      if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
       const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
@@ -301,7 +333,7 @@
   // Rendered with the other charts, from the same filtered numeric records.
   // No independent startup, DOM scraping, observer, timer or extra query.
   function svgCostChart(points) {
-    if (!points.length) return '<div class="history-empty">Sin datos para este rango.</div>';
+    if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const W=680,H=180,padL=106,padR=40,padT=12,padB=28;
     const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
     const valid=values.filter(v=>v!==null&&Number.isFinite(v));
@@ -323,10 +355,12 @@
       return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#65758a">'+esc(qty(value,4))+'</text>';
     }).join('');
     const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#65758a">'+esc(monthLabel(c.p.key))+'</text>').join('');
-    const dots=coords.map(c=>c.y===null?
-      '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(monthLabel(c.p.key))+': sin dato calculable de €/kWh</title></text>':
-      '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(monthLabel(c.p.key))+': '+esc(qty(c.value,4))+' €/kWh'+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>'
-    ).join('');
+    const dots=coords.map(c=>{
+      if(c.p.chartExcluded)return'';
+      return c.y===null?
+        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(monthLabel(c.p.key))+': sin dato calculable de €/kWh</title></text>':
+        '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(monthLabel(c.p.key))+': '+esc(qty(c.value,4))+' €/kWh'+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
+    }).join('');
     return '<svg class="history-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
   }
 
@@ -419,6 +453,9 @@
     const host = $('#historyContent');
     if (!host) return;
     const monthly = chartMonthly(records, $('#historyFrom')?.value, $('#historyTo')?.value);
+    const expectedSupplies = state.currentSupply ? 1 : visibleSupplies().length;
+    const coverageView = chartCoverageView(monthly, expectedSupplies);
+    const chartPoints = coverageView.points;
     const totalKwh = records.reduce((s,r)=>s+n(r.consumption_kwh),0);
     const totalEur = records.reduce((s,r)=>s+n(r.total_eur),0);
     const avg = totalKwh ? totalEur/totalKwh : 0;
@@ -438,11 +475,11 @@
         <div class="history-kpi"><small>Tarifa más reciente</small><strong>${esc(latest?.tariff || '—')}</strong></div>
       </section>
       <section class="history-grid">
-        <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(monthly,'kwh',v=>`${qty(v,0)} kWh`)}</div>
-        <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(monthly,'eur',v=>`${money(v)} €`)}</div>
-        <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(monthly)}</div>
+        <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
+        <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'eur',v=>`${money(v)} €`)}</div>
+        <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(chartPoints)}</div>
       </section>
-      ${renderChartCoverage(monthly, state.currentSupply ? 1 : visibleSupplies().length)}
+      ${renderChartCoverage(monthly, expectedSupplies, coverageView)}
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>
         <div class="history-table-wrap">
