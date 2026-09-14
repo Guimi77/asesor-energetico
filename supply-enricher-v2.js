@@ -167,6 +167,35 @@ function parseSupply(lines) {
   };
 }
 
+function endesaAddress(lines,fallback=''){
+  const idx=lines.findIndex(l=>/Direcci[oó]n\s+de\s+suministro\s*:/i.test(l));
+  if(idx<0)return clean(fallback);
+  const first=lines[idx].replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Referencia\s+del\s+contrato|CUPS|Distribuidora|Peaje)\s*:/i)[0].replace(/\.{3,}/g,'').trim();
+  const extra=[];
+  for(let i=idx+1;i<Math.min(lines.length,idx+3);i++){
+    const q=clean(lines[i]);if(!q||/(?:Contrato|Permanencia|CUPS|Distribuidora|Peaje|Segmento|DESTINO|INFORMACI[ÓO]N)/i.test(q))break;
+    if(/\b\d{5}\b|^[A-ZÁÉÍÓÚÜÑ .,'()-]+$/i.test(q))extra.push(q);else break;
+  }
+  return clean([first,...extra].filter(Boolean).join(' '))||clean(fallback);
+}
+function parseEndesaSupply(pages,file){
+  const lines=(pages||[]).flat(),text=lines.join('\n'),formats=window.IBTInvoiceFormats;
+  const row=formats?.parseEndesa?.({pages,text},file,{readingClassifier:window.IBTReadingStatus?.classify});
+  if(!row||row.unsupported||!row.cups)return{};
+  const address=endesaAddress(lines,row.supplyAddress),place=splitPlace(address);
+  const contractLine=firstLine(lines,/Referencia\s+de\s+contrato\s+de\s+suministro\s*:/i);
+  const accessLine=firstLine(lines,/Referencia\s+del\s+contrato\s+de\s+acceso\s*:/i);
+  const distributorLine=firstLine(lines,/Distribuidora\s*:/i);
+  const renewalLine=firstLine(lines,/Fin\s+de\s+contrato\s+de\s+suministro\s*:/i);
+  const contract=(contractLine.match(/:\s*([A-Z0-9._\/-]+)/i)||[])[1]||'';
+  const accessContract=(accessLine.match(/:\s*([A-Z0-9._\/-]+)/i)||[])[1]||'';
+  const distributor=valueAfter(distributorLine,/^.*?Distribuidora\s*:\s*/i).split(/\s+(?:Referencia|Peaje|Segmento)\s*:/i)[0].trim();
+  const renewalDate=(renewalLine.match(/(\d{2}\/\d{2}\/\d{4})/)||[])[1]||'';
+  const periodEnd=(String(row.period||'').match(/-\s*(\d{2}\/\d{2}\/\d{4})/)||[])[1]||'';
+  const powers={};for(let p=1;p<=6;p++)if(Object.prototype.hasOwnProperty.call(row.contracted||{},`P${p}`))powers[`p${p}`]=row.contracted[`P${p}`];
+  return{company:row.company,taxId:'',cups:row.cups,tariff:row.tariff,contract,address,city:place.city,province:place.province,distributor,retailer:'Endesa Energía S.A.U.',accessContract,supplyName:address,invoiceNumber:row.invoiceNumber,periodEnd,contractType:'',renewalDate,...powers};
+}
+
 async function waitForMaster() {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (window.EnergyMaster?.learnInvoice) return window.EnergyMaster;
@@ -177,24 +206,26 @@ async function waitForMaster() {
 
 async function inspect(file) {
   const task = pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
-  const allLines = [];
+  const pages = [];
   try {
     const pdf = await task.promise;
     for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 3); pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      allLines.push(...linesFromItems(content.items));
+      pages.push(linesFromItems(content.items));
     }
   } finally {
     await task.destroy();
   }
-  const data = parseSupply(allLines);
-  if (!data.cups) return { read: false, changed: false, data };
+  const allLines=pages.flat(),text=allLines.join('\n'),formats=window.IBTInvoiceFormats;
+  if(!formats?.detect)return{read:false,changed:false,data:{},reason:'Detector de formato no disponible'};
+  const format=formats.detect(text);
+  const data=format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{};
+  if (!data.cups) return { read: false, changed: false, data, reason:format==='unknown'?'Formato no compatible todavía':'CUPS no identificado' };
   const master = await waitForMaster();
   const result = master.learnInvoice(data);
   return { read: true, changed: Boolean(result?.enriched), result, data };
 }
-
 
 async function inspectFiles(files) {
   const pdfs = [...files].filter((file) => file.name?.toLowerCase().endsWith('.pdf'));
