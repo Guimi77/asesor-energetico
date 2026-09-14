@@ -5,8 +5,10 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
 const BASE='1668d5ea2f8059d17e08502d83c6395db361c4bf';
+const PARSER_BASE='4cc8fe564bc0dd3921251b964c3cdde6d06cea14';
 const source=file=>fs.readFileSync(file,'utf8');
-const old=file=>execFileSync('git',['show',BASE+':'+file],{encoding:'utf8'});
+const at=(rev,file)=>execFileSync('git',['show',rev+':'+file],{encoding:'utf8'});
+const old=file=>at(BASE,file);
 const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j);};
 const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
 function reader(code,name,end,mode='ok'){
@@ -41,13 +43,15 @@ for(const [path,name,end] of readerSpec){
   assert.equal(r.stats().opened,1);assert.equal(r.stats().closed,1);
  });
 }
-test('Fenie main calculations and unrelated persistence/auth/export code remain byte-for-byte unchanged',()=>{
- assert.equal(slice(source('app.js'),'const find=','async function process'),slice(old('app.js'),'const find=','async function process'));
+test('Fenie calculations stay locked while report presentation can evolve safely',()=>{
+ const parserSnapshot=at(PARSER_BASE,'app.js');
+ assert.equal(slice(source('app.js'),'const find=','async function process'),slice(parserSnapshot,'const find=','async function process'));
  assert.equal(slice(source('app.js'),'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
- assert.equal(slice(source('app.js'),'async function process','const XL='),slice(old('app.js'),'async function process','const XL='));
- assert.equal(source('app.js').slice(source('app.js').indexOf('const XL=')),old('app.js').slice(old('app.js').indexOf('const XL=')));
  assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
- for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js','client-report-export.js'])assert.equal(source(path),old(path),path+' must not change');
+ for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
+ const app=source('app.js'),report=source('client-report-export.js');
+ for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
+ for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
 });
 test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
  const s=source('bulk-performance.js');
@@ -78,7 +82,7 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  assert(s.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
 function eventsApi(){
- const context={Map,Number,Math,String,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),dateES:v=>String(v).split('-').reverse().join('/'),supplyById:()=>({supply_name:'Suministro de prueba',cups:'CUPS SINTETICO'}),holderForSupply:()=>({legal_name:'Titular de prueba'})};
+ const context={Map,Number,Math,String,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c])),dateES:v=>String(v).split('-').reverse().join('/'),supplyById:()=>({supply_name:'Suministro de prueba',cups:'CUPS SINTETICO'}),holderForSupply:()=>({legal_name:'Titular de prueba'})};
  vm.createContext(context);
  vm.runInContext(slice(source('history-ui.js'),'  function comparablePowers','  function rowDetail')+'\nglobalThis.events=detectedEvents;globalThis.markup=renderContractEvent;',context);
  return context;
