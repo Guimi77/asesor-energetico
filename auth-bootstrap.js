@@ -93,16 +93,31 @@ window.addEventListener('DOMContentLoaded',()=>{
   // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
   // auditando y guardando el histórico validado mientras se finaliza el sidecar v2.
 
-  const loadHistoryUi=()=>{
-    if(document.querySelector('script[data-history-ui]'))return;
+  const loadAnalysisUi=()=>{
+    if(document.querySelector('script[data-analysis-ui]'))return;
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260914-quickview1';
-    script.dataset.historyUi='1';
+    script.src='analysis-ui.js?v=20260914-1';
+    script.dataset.analysisUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
         window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
       }
     };
+    document.body.appendChild(script);
+  };
+
+  const loadHistoryUi=()=>{
+    if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
+    const script=document.createElement('script');
+    script.src='history-ui.js?v=20260914-quickview1';
+    script.dataset.historyUi='1';
+    script.onload=()=>{
+      loadAnalysisUi();
+      if(window.ibtCurrentProfile){
+        window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
+      }
+    };
+    script.onerror=loadAnalysisUi;
     document.body.appendChild(script);
   };
 
@@ -117,7 +132,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       existing.addEventListener('error',loadHistoryUi,{once:true});
     }else{
       const script=document.createElement('script');
-      script.src='human-language.js?v=20260914-2';
+      script.src='human-language.js?v=20260914-3';
       script.dataset.humanLanguage='1';
       script.onload=loadHistoryUi;
       script.onerror=()=>{console.warn('No se pudo cargar la capa de lenguaje sencillo');loadHistoryUi();};
