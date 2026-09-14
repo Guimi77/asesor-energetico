@@ -81,7 +81,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const loadHistoryUi=()=>{
     if(document.querySelector('script[data-history-ui]'))return;
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260914-coverage2';
+    script.src='history-ui.js?v=20260914-quickview1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
