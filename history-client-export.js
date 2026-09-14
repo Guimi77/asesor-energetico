@@ -13,6 +13,8 @@
   const quote=s=>"'"+s.replace(/'/g,"''")+"'";
   const formula=(f,result)=>({formula:f,result:result==null?'':result});
   const pause=()=>new Promise(resolve=>setTimeout(resolve,0));
+  const readingLabel=r=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[text(r?.reading_status)]||'No determinada';
+  const supplyStatusLabel=v=>({active:'Activo',inactive:'Inactivo',archived:'Archivado'})[text(v)]||text(v)||'\u2014';
   function selection(input){
     const client=input?.client,from=text(input?.from),to=text(input?.to);
     if(!client?.id)throw Error('Selecciona un cliente.');
@@ -50,11 +52,17 @@
         const cost=values.every(x=>number(x.energy_cost_eur)!=null)?sum(values,'energy_cost_eur'):null;
         if(k!==null&&k!==0)periods.push('P'+p+': '+fmt(k)+' kWh \u00b7 '+(cost==null||k<=0?'precio no disponible':fmt(cost/k,6)+' \u20ac/kWh'));
       }
-      out.push({key,label:monthName(key),rows,kwh,total,energy,energyPrice:kwh>0&&energy!=null?energy/kwh:null,totalUnit:kwh>0?total/kwh:null,periods:periods.join('\n')});
+      out.push({key,label:monthName(key),rows,kwh,total,energy,energyPrice:kwh>0&&energy!=null?energy/kwh:null,totalUnit:kwh>0?total/kwh:null,periods:periods.join('\n'),supplyCount:new Set(rows.map(r=>r.supply_id).filter(Boolean)).size});
       let y=Number(key.slice(0,4)),m=Number(key.slice(5,7))+1;if(m===13){y++;m=1;}key=y+'-'+String(m).padStart(2,'0');
       if(out.length>1200)throw Error('El intervalo supera 100 a\u00f1os. Revisa las fechas.');
     }
     return out;
+  }
+  function reportCoverage(months,expected){
+    const total=Math.max(0,Number(expected)||0),threshold=total>1?Math.max(1,Math.ceil(total*.8)):total;
+    let excluded=0;
+    const points=months.map(m=>{const omit=total>1&&m.supplyCount<threshold;if(omit)excluded++;return omit?{...m,kwh:null,total:null,energyPrice:null,totalUnit:null,chartExcluded:true}:{...m,chartExcluded:false};});
+    return {months:points,threshold,expected:total,excluded};
   }
   function colors(){return Object.assign({navy:'#061B38',blue:'#1834B8',red:'#B42318',light:'#F4F7FB',text:'#10233F',muted:'#65758A'},root.IBT_REPORT_TEMPLATE?.palette||{});}
   const argb=c=>'FF'+c.replace('#','');
@@ -89,25 +97,25 @@
       const id=wb.addImage({base64:chartPng(mo,key,title,unit),extension:'png'});let remaining=900,col=0;while(col<6){const width=Math.floor((ws.getColumn(col+1).width||8.43)*7+5);if(remaining<width)break;remaining-=width;col++;}const br={nativeCol:col,nativeColOff:Math.round(remaining*9525),nativeRow:row+14,nativeRowOff:0};ws.addImage(id,{tl:{col:0,row:row-1},br,editAs:'oneCell'});
     });
   }
-  function monthlySheet(wb,name,title,rows,periodSheet,lastPeriodRow,cups,subtitle){
-    const mo=monthly(rows),ws=sheet(wb,name,title,subtitle,['MES','Consumo total kWh','Gasto total \u20ac','Precio energ\u00eda \u20ac/kWh','Coste total \u20ac/kWh','PERIODOS FACTURADOS','Energ\u00eda \u20ac'],[20,20,20,24,24,58,18]);
+  function monthlySheet(wb,name,title,rows,periodSheet,lastPeriodRow,cups,subtitle,expectedSupplies=1){
+    const mo=monthly(rows),coverage=reportCoverage(mo,expectedSupplies),coverageNote=expectedSupplies>1&&coverage.excluded?` Gr\u00e1ficas: ${coverage.excluded} mes(es) con menos de ${coverage.threshold} de ${coverage.expected} suministros no se comparan.`:'',ws=sheet(wb,name,title,subtitle+coverageNote,['MES','Consumo total kWh','Gasto total \u20ac','Precio energ\u00eda \u20ac/kWh','Coste total \u20ac/kWh','PERIODOS FACTURADOS','Energ\u00eda \u20ac'],[20,20,20,24,24,58,18]);
     const origin=quote(periodSheet),criteria=(field,row)=>`SUMIFS(${origin}!$${field}$5:$${field}$${lastPeriodRow},${origin}!$D$5:$D$${lastPeriodRow},A${row}${cups?`,${origin}!$C$5:$C$${lastPeriodRow},$H$1`:''})`;
     if(cups)ws.getCell('H1').value=cups;ws.getColumn(8).hidden=true;ws.getColumn(7).hidden=true;
     for(const m of mo){const r=ws.rowCount+1;const row=dataRow(ws,[m.label,m.rows.length?formula(criteria('G',r),m.kwh):null,m.rows.length?formula(criteria('U',r),m.total):null,formula(`IF(AND(B${r}>0,ISNUMBER(G${r})),G${r}/B${r},"")`,m.energyPrice),formula(`IF(B${r}>0,C${r}/B${r},"")`,m.totalUnit),m.periods||'\u2014',m.energy==null?null:formula(criteria('H',r),m.energy)]);row.height=Math.max(24,m.periods.split('\n').length*16);}
     const end=ws.rowCount,t=end+1;
     totalRow(ws,['TOTAL SELECCI\u00d3N',formula(`SUM(B5:B${end})`,sum(rows,'consumption_kwh')),formula(`SUM(C5:C${end})`,sum(rows,'total_eur')),formula(`IF(AND(B${t}>0,COUNT(G5:G${end})=COUNT(B5:B${end})),SUM(G5:G${end})/B${t},"")`,rows.every(r=>number(r.energy_cost_eur)!=null)&&sum(rows,'consumption_kwh')>0?sum(rows,'energy_cost_eur')/sum(rows,'consumption_kwh'):null),formula(`IF(B${t}>0,C${t}/B${t},"")`,sum(rows,'consumption_kwh')>0?sum(rows,'total_eur')/sum(rows,'consumption_kwh'):null),'']);
     for(let r=5;r<=t;r++){ws.getCell(r,2).numFmt='#,##0.00 "kWh"';ws.getCell(r,3).numFmt='#,##0.00 "\u20ac"';for(const col of [4,5])ws.getCell(r,col).numFmt='0.000000 "\u20ac/kWh"';}
-    addCharts(wb,ws,mo,t);return ws;
+    addCharts(wb,ws,coverage.months,t);return ws;
   }
   function addDetails(wb,g,subtitle){
-    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen'];
-    const ws=sheet(wb,'PERIODOS',g.holder.legal_name+' \u00b7 PERIODOS',subtitle,headers,[22,28,28,20,14,14,...Array(17).fill(19),12,24,24,14,38]);
+    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura'];
+    const ws=sheet(wb,'PERIODOS',g.holder.legal_name+' \u00b7 PERIODOS',subtitle,headers,[22,28,28,20,14,14,...Array(17).fill(19),12,24,24,14,38,20,34]);
     const fields=['consumption_kwh','energy_cost_eur','power_cost_eur','excess_cost_eur','reactive_cost_eur','compensation_eur','social_bonus_eur','meter_rental_eur','distributor_charges_eur','other_cost_eur','electricity_tax_eur','vat_eur','igic_eur'];
     for(const r of g.records){const i=ws.rowCount+1,vals=fields.map(k=>number(r[k])),complete=vals.slice(1).every(v=>v!=null),accounted=complete?vals.slice(1).reduce((a,b)=>a+b,0):null;
-      const row=dataRow(ws,[text(r.invoice_number),text(g.holder.legal_name),text(g.supplies.get(r.supply_id).cups),monthName(r.billing_end.slice(0,7)),dateES(r.billing_start),dateES(r.billing_end),...vals,formula(`IF(COUNT(H${i}:S${i})=12,SUM(H${i}:S${i}),"")`,accounted),number(r.total_eur),formula(`IF(ISNUMBER(T${i}),U${i}-T${i},"")`,accounted==null?null:Number(r.total_eur)-accounted),formula(`IF(G${i}>0,U${i}/G${i},"")`,Number(r.consumption_kwh)>0?Number(r.total_eur)/Number(r.consumption_kwh):null),text(r.tariff),text(r.retailer),text(r.distributor),text(r.validation_status),text(r.id)]);
+      const row=dataRow(ws,[text(r.invoice_number),text(g.holder.legal_name),text(g.supplies.get(r.supply_id).cups),monthName(r.billing_end.slice(0,7)),dateES(r.billing_start),dateES(r.billing_end),...vals,formula(`IF(COUNT(H${i}:S${i})=12,SUM(H${i}:S${i}),"")`,accounted),number(r.total_eur),formula(`IF(ISNUMBER(T${i}),U${i}-T${i},"")`,accounted==null?null:Number(r.total_eur)-accounted),formula(`IF(G${i}>0,U${i}/G${i},"")`,Number(r.consumption_kwh)>0?Number(r.total_eur)/Number(r.consumption_kwh):null),text(r.tariff),text(r.retailer),text(r.distributor),text(r.validation_status),text(r.id),readingLabel(r),text(r.reading_source_label)||'\u2014']);
       row.getCell(1).note=sourceNote(r);for(let c=7;c<=23;c++)row.getCell(c).numFmt=c===23?'0.000000':'#,##0.00';
     }
-    ws.autoFilter={from:'A4',to:'AB'+ws.rowCount};
+    ws.autoFilter={from:'A4',to:'AD'+ws.rowCount};
     const pws=sheet(wb,'DETALLE P1-P6','DETALLE POR PERIODOS',subtitle,['Referencia','CUPS','Desde','Hasta','Tarifa','Periodo','Consumo kWh','Energ\u00eda \u20ac','Precio \u20ac/kWh','Contratada kW','Potencia \u20ac','Precio \u20ac/kW/d\u00eda','Max\u00edmetro kW','Max\u00edmetro fiable','Exceso kW','Excesos \u20ac','Reactiva kvarh','Reactiva \u20ac'],[22,28,14,14,12,12,...Array(12).fill(19)]);
     for(const r of g.records)for(let p=1;p<=6;p++){
       const en=(r.invoice_energy_periods||[]).filter(v=>Number(v.period)===p),pw=(r.invoice_power_periods||[]).filter(v=>Number(v.period)===p),mx=(r.invoice_maximeters||[]).filter(v=>Number(v.period)===p),ex=(r.invoice_excesses||[]).filter(v=>Number(v.period)===p),re=(r.invoice_reactive||[]).filter(v=>Number(v.period)===p);
@@ -123,13 +131,12 @@
     const wb=new root.ExcelJS.Workbook();wb.creator='Instal\u00b7lacions BT';wb.calcProperties.fullCalcOnLoad=true;
     const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Mes de fin de facturaci\u00f3n.';
     wb.subject=range;wb.description='Fuente: informaci\u00f3n estructurada del hist\u00f3rico. Sin documentos PDF.';
-    const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango'],[6,28,32,40,22,20,18,23,27,27]);
-    let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor)]);}
-    master.autoFilter={from:'A4',to:'J'+master.rowCount};
+    const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango','Estado CUPS'],[6,28,32,40,22,20,18,23,27,27,16]);
+    let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor),supplyStatusLabel(s.status)]);}
+    master.autoFilter={from:'A4',to:'K'+master.rowCount};
     const detail=addDetails(wb,g,range);idx=0;
-    for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id);monthlySheet(wb,'CUPS '+(++idx),text(s.supply_name)||text(s.address)||text(s.cups),rows,detail.name,detail.rowCount,s.cups,'CUPS '+text(s.cups)+' \u00b7 '+range);await pause();}
-    monthlySheet(wb,'RESUMEN EMPRESA',text(g.holder.legal_name)+' \u00b7 RESUMEN',g.records,detail.name,detail.rowCount,null,range);
-    // Preserve client template order: supplies, CUPS sheets, company summary, source detail.
+    for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id);monthlySheet(wb,'CUPS '+(++idx),text(s.supply_name)||text(s.address)||text(s.cups),rows,detail.name,detail.rowCount,s.cups,'CUPS '+text(s.cups)+' \u00b7 '+range,1);await pause();}
+    monthlySheet(wb,'RESUMEN EMPRESA',text(g.holder.legal_name)+' \u00b7 RESUMEN',g.records,detail.name,detail.rowCount,null,range,g.supplies.size);
     const order=['SUMINISTROS',...Array.from({length:idx},(_,i)=>'CUPS '+(i+1)),'RESUMEN EMPRESA','PERIODOS','DETALLE P1-P6','AJUSTES'];order.forEach((name,i)=>{const ws=wb.getWorksheet(name);if(ws)ws.orderNo=i;});
     return wb;
   }
@@ -142,5 +149,5 @@
     ensure();if(options.save)await options.save(blob,name);else{const a=root.document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;root.document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);}
     return {files:files.length,records:scope.groups.reduce((s,g)=>s+g.records.length,0),name};
   }
-  const api=Object.freeze({selection,monthly,workbook,exportSelection});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
+  const api=Object.freeze({selection,monthly,reportCoverage,workbook,exportSelection});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
