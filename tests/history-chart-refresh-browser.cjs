@@ -18,11 +18,11 @@ function setup(){
  window.restoreSession=()=>{window.ibtCurrentProfile={role:'staff'};window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));};
 }
 const fixture='<!doctype html><html><head><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="history-recommendations.css"></head><body><div id="historicoView"></div><script>('+setup.toString()+')();</script><script src="history-recommendations.js"></script><script src="auth-bootstrap.js"></script></body></html>';
-const allowed=new Set(['styles.css','history-recommendations.css','history-recommendations.js','auth-bootstrap.js','history-ui.js','history-cost-chart.js']);
+const allowed=new Set(['styles.css','history-recommendations.css','history-recommendations.js','human-language.js','auth-bootstrap.js','history-ui.js','history-cost-chart.js']);
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),base=url.pathname.startsWith('/baseline/'),name=url.pathname.split('/').pop();
  if(!name){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fixture);return;}
- if(['bulk-performance.js','supabase-xtra-pilot.js','xtra-history.js'].includes(name)){res.setHeader('Content-Type','text/javascript');res.end('// Not part of the UI test. No production network or PDFs.');return;}
+ if(['bulk-performance.js','folder-upload.js','supabase-xtra-pilot.js','supply-lifecycle.js','lifecycle-analysis-guard.js','consumption-anomalies.js','xtra-history.js'].includes(name)){res.setHeader('Content-Type','text/javascript');res.end('// Not part of the UI test. No production network or PDFs.');return;}
  if(!allowed.has(name)){res.writeHead(404);res.end();return;}
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type',name.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8');
  let code=base&&baseline.has(name)?baseline.get(name):fs.readFileSync(name,'utf8');
@@ -52,14 +52,13 @@ const server=http.createServer((req,res)=>{
   await page.evaluate(()=>{window.chartMutations=0;new MutationObserver(m=>window.chartMutations+=m.length).observe(document.querySelector('#historyContent'),{childList:true,subtree:true});});
   const queries=await page.evaluate(()=>window.mockQueries);const other=await browser.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(300);await page.bringToFront();await page.waitForTimeout(600);
   assert.equal(await page.evaluate(()=>window.chartMutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
-  await page.goto(root+'/candidate/?ready=1&case=gap');await page.waitForSelector('#historyCostChart svg');
-  assert.equal(await page.locator('#historyCostChart circle').count(),2);assert.equal(await page.locator('.history-cost-missing').count(),1);
-  assert.equal(Number(await page.locator('#historyCostChart circle[data-month="2026-01"]').getAttribute('data-cost')),.2);
-  const path=await page.locator('#historyCostChart path').getAttribute('d');assert.equal((path.match(/M /g)||[]).length,2);assert(!path.includes('L '));
+  await page.goto(root+'/candidate/?ready=1&case=gap');await page.waitForSelector('#historyCostChart .history-empty');
+  assert.equal(await page.locator('#historyCostChart circle').count(),0);
+  assert.match(await page.locator('.history-coverage').innerText(),/Hay meses con pocos datos/);
   await page.fill('#historyFrom','2027-01-01');await page.locator('#historyFrom').dispatchEvent('change');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
-  await page.goto(root+'/candidate/?ready=1&case=zero');await page.waitForSelector('#historyCostChart svg');assert.equal(await page.locator('#historyCostChart circle').count(),0);assert.equal(await page.locator('#historyCostChart path').count(),0);assert.equal(await page.locator('.history-cost-missing').count(),2);
+  await page.goto(root+'/candidate/?ready=1&case=zero');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('#historyCostChart circle').count(),0);assert.equal(await page.locator('#historyCostChart path').count(),0);
   assert.deepEqual(errors,[]);
-  console.log('PASS: reload x3, delayed and immediate sessions, 341 synthetic records, 52 supplies, three charts, weighted numeric cost, filters, detail, recommendations, no idle redraw, zero-consumption gaps and empty selections.');
+  console.log('PASS: reload x3, delayed and immediate sessions, 341 synthetic records, 52 supplies, three charts, weighted numeric cost, portfolio coverage filtering, filters, detail, recommendations, no idle redraw and empty selections.');
   console.log('No production database, real invoices or RLS tests were used.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});
