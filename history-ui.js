@@ -68,7 +68,7 @@
     style.id = 'historyUiStyles';
     style.textContent = `
       .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;align-items:end}.history-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{width:100%;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
-      .history-coverage{margin:12px 0;padding:12px 14px;border:1px solid #dce4ed;border-radius:10px;background:#fff}.history-coverage-warning{border-left:4px solid #b58232;background:#fffcf6}.history-coverage>strong{font-size:14px;color:#10233f}.history-coverage p{font-size:12px;line-height:1.45;margin:6px 0}.history-coverage summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:5px 0}.history-coverage summary:focus-visible{outline:2px solid #1834b8}.history-coverage-table{margin-top:6px;min-width:520px}.history-coverage-table td{white-space:nowrap}.history-coverage .history-scope{font-size:11px}
+      .history-data-note{margin:10px 0 0;padding:10px 12px;border-left:4px solid #b58232;border-radius:8px;background:#fffcf6;color:#10233f;font-size:12px;line-height:1.4}.history-data-note strong{margin-right:5px}.history-data-note-neutral{border-left-color:#8190a5;background:#f8fafc}
       @media(min-width:1400px){#historyContent .history-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:1100px){.history-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.history-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.history-grid{grid-template-columns:1fr}.history-detail-grid{grid-template-columns:1fr}.history-event{grid-template-columns:1fr}}
     `;
@@ -279,31 +279,26 @@
 
   function renderChartCoverage(points, expected, view = chartCoverageView(points, expected)) {
     if (!points.length) return '';
-    const variable = new Set(points.map(p => p.supplySet)).size > 1;
-    const partial = points.some(p => p.supplies < expected);
-    const incomplete = points.some(p => p.missingKwh || p.missingEur);
-    if (!view.excluded && !variable && !partial && !incomplete) return '';
-
-    let title = 'Los meses no tienen exactamente la misma cobertura';
-    let message = 'Los CUPS con datos cambian entre meses. Tenlo en cuenta al comparar los totales.';
-    let summary = 'Ver meses y cobertura';
-    if (view.excluded) {
-      title = 'Hay meses con pocos datos';
-      message = `Para no falsear las gráficas, no dibujamos ${view.excluded} ${view.excluded===1?'mes':'meses'} con menos de ${view.threshold} de ${expected} CUPS con datos.`;
-      summary = `Ver ${view.excluded} ${view.excluded===1?'mes no dibujado':'meses no dibujados'}`;
-    } else if (expected === 1 && partial) {
-      title = 'Hay meses sin datos';
-      message = 'Los meses sin una factura registrada se dejan como huecos; no se convierten en consumo o gasto cero.';
-    } else if (incomplete) {
-      title = 'Hay datos incompletos';
-      message = 'Los valores incompletos se dejan como huecos en la gráfica; no se convierten en cero.';
+    const latest = points.at(-1);
+    const latestPartial = expected > 1 && latest.supplies < view.threshold;
+    if (latestPartial) {
+      return `<div class="history-data-note" role="status"><strong>${esc(monthLabel(latest.key))}: datos parciales.</strong>${latest.supplies} de ${expected} suministros tienen datos registrados. Este mes todavía no se compara con los anteriores.</div>`;
     }
 
-    const excludedKeys = new Set(view.excludedPoints.map(p => p.key));
-    const problemPoints = points.filter(p => excludedKeys.has(p.key) || p.missingKwh || p.missingEur || p.supplies === 0);
-    const detailPoints = problemPoints.length ? problemPoints : points;
-    const rows = detailPoints.map(p => `<tr data-coverage-month="${esc(p.key)}"><td>${esc(monthLabel(p.key))}</td><td>${p.supplies} de ${expected}</td><td>${p.kwh === null ? '—' : qty(p.kwh,2) + ' kWh'}</td><td>${p.eur === null ? '—' : money(p.eur) + ' €'}</td></tr>`).join('');
-    return `<section class="card history-coverage history-coverage-warning" aria-labelledby="historyCoverageTitle"><strong id="historyCoverageTitle">${title}</strong><p>${message}</p><details><summary>${summary}</summary><div class="history-table-wrap"><table class="history-mini-table history-coverage-table"><thead><tr><th>Mes</th><th>CUPS con datos</th><th>Consumo</th><th>Gasto</th></tr></thead><tbody>${rows}</tbody></table></div></details><p class="history-scope">Un 0 solo se muestra cuando el dato guardado es realmente cero. — significa que no hay dato suficiente.</p></section>`;
+    const comparableKeys = new Set(view.points.map(p => p.key));
+    const interiorProblem = points.some((p,i) => {
+      if (i === 0 || i === points.length - 1) return false;
+      return !comparableKeys.has(p.key) || p.missingKwh || p.missingEur || p.supplies === 0;
+    });
+    if (interiorProblem) {
+      return '<div class="history-data-note history-data-note-neutral"><strong>Hay un mes con datos incompletos.</strong>La gráfica deja un hueco para no mostrar una subida o bajada falsa.</div>';
+    }
+
+    if (expected === 1) {
+      const missing = points.some(p => p.supplies === 0 || p.missingKwh || p.missingEur);
+      if (missing) return '<div class="history-data-note history-data-note-neutral"><strong>Falta información en algún mes.</strong>Ese periodo no se usa para comparar la evolución.</div>';
+    }
+    return '';
   }
 
   function svgChart(points, field, formatter) {
