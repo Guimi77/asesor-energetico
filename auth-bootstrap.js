@@ -117,7 +117,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       existing.addEventListener('error',loadHistoryUi,{once:true});
     }else{
       const script=document.createElement('script');
-      script.src='human-language.js?v=20260914-1';
+      script.src='human-language.js?v=20260914-2';
       script.dataset.humanLanguage='1';
       script.onload=loadHistoryUi;
       script.onerror=()=>{console.warn('No se pudo cargar la capa de lenguaje sencillo');loadHistoryUi();};
