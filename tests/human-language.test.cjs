@@ -26,10 +26,11 @@ test('Excess is explained in plain language while keeping technical detail',()=>
   assert.match(html,/Costes que ya aparecen en las facturas/);
   assert.match(html,/Estás pagando penalizaciones por superar la potencia contratada/);
   assert.match(html,/Por qué importa/);
-  assert.match(html,/Qué recomendamos/);
+  assert.match(html,/Qué conviene revisar/);
   assert.match(html,/Ver detalle técnico/);
   assert.match(html,/Excesos de potencia repetidos/);
-  assert.match(html,/Ahorro estimado: pendiente de estudio/);
+  assert.match(html,/Este análisis no calcula una propuesta económica/);
+  assert.doesNotMatch(html,/Ahorro estimado/i);
 });
 
 test('Consumption change leads with the percentage and hides jargon in technical detail',()=>{
