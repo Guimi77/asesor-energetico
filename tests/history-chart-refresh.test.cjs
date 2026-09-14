@@ -9,7 +9,7 @@ const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0
 const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c])),monthLabel:v=>v};
 vm.createContext(ctx);vm.runInContext(chunk(ui,'  function svgCostChart','  function powerSignature')+'\nglobalThis.chart=svgCostChart;',ctx);
 test('Third chart belongs to the core history renderer and old sidecar is not loaded',()=>{
- assert(ui.includes('id="historyCostChart"'));assert(ui.includes('${svgCostChart(monthly)}'));
+ assert(ui.includes('id="historyCostChart"'));assert(ui.includes('${svgCostChart(chartPoints)}'));
  assert(!source('auth-bootstrap.js').includes('history-cost-chart.js'));
  assert(!source('index.html').includes('history-cost-chart.js'));
  assert(!/MutationObserver|setTimeout\s*\(|setInterval\s*\(/.test(chunk(ui,'  function svgCostChart','  function powerSignature')));
@@ -23,7 +23,7 @@ test('Zero consumption produces a gap, not a false zero price',()=>{
  const path=html.match(/<path d="([^"]*)"/)[1];assert.equal((path.match(/M /g)||[]).length,2);assert(!path.includes('L '));
 });
 test('Empty and all-zero selections still have a useful empty or missing state',()=>{
- assert(ctx.chart([]).includes('Sin datos'));const html=ctx.chart([{key:'2026-01',kwh:0,eur:20}]);assert(!html.includes('<circle'));assert(!html.includes('<path'));assert(html.includes('sin dato'));
+ assert(ctx.chart([]).includes('cobertura suficiente'));const html=ctx.chart([{key:'2026-01',kwh:0,eur:20}]);assert(!html.includes('<circle'));assert(!html.includes('<path'));assert(html.includes('sin dato'));
 });
 test('Valid zero cost, small positive consumption and negative totals remain numerical values',()=>{
  for(const [kwh,eur,value] of [[100,0,0],[.001,.0001,.1],[100,-20,-.2]]){const html=ctx.chart([{key:'x',kwh,eur}]);assert(html.includes('data-cost="'+value+'"'));assert(!html.includes('history-cost-missing'));}
