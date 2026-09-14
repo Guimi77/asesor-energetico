@@ -54,7 +54,7 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>window.chartMutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
   await page.goto(root+'/candidate/?ready=1&case=gap');await page.waitForSelector('#historyCostChart .history-empty');
   assert.equal(await page.locator('#historyCostChart circle').count(),0);
-  assert.match(await page.locator('.history-coverage').innerText(),/Hay meses con pocos datos/);
+  assert.match(await page.locator('.history-data-note').innerText(),/datos parciales/);
   await page.fill('#historyFrom','2027-01-01');await page.locator('#historyFrom').dispatchEvent('change');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
   await page.goto(root+'/candidate/?ready=1&case=zero');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('#historyCostChart circle').count(),0);assert.equal(await page.locator('#historyCostChart path').count(),0);
   assert.deepEqual(errors,[]);
