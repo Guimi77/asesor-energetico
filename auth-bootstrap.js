@@ -23,6 +23,19 @@ window.addEventListener('DOMContentLoaded',()=>{
       .history-badge{display:none!important}
       #historicoView,#historyApp,#historyContent{min-width:0;max-width:100%}
       #historicoView{overflow-x:hidden}
+      #historicoView .history-table-wrap:has(> .history-table){
+        max-height:min(68vh,720px);
+        overflow:auto;
+        overscroll-behavior:contain;
+        scrollbar-gutter:stable;
+      }
+      #historicoView .history-table thead th{
+        position:sticky!important;
+        top:0;
+        z-index:8;
+        background:#10233f;
+        box-shadow:0 1px 0 rgba(255,255,255,.18),0 2px 5px rgba(6,27,56,.16);
+      }
       @media(min-width:1101px){
         #historicoView .history-rec>summary{
           grid-template-columns:minmax(0,980px) minmax(124px,170px) minmax(0,1fr);
@@ -33,6 +46,9 @@ window.addEventListener('DOMContentLoaded',()=>{
           width:100%;
           max-width:170px;
         }
+      }
+      @media(max-width:1100px){
+        #historicoView .history-table-wrap:has(> .history-table){max-height:64vh}
       }
     `;
     document.head.appendChild(style);
