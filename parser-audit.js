@@ -1,6 +1,6 @@
 (()=>{'use strict';
 let auditMode=false;
-const n=v=>Number(v)||0,txt=v=>String(v??'').trim();
+const n=v=>Number(v)||0,txt=v=>String(v??'').trim(),has=v=>v!==''&&v!=null;
 const close=(a,b,t=.05)=>Math.abs(a-b)<=t;
 const parserVersion=()=>String(window.IBT_PARSER_VERSION||'desconocida');
 function getRows(wb,name){const ws=wb?.Sheets?.[name];return ws?XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(3):[]}
@@ -17,14 +17,16 @@ function auditWorkbook(wb){
     const idGood=!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
     if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: empresa, CUPS, periodo, tarifa o total.','ERROR');
     let pkwh=0,pcost=0,periodsGood=true;
+    const hasAnyPeriodPrice=[1,2,3,4,5,6].some(p=>has(d[5+(p-1)*5+2]));
+    const hasAnyPeriodCost=[1,2,3,4,5,6].some(p=>has(d[5+(p-1)*5+1]));
     for(let p=1;p<=6;p++){
-      const o=5+(p-1)*5,k=n(d[o]),cost=n(d[o+1]),price=n(d[o+2]);pkwh+=k;pcost+=cost;
-      if(k>0&&price<=0){periodsGood=false;add('PRECIO PERIODO',`P${p} tiene ${k.toFixed(2)} kWh pero no tiene precio €/kWh.`)}
-      if(/^2\.0TD$/i.test(tariff)&&p>=4&&(Math.abs(k)>.001||Math.abs(cost)>.001||Math.abs(price)>.000001)){periodsGood=false;add('PERIODO IMPOSIBLE',`Tarifa 2.0TD con datos en P${p}.`,'ERROR')}
+      const o=5+(p-1)*5,rawK=d[o],rawCost=d[o+1],rawPrice=d[o+2],k=n(rawK),cost=n(rawCost),price=n(rawPrice);pkwh+=k;if(has(rawCost))pcost+=cost;
+      if(k>0&&hasAnyPeriodPrice&&(!has(rawPrice)||price<=0)){periodsGood=false;add('PRECIO PERIODO',`P${p} tiene ${k.toFixed(2)} kWh pero el precio €/kWh informado no es válido.`)}
+      if(/^2\.0TD$/i.test(tariff)&&p>=4&&(Math.abs(k)>.001||(has(rawCost)&&Math.abs(cost)>.001)||(has(rawPrice)&&Math.abs(price)>.000001))){periodsGood=false;add('PERIODO IMPOSIBLE',`Tarifa 2.0TD con datos en P${p}.`,'ERROR')}
     }
     if(periodsGood)periodOk++;
     if(close(pkwh,consumption,.1))consumptionOk++; else add('CONSUMO',`Suma P1-P6 = ${pkwh.toFixed(2)} kWh y consumo total = ${consumption.toFixed(2)} kWh.`,'ERROR');
-    if(close(pcost,energy,.1))energyOk++; else add('ENERGÍA €',`Suma coste P1-P6 = ${pcost.toFixed(2)} € y término energía = ${energy.toFixed(2)} €.`,'ERROR');
+    if(!hasAnyPeriodCost)energyOk++; else if(close(pcost,energy,.1))energyOk++; else add('ENERGÍA €',`Suma del coste por periodos = ${pcost.toFixed(2)} € y término energía = ${energy.toFixed(2)} €.`,'ERROR');
     const accounted=energy+power+excess+reactive+comp+other+dist+tax+vat+igic;
     if(Math.abs(Math.round((total-accounted)*100))<=5)economicOk++; else add('CUADRE ECONÓMICO',`Conceptos guardados = ${accounted.toFixed(2)} € y total factura = ${total.toFixed(2)} € (dif. ${(total-accounted).toFixed(2)} €).`,'ERROR');
     if(consumption===0&&energy!==0)add('COHERENCIA','Consumo 0 kWh con término de energía distinto de 0 €.');
@@ -42,12 +44,12 @@ function auditBook(a){
     ['Control','Correctas','Total','%'],
     ['Identidad esencial',a.identityOk,a.total,pct(a.identityOk)],
     ['Consumo P1-P6 = consumo total',a.consumptionOk,a.total,pct(a.consumptionOk)],
-    ['Coste energía P1-P6 = energía €',a.energyOk,a.total,pct(a.energyOk)],
+    ['Detalle energético coherente o no informado',a.energyOk,a.total,pct(a.energyOk)],
     ['Cuadre económico completo',a.economicOk,a.total,pct(a.economicOk)],
     ['Coherencia de periodos/tarifa',a.periodOk,a.total,pct(a.periodOk)],
     [],['Incidencias detectadas',a.issues.length]
   ];
-  const ws=XLSX.utils.aoa_to_sheet(overview);ws['!cols']=[{wch:38},{wch:12},{wch:12},{wch:12}];
+  const ws=XLSX.utils.aoa_to_sheet(overview);ws['!cols']=[{wch:42},{wch:12},{wch:12},{wch:12}];
   ['D4','D5','D6','D7','D8'].forEach(c=>{if(ws[c])ws[c].z='0.00%'});XLSX.utils.book_append_sheet(wb,ws,'Resumen auditoría');
   const ih=[['Severidad','Nº factura','Empresa','CUPS','Periodo','Tarifa','Control','Detalle'],...a.issues];
   const wi=XLSX.utils.aoa_to_sheet(ih);wi['!cols']=[{wch:12},{wch:20},{wch:32},{wch:27},{wch:25},{wch:10},{wch:24},{wch:80}];XLSX.utils.book_append_sheet(wb,wi,'Incidencias auditoría');
