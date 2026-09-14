@@ -33,5 +33,5 @@ jobs:
           node --check analysis-ui.js
           node --check alerts-ui.js
           node --check human-language.js
-      - name: Run synthetic regression cases
-        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/reading-status.test.cjs
+      - name: Run synthetic and real-layout regression cases
+        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/reading-status.test.cjs
