@@ -47,7 +47,7 @@ test('Fenie calculations stay locked while reading metadata and format routing c
  const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');
  // Lock the complete FENIE calculation path up to the point where later metadata
  // (reading status) is attached. New format routing lives after this boundary.
- assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','return{file:file.name'));
+ assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','const reading='));
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
  for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
