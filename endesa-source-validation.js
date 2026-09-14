@@ -41,7 +41,7 @@
       const q=cleanAddressLine(raw);if(!q)break;
       if(/\b\d{5}\b/.test(q)||/^[A-ZÁÉÍÓÚÜÑ .,'()/-]{2,45}$/i.test(q))parts.push(q);else break;
     }
-    return cleanAddressLine(parts.join(' '))||cleanAddressLine(fallback);
+    return cleanAddressLine(parts.join(', '))||cleanAddressLine(fallback);
   }
   function placeFromAddress(address){
     const m=text(address).match(/\b\d{5}\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
