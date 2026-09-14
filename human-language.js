@@ -17,14 +17,14 @@
     const sources=Array.isArray(item.sources)?item.sources:[];
     if(item.type==='excess')return{
       title:item.repeated?'Estás pagando penalizaciones por superar la potencia contratada':'Has pagado una penalización por superar la potencia contratada',
-      summary:item.repeated?`El cargo aparece en ${sources.length} facturas y suma ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado un cargo de ${fmt(amount)} € por superar la potencia contratada.`,
+      summary:item.repeated?`Se han detectado cargos repetidos por exceso. El saldo registrado es de ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado un cargo de ${fmt(amount)} € por superar la potencia contratada.`,
       importance:'Es un coste adicional. Antes de cambiar la potencia conviene saber si los picos son puntuales o se repiten por el funcionamiento habitual del suministro.',
       recommendation:'Revisar cuándo se producen los picos y comparar qué sale mejor: reducirlos, reorganizar cargas o modificar la potencia.',
       badge:'Conviene revisarlo',badgeDetail:`${fmt(amount)} € detectados`
     };
     if(item.type==='reactive')return{
       title:item.repeated?'Estás pagando un coste adicional por energía reactiva':'Ha aparecido un coste adicional por energía reactiva',
-      summary:item.repeated?`Este coste aparece en varias facturas y suma ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado ${fmt(amount)} € de coste por energía reactiva.`,
+      summary:item.repeated?`Este coste se repite y suma ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado ${fmt(amount)} € de coste por energía reactiva.`,
       importance:'La energía reactiva puede generar cargos que no aportan consumo útil. Si se repite, merece revisar la instalación y la compensación existente.',
       recommendation:'Comprobar el origen de la reactiva y el estado de la compensación antes de proponer equipos o cambios.',
       badge:'Conviene revisarlo',badgeDetail:`${fmt(amount)} € detectados`
@@ -98,6 +98,22 @@
     return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué recomendamos</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver detalle técnico</summary><div class="history-tech-body"><p><strong>Detección técnica:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Pendiente de revisión técnica.</strong> ${esc(item.caveat||'')} Ahorro estimado: pendiente de estudio. No es una estimación de ahorro.</p>${sources}</div></details></div></details>`;
   }
 
+  function overview(items){
+    const byType=type=>items.filter(x=>x.type===type);
+    const cost=type=>byType(type).reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+    const blocks=[];
+    const excess=byType('excess'),reactive=byType('reactive'),power=byType('power');
+    const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down');
+    const reading=byType('reading-quality');
+    if(excess.length)blocks.push(`<div class="history-human-kpi"><small>Costes extra por potencia</small><strong>${fmt(cost('excess'))} €</strong><span>${excess.length} suministro${excess.length===1?'':'s'} para revisar</span></div>`);
+    if(reactive.length)blocks.push(`<div class="history-human-kpi"><small>Costes extra por reactiva</small><strong>${fmt(cost('reactive'))} €</strong><span>${reactive.length} suministro${reactive.length===1?'':'s'} para revisar</span></div>`);
+    if(power.length)blocks.push(`<div class="history-human-kpi"><small>Potencia posiblemente alta</small><strong>${power.length}</strong><span>suministro${power.length===1?'':'s'} para estudiar</span></div>`);
+    if(consumption.length)blocks.push(`<div class="history-human-kpi"><small>Cambios importantes de consumo</small><strong>${consumption.length}</strong><span>cambio${consumption.length===1?'':'s'} detectado${consumption.length===1?'':'s'}</span></div>`);
+    if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Datos de consumo a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'} sin lectura suficientemente clara</span></div>`);
+    if(!blocks.length)return'';
+    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Son costes y señales detectadas en el histórico; todavía no son una promesa de ahorro.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
+  }
+
   function section({id,title,intro,items,supplyMap,holderMap,limit=999,empty=''}){
     const visible=items.slice(0,limit),rest=items.slice(limit);
     const cards=visible.map(x=>card(x,supplyMap,holderMap)).join('');
@@ -122,14 +138,14 @@
       intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema o un ahorro.',
       empty:''
     }):'';
-    return first+second;
+    return overview(items)+first+second;
   }
 
   function injectStyles(){
     if(root.document?.getElementById('humanLanguageStyles'))return;
     const style=root.document?.createElement('style');if(!style)return;
     style.id='humanLanguageStyles';
-    style.textContent='.history-rec-simple{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#3f5066}.history-human-answer{padding:2px 0 4px}.history-human-answer h4{font-size:14px}.history-tech-detail{margin-top:10px;border-top:1px solid #dce4ed;padding-top:8px}.history-tech-detail>summary,.history-more-signals>summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:8px 0}.history-tech-body{margin-top:6px;padding:10px;border-radius:8px;background:#fff}.history-human-intro{font-size:13px;line-height:1.5}.history-more-signals{margin-top:12px;border-top:1px solid #e3e9f0;padding-top:4px}.history-more-signals>.history-rec-list{margin-top:6px}.history-rec-human>summary strong{font-size:16px}.history-rec-human .history-rec-status{min-width:124px}';
+    style.textContent='.history-rec-simple{display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#3f5066}.history-human-answer{padding:2px 0 4px}.history-human-answer h4{font-size:14px}.history-tech-detail{margin-top:10px;border-top:1px solid #dce4ed;padding-top:8px}.history-tech-detail>summary,.history-more-signals>summary{cursor:pointer;color:#1834b8;font-size:12px;font-weight:700;padding:8px 0}.history-tech-body{margin-top:6px;padding:10px;border-radius:8px;background:#fff}.history-human-intro{font-size:13px;line-height:1.5}.history-more-signals{margin-top:12px;border-top:1px solid #e3e9f0;padding-top:4px}.history-more-signals>.history-rec-list{margin-top:6px}.history-rec-human>summary strong{font-size:16px}.history-rec-human .history-rec-status{min-width:124px}.history-human-overview{padding:18px}.history-human-overview h2{margin:0}.history-human-overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}.history-human-kpi{border:1px solid #dce4ed;border-radius:10px;padding:13px;background:#fff}.history-human-kpi small,.history-human-kpi span{display:block;color:#65758a}.history-human-kpi strong{display:block;font-size:22px;color:#061b38;margin:5px 0}.history-human-kpi span{font-size:12px;line-height:1.35}';
     root.document.head.appendChild(style);
   }
 
