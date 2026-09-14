@@ -1,6 +1,6 @@
 /* Client-first presentation for energy findings.
  * Business rule: explain the conclusion first, keep technical evidence behind
- * "Ver detalle técnico", and never present historical costs as guaranteed savings.
+ * "Ver detalle técnico", and keep the product diagnostic rather than economic.
  * Detection logic remains in the underlying recommendation modules.
  */
 (function(root){
@@ -19,7 +19,7 @@
       title:item.repeated?'Estás pagando penalizaciones por superar la potencia contratada':'Has pagado una penalización por superar la potencia contratada',
       summary:item.repeated?`Se han detectado cargos repetidos por exceso. El saldo registrado es de ${fmt(amount)} € en el periodo analizado.`:`Hemos detectado un cargo de ${fmt(amount)} € por superar la potencia contratada.`,
       importance:'Es un coste adicional. Antes de cambiar la potencia conviene saber si los picos son puntuales o se repiten por el funcionamiento habitual del suministro.',
-      recommendation:'Revisar cuándo se producen los picos y comparar qué sale mejor: reducirlos, reorganizar cargas o modificar la potencia.',
+      recommendation:'Revisar cuándo se producen los picos y si responden al funcionamiento habitual del suministro.',
       badge:'Conviene revisarlo',badgeDetail:`${fmt(amount)} € detectados`
     };
     if(item.type==='reactive')return{
@@ -34,9 +34,9 @@
       return{
         title:'Podrías tener más potencia contratada de la que necesitas',
         summary:`Durante ${item.coverageDays||'varios'} días, la potencia utilizada se ha mantenido baja en ${periods} periodo${periods===1?'':'s'} y no hemos visto penalizaciones por exceso.`,
-        importance:'Si este patrón se mantiene durante un ciclo completo, podría existir margen para reducir costes fijos.',
-        recommendation:'Revisar un año completo y la estacionalidad antes de calcular una nueva potencia. No proponemos todavía ningún valor de kW.',
-        badge:'Estudiar',badgeDetail:'Sin ahorro calculado'
+        importance:'Si este patrón se mantiene durante un ciclo completo, conviene revisar si la potencia contratada está ajustada al uso real.',
+        recommendation:'Revisar un año completo y la estacionalidad antes de plantear cualquier cambio de potencia.',
+        badge:'Estudiar',badgeDetail:'Requiere revisión técnica'
       };
     }
     if(item.type==='zero-consumption')return{
@@ -58,7 +58,7 @@
       return{
         title:`Tu consumo ha ${up?'aumentado':'bajado'} un ${fmt(pct,0)} %`,
         summary:`En las 2 últimas facturas, el consumo diario es aproximadamente un ${fmt(pct,0)} % ${up?'mayor':'menor'} que en los 3 periodos anteriores.`,
-        importance:up?'Puede deberse a más actividad, horarios, climatización, nuevos equipos o un cambio de uso. Merece revisar qué ha cambiado.':'Puede deberse a menos actividad, cambios de horario, cierre parcial o un cambio de uso. Conviene confirmar la causa antes de interpretarlo como ahorro.',
+        importance:up?'Puede deberse a más actividad, horarios, climatización, nuevos equipos o un cambio de uso. Merece revisar qué ha cambiado.':'Puede deberse a menos actividad, cambios de horario, cierre parcial o un cambio de uso. Conviene confirmar la causa antes de sacar conclusiones.',
         recommendation:up?'Comprobar si han cambiado la actividad, los horarios, la climatización, la ocupación o los equipos del suministro.':'Comprobar si ha cambiado la actividad o el uso del suministro y confirmar que las lecturas sean coherentes.',
         badge:'Conviene revisarlo',badgeDetail:`${up?'+':'-'}${fmt(pct,0)} %`
       };
@@ -95,7 +95,7 @@
     const name=s?.supply_name||s?.address||'Suministro';
     const identity=[h?.legal_name,s?.cups].filter(Boolean).join(' · ');
     const techTable=measurementTable(item),sources=sourceTable(item);
-    return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué recomendamos</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver detalle técnico</summary><div class="history-tech-body"><p><strong>Detección técnica:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Pendiente de revisión técnica.</strong> ${esc(item.caveat||'')} Ahorro estimado: pendiente de estudio. No es una estimación de ahorro.</p>${sources}</div></details></div></details>`;
+    return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué conviene revisar</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver detalle técnico</summary><div class="history-tech-body"><p><strong>Detección técnica:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Pendiente de revisión técnica.</strong> ${esc(item.caveat||'')} Este análisis no calcula una propuesta económica.</p>${sources}</div></details></div></details>`;
   }
 
   function overview(items){
@@ -111,7 +111,7 @@
     if(consumption.length)blocks.push(`<div class="history-human-kpi"><small>Cambios importantes de consumo</small><strong>${consumption.length}</strong><span>cambio${consumption.length===1?'':'s'} detectado${consumption.length===1?'':'s'}</span></div>`);
     if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Datos de consumo a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'} sin lectura suficientemente clara</span></div>`);
     if(!blocks.length)return'';
-    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Los euros son costes que ya aparecen en el histórico, no una promesa de ahorro.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
+    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Los euros son costes que ya aparecen en el histórico.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
   }
 
   function section({id,title,intro,items,supplyMap,holderMap,limit=999,empty=''}){
@@ -132,17 +132,17 @@
 
     const costSection=costs.length?section({
       id:'historyConfirmedCosts',title:'Costes que ya aparecen en las facturas',items:costs,supplyMap,holderMap,limit:5,
-      intro:'Empezamos por aquí porque son euros que ya se están pagando. Revisarlos no garantiza que podamos eliminarlos, pero nos dice dónde merece la pena estudiar primero.',
+      intro:'Los mostramos primero porque son cargos reales y ayudan a decidir qué merece revisar antes.',
       empty:''
     }):'';
     const studySection=section({
       id:'historyRecommendations',title:'Otras cosas que conviene estudiar',items:study,supplyMap,holderMap,limit:5,
-      intro:'Aquí hay señales que pueden esconder una mejora, pero todavía necesitan contexto o más comprobaciones antes de convertirlas en una propuesta económica.',
+      intro:'Aquí hay señales que merecen estudio técnico. Antes de actuar necesitamos contexto o más comprobaciones.',
       empty:'No hemos encontrado otros avisos claros con los datos disponibles. Esto no confirma que el suministro esté optimizado: puede faltar histórico o detalle fiable.'
     });
     const consumptionSection=consumption.length?section({
       id:'historyConsumptionChanges',title:'Cambios importantes en el consumo',items:consumption,supplyMap,holderMap,limit:5,
-      intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema o un ahorro.',
+      intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema.',
       empty:''
     }):'';
     return overview(items)+costSection+studySection+consumptionSection;
