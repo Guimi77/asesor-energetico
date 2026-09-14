@@ -31,14 +31,14 @@ test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
 test('Two original charts, aggregation, recommendations, data fetching and auth remain unchanged',()=>{
- // Reading labels are intentionally inserted before aggregation and into row detail.
+ // Reading labels are intentional additions. Compare the surrounding legacy logic after removing only those additions.
  assert(ui.includes("actual:'Real confirmada'"));
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
- // Keep aggregation, observed contract-change logic and fetch path strict.
  assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  function svgChart'));
- assert.equal(chunk(ui,'  function powerSignature','  function rowDetail'),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail'));
- assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
+ assert.equal(chunk(ui,'  function powerSignature','  function rowDetail').trimEnd(),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail').trimEnd());
+ const currentFetch=chunk(ui,'  async function fetchRecords','  function supplyById').replace(',reading_status,reading_source_label','');
+ assert.equal(currentFetch,chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
  // refreshRecords has reviewed export/stale-filter guards, covered by history-client-export-browser.cjs.
  // bulk-performance.js is intentionally covered by the dedicated bulk-import regression.
  for(const f of ['app.js','supply-enricher-v2.js','auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js','parser-audit.js','client-report-export.js'])assert.equal(source(f),old(f),f);
