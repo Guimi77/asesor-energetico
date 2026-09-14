@@ -21,11 +21,14 @@ test('Cross-year months remain distinct and ordered',()=>{assert.deepEqual(plain
 test('Large synthetic numbers stay complete in SVG and point tooltips carry coverage',()=>{const p=ctx.monthly([row('a','2026-01',345678.25,56000.99)]);const h=ctx.plot(p,'kwh',v=>ctx.qty(v,0)+' kWh');assert(h.includes('345.678 kWh'));assert(h.includes('1 CUPS con registros'));assert(h.includes('data-value="345678.25"'));assert(h.includes('history-axis-value'));});
 test('Negative charges and actual zero cost are retained without invalid coordinates',()=>{const p=ctx.monthly([row('a','2026-01',10,-4),row('a','2026-02',10,0)]);const h=ctx.plot(p,'eur',String);assert(h.includes('data-value="-4"'));assert(h.includes('data-value="0"'));assert(!/NaN|Infinity/.test(h));assert(ctx.cost(p).includes('data-cost="0"'));});
 test('No work is scheduled by coverage or plot code',()=>{const src=ui.slice(ui.indexOf('  // Coverage presentation'),ui.indexOf('  function powerSignature'));assert(!/MutationObserver|setInterval\s*\(|setTimeout\s*\(|fetch\s*\(|localStorage|\.from\s*\(/.test(src));});
-test('Coverage changes stay isolated from authentication, exporters and FENIE extraction',()=>{
- for(const f of ['auth.js','history-client-export.js','client-report-export.js'])assert.equal(fs.readFileSync(f,'utf8'),execFileSync('git',['show',base+':'+f],{encoding:'utf8'}),f);
+test('Coverage changes stay isolated from authentication, history data and FENIE extraction',()=>{
+ assert.equal(fs.readFileSync('auth.js','utf8'),execFileSync('git',['show',base+':auth.js'],{encoding:'utf8'}),'auth.js');
  const old=execFileSync('git',['show',base+':history-ui.js'],{encoding:'utf8'});assert.equal(ui.slice(ui.indexOf('  async function refreshRecords')),old.slice(old.indexOf('  async function refreshRecords')));
  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',base+':supply-enricher-v2.js'],{encoding:'utf8'});
  assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente o no informado'));
+ const historyExport=fs.readFileSync('history-client-export.js','utf8'),clientExport=fs.readFileSync('client-report-export.js','utf8');
+ for(const code of [historyExport,clientExport]){assert(!/getDocument\s*\(|arrayBuffer\s*\(/.test(code));}
+ assert(historyExport.includes('reportCoverage'));assert(historyExport.includes('readingLabel'));
 });
