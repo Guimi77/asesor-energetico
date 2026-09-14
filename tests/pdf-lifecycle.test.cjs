@@ -13,12 +13,12 @@ const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0
 const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
 function reader(code,name,end,mode='ok'){
  let opened=0,closed=0,pages=0;
- const items=[{str:'CUPS: ES0000000000000000TEST',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
+ const items=[{str:'FENIE ENERGIA',transform:[1,0,0,1,20,440]},{str:'CUPS: ES0000000000000000TEST',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
  const pdfjsLib={GlobalWorkerOptions:{},getDocument(){opened++;
   const pdf={numPages:4,async getPage(){pages++;if(mode==='page')throw Error('page');return {async getTextContent(){if(mode==='text')throw Error('text');return {items};}};}};
   return {promise:mode==='load'?Promise.reject(Error('load')):Promise.resolve(pdf),async destroy(){await Promise.resolve();closed++;}};
  }};
- const context={pdfjsLib,window:{EnergyMaster:{learnInvoice:()=>({ok:true,enriched:true})}},document:{querySelector:()=>null},console,Uint8Array,setTimeout};
+ const context={pdfjsLib,window:{EnergyMaster:{learnInvoice:()=>({ok:true,enriched:true})},IBTInvoiceFormats:{detect:s=>/FENIE ENERGIA/i.test(String(s||''))?'fenie':'unknown'}},document:{querySelector:()=>null},console,Uint8Array,setTimeout};
  vm.createContext(context);
  const prefix=code.slice(0,code.indexOf(end)).replace(/^import[^\n]*\n/gm,'');
  vm.runInContext(prefix+'\nglobalThis.read='+name+';',context);
@@ -43,20 +43,24 @@ for(const [path,name,end] of readerSpec){
   assert.equal(r.stats().opened,1);assert.equal(r.stats().closed,1);
  });
 }
-test('Fenie calculations stay locked while reading metadata and format routing can evolve safely',()=>{
+test('Fenie calculations stay locked while Endesa routing and audit rules can evolve safely',()=>{
  const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');
- // Lock the complete FENIE calculation path up to the point where later metadata
- // (reading status) is attached. New format routing lives after this boundary.
  assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','const reading='));
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
- assert.equal(slice(source('supply-enricher-v2.js'),'const norm','async function inspect(file)'),slice(old('supply-enricher-v2.js'),'const norm','async function inspect(file)'));
- for(const path of ['auth.js','auth.css','parser-audit.js','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
- const app=current,report=source('client-report-export.js');
+ assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
+ for(const path of ['auth.js','auth.css','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
+ const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
  assert(app.includes("format==='fenie')return parseFenie"));
  assert(app.includes("format==='endesa')return formats.parseEndesa"));
  assert(app.includes('Factura no compatible todavía'));
+ assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
+ assert(enricher.includes("retailer:'Endesa Energía S.A.U.'"));
+ assert(audit.includes('const hasAnyPeriodCost='));
+ assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));
+ assert(audit.includes('Detalle energético coherente o no informado'));
+ assert(guard.includes("data?.retailer||data?.commercializer"));
 });
 test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
  const s=source('bulk-performance.js');
