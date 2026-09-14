@@ -1,11 +1,12 @@
 (function(root,factory){
   const tool=factory();
   if(typeof module!=='undefined'&&module.exports)module.exports=tool;
-  if(root&&root.IBTInvoiceFormats&&root.IBTInvoiceFormats.parseEndesa&&!root.IBTInvoiceFormats.__sourceValidated){
+  if(root&&root.IBTInvoiceFormats&&root.IBTInvoiceFormats.parseEndesa&&root.IBTInvoiceFormats.__sourceValidationVersion!==tool.version){
     root.IBTInvoiceFormats=tool.patch(root.IBTInvoiceFormats,root);
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
+  const VERSION='2026.09.14.3';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -15,10 +16,13 @@
 
   function sourcePeriod(pages,fallback){
     const s=(pages||[]).slice(0,2).flat().join('\n'),i=s.search(/Periodo\s+de\s+facturaci[oó]n\s*:/i),chunk=i>=0?s.slice(i,i+1500):s;
+    const direct=chunk.match(/Periodo\s+de\s+facturaci[oó]n\s*:\s*(?:del\s*)?(\d{2}\/\d{2}\/\d{4})\s*(?:a|al|-)\s*(\d{2}\/\d{2}\/\d{4})/i);
     const dates=[...chunk.matchAll(/\b(\d{2}\/\d{2}\/\d{4})\b/g)].map(m=>m[1]);
-    if(dates.length<2)return fallback;
+    const start=direct?.[1]||dates[0];
+    const end=direct?.[2]||dates.slice(1).find(d=>d!==start);
+    if(!start||!end)return fallback;
     const days=(chunk.match(/\((\d+)\s*d[ií]as\)/i)||[])[1];
-    return `${dates[0]} - ${dates[1]}${days?` (${days} días)`:''}`;
+    return `${start} - ${end}${days?` (${days} días)`:''}`;
   }
   function sourceTotal(p1,fallback){
     const lines=p1||[],rules=[/IMPORTE\s+FACTURA\s*:/i,/TOTAL\s+IMPORTE\s+FACTURA/i,/\bTOTAL\b/i];
@@ -94,9 +98,9 @@
     return alerts.length?alerts.join(' · '):'Sin alertas';
   }
   function patch(base,root={}){
-    if(!base?.parseEndesa||base.__sourceValidated)return base;
+    if(!base?.parseEndesa||base.__sourceValidationVersion===VERSION)return base;
     const original=base.parseEndesa.bind(base);
-    const api={...base,__sourceValidated:true,parseEndesa(d,file,options={}){
+    const api={...base,__sourceValidated:true,__sourceValidationVersion:VERSION,parseEndesa(d,file,options={}){
       const raw=original(d,file,options);if(!raw||raw.unsupported)return raw;
       const pages=d?.pages||[],p1=pages[0]||[],p2=pages[1]||[];
       const period=sourcePeriod(pages,raw.period),total=sourceTotal(p1,raw.total),contracted=sourceContracted(p2,raw.tariff,raw.contracted),address=sourceAddress(p2,raw.supplyAddress),place=placeFromAddress(address),refs=sourceRefs(p2,raw.contract,raw.accessContract);
@@ -104,7 +108,18 @@
       const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
       const periodKwh=round2(Object.values(raw.periods||{}).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=raw.kwh==null||(Object.keys(raw.periods||{}).length>0&&Math.abs(periodKwh-Number(raw.kwh))<=.1);
       const unresolvedExcess=(Number(raw.excess)||0)===0&&tableHasBilledAmount(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),unresolvedReactive=(Number(raw.reactive)||0)===0&&tableHasBilledAmount(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i);
-      const missing=[];if(!raw.company||raw.company==='Por identificar')missing.push('titular');if(!raw.cups)missing.push('CUPS');if(!period||period==='Por identificar')missing.push('periodo');if(total==null)missing.push('total');if(raw.kwh==null)missing.push('consumo');if(!periodKwhOk)missing.push('consumo por periodos no cuadra con el consumo total');if(raw.power==null||raw.powerDetail?.reliable===false)missing.push(raw.powerDetail?.message||'potencia');if(raw.energy==null)missing.push('energía');if(!summaryHasAmount(p1,/^\s*Impuestos\b/i))missing.push('impuestos');if(unresolvedExcess)missing.push('exceso de potencia sin importe monetario identificable');if(unresolvedReactive)missing.push('reactiva sin importe monetario identificable');
+      const missing=[];
+      if(!raw.company||raw.company==='Por identificar')missing.push('titular');
+      if(!raw.cups)missing.push('CUPS');
+      if(!period||period==='Por identificar')missing.push('periodo');
+      if(total==null)missing.push('total');
+      if(raw.kwh==null)missing.push('consumo');
+      if(!periodKwhOk)missing.push('consumo por periodos no cuadra con el consumo total');
+      if(raw.power==null||!summaryHasAmount(p1,/^\s*Potencia\b/i))missing.push('potencia');
+      if(raw.energy==null)missing.push('energía');
+      if(!summaryHasAmount(p1,/^\s*Impuestos\b/i))missing.push('impuestos');
+      if(unresolvedExcess)missing.push('exceso de potencia sin importe monetario identificable');
+      if(unresolvedReactive)missing.push('reactiva sin importe monetario identificable');
       const fixed={...raw,period,total,contracted,supplyAddress:address||raw.supplyAddress,supplyCity:place.city||raw.supplyCity,supplyProvince:place.province||raw.supplyProvince,contract:refs.contract,contractNumber:refs.contract,accessContract:refs.accessContract,accounted,diff,balanced,readOk:balanced&&!missing.length,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,avg:raw.kwh&&total!=null?total/Number(raw.kwh):0};
       fixed.opportunity=diagnosticOpportunity(fixed,contracted);
       try{if(root?.EnergyMaster?.learnInvoice&&fixed.cups)root.EnergyMaster.learnInvoice(fixed);}catch(error){root?.console?.warn?.('No se pudo sincronizar el maestro Endesa desde la lectura validada',error);}
@@ -112,5 +127,5 @@
     }};
     return Object.freeze(api);
   }
-  return Object.freeze({patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount});
+  return Object.freeze({version:VERSION,patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount});
 });
