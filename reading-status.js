@@ -29,13 +29,16 @@
 
     const estimated=first(text,[
       /\bestimada\s+distribuidora\b/i,
-      /\blectura\s+estimada(?:\s+(?:por|de)\s+(?:la\s+)?)?distribuidora\b/i
+      /\blectura\s+estimada(?:\s+(?:por|de)\s+(?:la\s+)?)?distribuidora\b/i,
+      /\blectura\s+lectura\s+estimada\s+estimada\b/i
     ]);
     if(estimated) return {status:'estimated', sourceLabel:estimated};
 
     const actual=first(text,[
       /\blectura\s+real(?:\s+(?:por|de)\s+(?:la\s+)?)?distribuidora\b/i,
-      /\breal\s+distribuidora\b/i
+      /\breal\s+distribuidora\b/i,
+      /\blectura\s+lectura\s+real\s+real\b/i,
+      /\bconsumo\s+horario\s+real\s+proporcionado\s+por\s+su\s+distribuidora\b/i
     ]);
     if(actual) return {status:'actual', sourceLabel:actual};
 
