@@ -167,13 +167,8 @@ function parseSupply(lines) {
   };
 }
 
-function splitEndesaPlace(address){
-  const normalized=norm(address),match=normalized.match(/\b(\d{5})\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
-  return match?{city:clean(match[2]),province:clean(match[3]||'')}:{city:'',province:''};
-}
 function endesaAddress(lines,fallback=''){
   const fromParser=clean(fallback).replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i)[0].replace(/\.{3,}/g,'').trim();
-  if(fromParser&&/\b\d{5}\b/.test(fromParser))return fromParser;
   const idx=lines.findIndex(l=>/Direcci[oó]n\s+de\s+suministro\s*:/i.test(l));
   if(idx<0)return fromParser;
   const stop=/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i;
@@ -187,6 +182,10 @@ function endesaAddress(lines,fallback=''){
   let address=parts[0]||'';
   for(const part of parts.slice(1))address+=/^[A-ZÁÉÍÓÚÜÑ .'-]{2,30}$/.test(part)&&/\b\d{5}\b/.test(address)?`, ${part}`:` ${part}`;
   return clean(address)||fromParser;
+}
+function splitEndesaPlace(address){
+  const normalized=norm(address),match=normalized.match(/\b(\d{5})\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);
+  return match?{city:clean(match[2]),province:clean(match[3]||'')}:{city:'',province:''};
 }
 function parseEndesaSupply(pages,file){
   const lines=(pages||[]).flat(),text=lines.join('\n'),formats=window.IBTInvoiceFormats;
