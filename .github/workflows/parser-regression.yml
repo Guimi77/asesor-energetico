@@ -1,9 +1,9 @@
 name: Parser regression
 on:
   push:
-    paths: ['app.js', 'invoice-formats.js', 'endesa-source-validation.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['index.html', 'app.js', 'invoice-formats.js', 'endesa-source-validation.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   pull_request:
-    paths: ['app.js', 'invoice-formats.js', 'endesa-source-validation.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['index.html', 'app.js', 'invoice-formats.js', 'endesa-source-validation.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,9 +30,8 @@ jobs:
           node --check supply-enricher-v2.js
           node --check supply-source-guard.js
           node --check supply-lifecycle.js
-          node --check lifecycle-analysis-guard.js
           node --check analysis-ui.js
           node --check alerts-ui.js
           node --check human-language.js
       - name: Run synthetic and real-layout regression cases
-        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/reading-status.test.cjs
+        run: node --test tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-runtime-cache.test.cjs tests/reading-status.test.cjs
