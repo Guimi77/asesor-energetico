@@ -109,16 +109,31 @@ window.addEventListener('DOMContentLoaded',()=>{
   // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
   // auditando y guardando el histórico validado mientras se finaliza el sidecar v2.
 
-  const loadAnalysisUi=()=>{
-    if(document.querySelector('script[data-analysis-ui]'))return;
+  const loadAlertsUi=()=>{
+    if(document.querySelector('script[data-alerts-ui]'))return;
     const script=document.createElement('script');
-    script.src='analysis-ui.js?v=20260914-1';
-    script.dataset.analysisUi='1';
+    script.src='alerts-ui.js?v=20260914-1';
+    script.dataset.alertsUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
         window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
       }
     };
+    document.body.appendChild(script);
+  };
+
+  const loadAnalysisUi=()=>{
+    if(document.querySelector('script[data-analysis-ui]')){loadAlertsUi();return;}
+    const script=document.createElement('script');
+    script.src='analysis-ui.js?v=20260914-1';
+    script.dataset.analysisUi='1';
+    script.onload=()=>{
+      loadAlertsUi();
+      if(window.ibtCurrentProfile){
+        window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
+      }
+    };
+    script.onerror=loadAlertsUi;
     document.body.appendChild(script);
   };
 
