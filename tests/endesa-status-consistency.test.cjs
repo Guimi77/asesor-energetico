@@ -7,7 +7,7 @@ const baseRow=overrides=>({
   sourceFormat:'endesa',unsupported:false,company:'MALLORCA LAW, SL',cups:'ES0031500529816004AV0F',
   period:'30/04/2025 - 31/05/2025 (31 días)',tariff:'3.0TD',kwh:1422,energy:197.90,power:104.35,
   excess:0,reactive:0,total:389.37,accounted:389.37,balanced:true,readOk:false,
-  readMessage:'Falta o revisar: Potencia: detalle Endesa no cuadra con el resumen',readingStatus:'actual',readingSourceLabel:'Lectura Lectura real real',
+  readMessage:'Falta o revisar: potencia',readingStatus:'actual',readingSourceLabel:'Lectura Lectura real real',
   periods:{P1:{consumption:0},P2:{consumption:466},P3:{consumption:337},P4:{consumption:0},P5:{consumption:0},P6:{consumption:619}},
   supplyAddress:'PS DEL BORN 17 1, 07012 PALMA, Referencia del contrato de acceso: 010000000000',
   ...overrides
@@ -30,6 +30,16 @@ test('A coherent 3.0TD row is correct even when PDF power detail is fragmented',
   assert.equal(r.supplyProvince,'BALEARES');
 });
 
+test('Summary labels may be merged or wrapped without creating a false ERROR',()=>{
+  const d={pages:[
+    ['RESUMEN DE LA FACTURA Potencia 104,35 € Energía 197,90 € Impuestos 82,70 € Total 389,37 €'],
+    mallorcaDoc.pages[1]
+  ]};
+  const r=guard.normalize(baseRow({}),d);
+  assert.equal(r.readOk,true);
+  assert.equal(r.balanced,true);
+});
+
 test('Estimated 3.0TD readings are correct when source billing evidence is coherent',()=>{
   const row=baseRow({
     company:'ELSEBETH SVENDSEN',cups:'ES0031500151907001DN0F',period:'11/05/2026 - 04/06/2026 (24 días)',
@@ -37,7 +47,7 @@ test('Estimated 3.0TD readings are correct when source billing evidence is coher
     periods:{P1:{consumption:178.319},P2:{consumption:762.808},P3:{consumption:485.423},P4:{consumption:0},P5:{consumption:0},P6:{consumption:1426.55}}
   });
   const d={pages:[
-    ['Potencia 52,14 €','Energía 525,89 €','Impuestos 139,66 €','Total 655,31 €'],
+    ['RESUMEN Potencia 52,14 € Energía 525,89 € Impuestos 139,66 € Total 655,31 €'],
     ['Dirección de suministro: MIRAMAR, 07191 BANYALBUFAR,','BALEARES',
      'ENERGÍA REACTIVA INDUCTIVA kWh','Periodo horario Consumo Cos A facturar','P1 85,000 1,00 0,000','P2 210,000 1,00 0,000','P3 104,000 1,00 0,000','P4 29,000 0,00 0,000','P5 82,000 0,00 0,000','P6 91,000 1,00 0,000',
      'EXCESOS DE POTENCIA kW','Periodo horario Contratada Demandada A facturar','P1 15,010 5,628 0,000','P2 15,010 6,067 0,000','P3 15,010 5,795 0,000','P4 15,010 0,000 0,000','P5 15,010 0,000 0,000','P6 15,010 6,873 0,000']
