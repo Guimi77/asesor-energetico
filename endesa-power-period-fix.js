@@ -6,9 +6,12 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.1';
+  const VERSION='2026.09.15.2';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const round2=n=>Math.round((Number(n)||0)*100)/100;
+  const round3=n=>Math.round((Number(n)||0)*1000)/1000;
+  const round6=n=>Math.round((Number(n)||0)*1000000)/1000000;
+  const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
 
   function periodFromSource(source,tariff){
     const s=text(source),t=text(tariff).toUpperCase().replace(/\s+/g,'');
@@ -50,15 +53,51 @@
     return {...detail,entries:aggregated,rawEntries:classified,sum,reliable};
   }
 
+  function energyPeriod(label){
+    const s=text(label).toUpperCase();
+    const p=s.match(/^P([1-6])$/);if(p)return Number(p[1]);
+    if(s==='PUNTA')return 1;
+    if(s==='LLANO'||s==='PLA')return 2;
+    if(s==='VALLE'||s==='VALL')return 3;
+    return null;
+  }
+
+  function aggregateEnergyPeriods(lines,periods,totalKwh,summaryEnergy){
+    const groups=new Map(),raw=[];
+    const re=/\bConsumo\s+(P[1-6]|Punta|Llano|Valle)\s+([\d.]+,\d+)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*(?:Eur|€)\s*\/\s*kWh.*?(-?[\d.]+,\d{2})\s*€/i;
+    for(const source of lines||[]){
+      const m=text(source).match(re);if(!m)continue;
+      const period=energyPeriod(m[1]),kwh=num(m[2]),price=num(m[3]),amount=num(m[4]);
+      if(!period||kwh==null||price==null||amount==null)continue;
+      const item={period,kwh,price,amount,source:text(source)};raw.push(item);
+      if(!groups.has(period))groups.set(period,{period,kwh:0,cost:0,weighted:0,sources:[]});
+      const g=groups.get(period);g.kwh+=kwh;g.cost+=amount;g.weighted+=kwh*price;g.sources.push(item.source);
+    }
+    if(!raw.length)return {periods,detail:{status:'not_present',reliable:false,entries:[]}};
+    const entries=[...groups.values()].sort((a,b)=>a.period-b.period).map(g=>({
+      period:g.period,kwh:round3(g.kwh),cost:round2(g.cost),price:g.kwh>0?round6(g.weighted/g.kwh):null,sources:g.sources
+    }));
+    const parsedKwh=round3(entries.reduce((s,e)=>s+e.kwh,0)),parsedCost=round2(entries.reduce((s,e)=>s+e.cost,0));
+    const kwhOk=totalKwh==null||Math.abs(parsedKwh-Number(totalKwh))<=.02;
+    const costOk=summaryEnergy==null||Math.abs(parsedCost-Number(summaryEnergy))<=.05;
+    const reliable=kwhOk&&costOk;
+    if(!reliable)return {periods,detail:{status:'mismatch',reliable:false,entries,parsedKwh,parsedCost,totalKwh,summaryEnergy}};
+    const enriched={...(periods||{})};
+    for(const e of entries){const key='P'+e.period;enriched[key]={...(enriched[key]||{}),consumption:e.kwh,cost:e.cost,price:e.price};}
+    return {periods:enriched,detail:{status:'extracted',reliable:true,entries,parsedKwh,parsedCost,totalKwh,summaryEnergy}};
+  }
+
   function patch(base){
     if(!base?.parseEndesa||base.__powerPeriodFixVersion===VERSION)return base;
     const original=base.parseEndesa.bind(base);
     const api={...base,__powerPeriodFixVersion:VERSION,parseEndesa(d,file,options={}){
       const row=original(d,file,options);if(!row||row.unsupported)return row;
-      return {...row,powerDetail:aggregatePowerDetail(row.powerDetail,row.tariff)};
+      const pages=(d?.pages||[]).map(p=>typeof base.canonicalEndesaLines==='function'?base.canonicalEndesaLines(p):p||[]);
+      const energy=aggregateEnergyPeriods(pages.flat(),row.periods,row.kwh,row.energy);
+      return {...row,periods:energy.periods,energyDetail:energy.detail,powerDetail:aggregatePowerDetail(row.powerDetail,row.tariff)};
     }};
     return Object.freeze(api);
   }
 
-  return Object.freeze({version:VERSION,patch,periodFromSource,aggregatePowerDetail});
+  return Object.freeze({version:VERSION,patch,periodFromSource,aggregatePowerDetail,energyPeriod,aggregateEnergyPeriods});
 });
