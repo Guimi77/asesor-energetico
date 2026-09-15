@@ -113,6 +113,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-client-upload-access]')){
+    const script=document.createElement('script');
+    script.src='client-upload-access.js?v=20260915-1';
+    script.dataset.clientUploadAccess='1';
+    document.body.appendChild(script);
+  }
+
   // xtra-completeness.js queda temporalmente fuera del cargador.
   // Su versión 2026.09.09.1 puede competir con xtra-history v2 y degradar
   // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
