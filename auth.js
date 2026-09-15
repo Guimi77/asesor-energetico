@@ -7,6 +7,13 @@ window.ibtSupabase=supabase;
 const APP_ROOT=new URL('./',window.location.href);
 const SIGNUP_CONFIRM_URL=new URL('registro-completado.html',APP_ROOT).href;
 
+if(!document.querySelector('script[data-admin-data-management]')){
+  const script=document.createElement('script');
+  script.src='admin-data-management.js?v=20260915-lifecycle1';
+  script.dataset.adminDataManagement='1';
+  document.head.appendChild(script);
+}
+
 const $=s=>document.querySelector(s);
 let currentProfile=null;
 let lastAccessKey='';
@@ -107,7 +114,7 @@ async function renderUsers(){
   const [{data:profiles,error:pErr},{data:links,error:lErr},{data:clients,error:cErr}]=await Promise.all([
     supabase.from('profiles').select('id,email,display_name,role,active,created_at').order('created_at',{ascending:true}),
     supabase.from('client_users').select('user_id,client_id'),
-    supabase.from('clients').select('id,name,status').order('name',{ascending:true})
+    supabase.from('clients').select('id,name,status').eq('status','active').order('name',{ascending:true})
   ]);
   if(pErr||lErr||cErr){body.innerHTML='<tr><td colspan="4">No se pudieron cargar usuarios y permisos.</td></tr>';return;}
   const assigned=new Map();
