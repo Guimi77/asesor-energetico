@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.14.3';
+  const VERSION='2026.09.15.4';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -84,7 +84,11 @@
       if(i>start+1&&/^(?:INFORMACI[ÓO]N|ATENCI[ÓO]N|DETALLE|EXCESOS?\s+DE\s+POTENCIA|ENERG[IÍ]A\s+REACTIVA)/i.test(s)&&!/\bP[1-6]\b/.test(s))break;
       if(!/^P[1-6]\b/i.test(s))continue;
       const values=[...s.matchAll(/-?[\d.]+,\d+/g)].map(m=>num(m[0])).filter(v=>v!=null);
-      if(values.length&&Math.abs(values.at(-1))>.0005)return true;
+      // Endesa sometimes places the period label and measured value on one
+      // PDF text line while the "A facturar" value is emitted separately.
+      // With fewer than three numeric columns, the last number is consumption
+      // or demanded power, not a monetary amount.
+      if(values.length>=3&&Math.abs(values.at(-1))>.0005)return true;
     }
     return false;
   }

@@ -86,3 +86,12 @@ test('Zero in A facturar is not confused with measured demand or reactive consum
   assert.equal(guard.billedTableHasAmount(mallorcaDoc.pages[1],/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i),false);
   assert.equal(guard.billedTableHasAmount(mallorcaDoc.pages[1],/EXCESOS\s+DE\s+POTENCIA\s+kW/i),false);
 });
+
+test('Fragmented Endesa rows do not treat demand or reactive consumption as billed euros',()=>{
+  const fragmented=[
+    'ENERGÍA REACTIVA INDUCTIVA kWh','Periodo horario Consumo Cos A facturar','P1 85,000 1,00','P2 210,000 1,00',
+    'EXCESOS DE POTENCIA kW','Periodo horario Contratada Demandada A facturar','P1 25,000 5,000','P2 25,000 4,000'
+  ];
+  assert.equal(guard.billedTableHasAmount(fragmented,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i),false);
+  assert.equal(guard.billedTableHasAmount(fragmented,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),false);
+});

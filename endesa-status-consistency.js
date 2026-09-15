@@ -22,7 +22,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.14.4';
+  const VERSION='2026.09.15.5';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -86,7 +86,10 @@
       if(!/^P[1-6]\b/i.test(s))continue;
       const body=s.replace(/^P[1-6]\s*/i,'');
       const values=[...body.matchAll(/-?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d+)?/g)].map(m=>num(m[0])).filter(v=>v!=null);
-      if(values.length&&Math.abs(values.at(-1))>.0005)return true;
+      // Require the complete source row: measured/contracted, secondary
+      // measurement and the final "A facturar" column. Fragmented two-column
+      // lines must not turn demand or reactive consumption into billed euros.
+      if(values.length>=3&&Math.abs(values.at(-1))>.0005)return true;
     }
     return false;
   }
