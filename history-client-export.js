@@ -15,6 +15,16 @@
   const pause=()=>new Promise(resolve=>setTimeout(resolve,0));
   const readingLabel=r=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[text(r?.reading_status)]||'No determinada';
   const supplyStatusLabel=v=>({active:'Activo',inactive:'Inactivo',archived:'Archivado'})[text(v)]||text(v)||'\u2014';
+  const normalizedTariff=v=>text(v).toUpperCase().replace(/\s+/g,'');
+  const excessNotApplicable=v=>/^2\.0/.test(normalizedTariff(v));
+  const excessLabel='No aplica (2.0TD)';
+  function assertExcessConsistency(r){
+    if(!excessNotApplicable(r.tariff))return;
+    const billed=Math.abs(number(r.excess_cost_eur)??0)>1e-9;
+    const detailed=(r.invoice_excesses||[]).some(x=>Math.abs(number(x?.amount_eur)??0)>1e-9||Math.abs(number(x?.excess_kw)??0)>1e-9);
+    const maximeter=(r.invoice_maximeters||[]).some(x=>Math.abs(number(x?.maximeter_kw)??0)>1e-9);
+    if(billed||detailed||maximeter)throw Error('Inconsistencia del hist\u00f3rico: la factura '+text(r.invoice_number)+' tiene tarifa '+text(r.tariff)+' pero contiene max\u00edmetro o excesos de potencia. Revisa el parser antes de exportar.');
+  }
   function selection(input){
     const client=input?.client,from=text(input?.from),to=text(input?.to);
     if(!client?.id)throw Error('Selecciona un cliente.');
@@ -28,6 +38,7 @@
       if((from&&r.billing_end<from)||(to&&r.billing_start>to))continue;
       if(r.validation_status!=='valid')throw Error('La selecci\u00f3n contiene registros pendientes de validaci\u00f3n.');
       if(!r.id||!text(s.cups)||number(r.consumption_kwh)==null||number(r.total_eur)==null)throw Error('Faltan datos esenciales en un periodo seleccionado.');
+      assertExcessConsistency(r);
       if(seen.has(r.id)){if(JSON.stringify(seen.get(r.id))!==JSON.stringify(r))throw Error('Hay registros repetidos con datos diferentes.');continue;}
       seen.set(r.id,r);
       if(!groups.has(s.holder_id))groups.set(s.holder_id,{holder:holders.get(s.holder_id),supplies:new Map(),records:[]});
@@ -108,18 +119,19 @@
     addCharts(wb,ws,coverage.months,t);return ws;
   }
   function addDetails(wb,g,subtitle){
-    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura'];
+    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos potencia \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura'];
     const ws=sheet(wb,'PERIODOS',g.holder.legal_name+' \u00b7 PERIODOS',subtitle,headers,[22,28,28,20,14,14,...Array(17).fill(19),12,24,24,14,38,20,34]);
     const fields=['consumption_kwh','energy_cost_eur','power_cost_eur','excess_cost_eur','reactive_cost_eur','compensation_eur','social_bonus_eur','meter_rental_eur','distributor_charges_eur','other_cost_eur','electricity_tax_eur','vat_eur','igic_eur'];
-    for(const r of g.records){const i=ws.rowCount+1,vals=fields.map(k=>number(r[k])),complete=vals.slice(1).every(v=>v!=null),accounted=complete?vals.slice(1).reduce((a,b)=>a+b,0):null;
+    for(const r of g.records){const i=ws.rowCount+1,na=excessNotApplicable(r.tariff),vals=fields.map(k=>k==='excess_cost_eur'&&na?0:number(r[k])),complete=vals.slice(1).every(v=>v!=null),accounted=complete?vals.slice(1).reduce((a,b)=>a+b,0):null;
       const row=dataRow(ws,[text(r.invoice_number),text(g.holder.legal_name),text(g.supplies.get(r.supply_id).cups),monthName(r.billing_end.slice(0,7)),dateES(r.billing_start),dateES(r.billing_end),...vals,formula(`IF(COUNT(H${i}:S${i})=12,SUM(H${i}:S${i}),"")`,accounted),number(r.total_eur),formula(`IF(ISNUMBER(T${i}),U${i}-T${i},"")`,accounted==null?null:Number(r.total_eur)-accounted),formula(`IF(G${i}>0,U${i}/G${i},"")`,Number(r.consumption_kwh)>0?Number(r.total_eur)/Number(r.consumption_kwh):null),text(r.tariff),text(r.retailer),text(r.distributor),text(r.validation_status),text(r.id),readingLabel(r),text(r.reading_source_label)||'\u2014']);
       row.getCell(1).note=sourceNote(r);for(let c=7;c<=23;c++)row.getCell(c).numFmt=c===23?'0.000000':'#,##0.00';
+      if(na){row.getCell(10).numFmt='"'+excessLabel+'"';row.getCell(10).note='Tarifa 2.0: el cargo por excesos de potencia mediante max\u00edmetro no aplica.';}
     }
     ws.autoFilter={from:'A4',to:'AD'+ws.rowCount};
-    const pws=sheet(wb,'DETALLE P1-P6','DETALLE POR PERIODOS',subtitle,['Referencia','CUPS','Desde','Hasta','Tarifa','Periodo','Consumo kWh','Energ\u00eda \u20ac','Precio \u20ac/kWh','Contratada kW','Potencia \u20ac','Precio \u20ac/kW/d\u00eda','Max\u00edmetro kW','Max\u00edmetro fiable','Exceso kW','Excesos \u20ac','Reactiva kvarh','Reactiva \u20ac'],[22,28,14,14,12,12,...Array(12).fill(19)]);
+    const pws=sheet(wb,'DETALLE P1-P6','DETALLE POR PERIODOS',subtitle,['Referencia','CUPS','Desde','Hasta','Tarifa','Periodo','Consumo kWh','Energ\u00eda \u20ac','Precio \u20ac/kWh','Contratada kW','Potencia \u20ac','Precio \u20ac/kW/d\u00eda','Max\u00edmetro kW','Max\u00edmetro fiable','Exceso kW','Excesos potencia \u20ac','Reactiva kvarh','Reactiva \u20ac'],[22,28,14,14,12,12,...Array(12).fill(19)]);
     for(const r of g.records)for(let p=1;p<=6;p++){
-      const en=(r.invoice_energy_periods||[]).filter(v=>Number(v.period)===p),pw=(r.invoice_power_periods||[]).filter(v=>Number(v.period)===p),mx=(r.invoice_maximeters||[]).filter(v=>Number(v.period)===p),ex=(r.invoice_excesses||[]).filter(v=>Number(v.period)===p),re=(r.invoice_reactive||[]).filter(v=>Number(v.period)===p);
-      const count=Math.max(en.length,pw.length,mx.length,ex.length,re.length);for(let i=0;i<count;i++){const val=(a,k)=>number(a[i]?.[k]);const row=dataRow(pws,[text(r.invoice_number),text(g.supplies.get(r.supply_id).cups),dateES(r.billing_start),dateES(r.billing_end),text(r.tariff),'P'+p,val(en,'consumption_kwh'),val(en,'energy_cost_eur'),val(en,'unit_price_eur_kwh'),val(pw,'contracted_kw'),val(pw,'billed_power_eur'),val(pw,'unit_price_eur_kw_day'),val(mx,'maximeter_kw'),mx[i]?mx[i].reliable===true?'S\u00ed':'No / sin verificar':'',val(ex,'excess_kw'),val(ex,'amount_eur'),val(re,'reactive_kvarh'),val(re,'amount_eur')]);row.getCell(1).note=sourceNote(r);for(let c=7;c<=18;c++)if(c!==14)row.getCell(c).numFmt=[9,12].includes(c)?'0.000000':'#,##0.000';}
+      const en=(r.invoice_energy_periods||[]).filter(v=>Number(v.period)===p),pw=(r.invoice_power_periods||[]).filter(v=>Number(v.period)===p),mx=(r.invoice_maximeters||[]).filter(v=>Number(v.period)===p),ex=(r.invoice_excesses||[]).filter(v=>Number(v.period)===p),re=(r.invoice_reactive||[]).filter(v=>Number(v.period)===p),na=excessNotApplicable(r.tariff);
+      const count=Math.max(en.length,pw.length,mx.length,ex.length,re.length);for(let i=0;i<count;i++){const val=(a,k)=>number(a[i]?.[k]);const row=dataRow(pws,[text(r.invoice_number),text(g.supplies.get(r.supply_id).cups),dateES(r.billing_start),dateES(r.billing_end),text(r.tariff),'P'+p,val(en,'consumption_kwh'),val(en,'energy_cost_eur'),val(en,'unit_price_eur_kwh'),val(pw,'contracted_kw'),val(pw,'billed_power_eur'),val(pw,'unit_price_eur_kw_day'),na?excessLabel:val(mx,'maximeter_kw'),na?'No aplica':mx[i]?mx[i].reliable===true?'S\u00ed':'No / sin verificar':'',na?excessLabel:val(ex,'excess_kw'),na?excessLabel:val(ex,'amount_eur'),val(re,'reactive_kvarh'),val(re,'amount_eur')]);row.getCell(1).note=sourceNote(r);for(let c=7;c<=18;c++)if(c!==14&&typeof row.getCell(c).value!=='string')row.getCell(c).numFmt=[9,12].includes(c)?'0.000000':'#,##0.000';}
     }
     if(pws.rowCount>4)pws.autoFilter={from:'A4',to:'R'+pws.rowCount};
     const adjustments=g.records.flatMap(r=>(r.invoice_adjustments||[]).map(a=>({r,a})));
@@ -129,7 +141,7 @@
   async function workbook(g,scope){
     if(!root.ExcelJS?.Workbook)throw Error('No se ha cargado la librer\u00eda de Excel. Recarga la p\u00e1gina.');
     const wb=new root.ExcelJS.Workbook();wb.creator='Instal\u00b7lacions BT';wb.calcProperties.fullCalcOnLoad=true;
-    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Mes de fin de facturaci\u00f3n.';
+    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Mes de fin de facturaci\u00f3n. En tarifas 2.0, max\u00edmetro y excesos de potencia: no aplica.';
     wb.subject=range;wb.description='Fuente: informaci\u00f3n estructurada del hist\u00f3rico. Sin documentos PDF.';
     const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango','Estado CUPS'],[6,28,32,40,22,20,18,23,27,27,16]);
     let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor),supplyStatusLabel(s.status)]);}
@@ -149,5 +161,5 @@
     ensure();if(options.save)await options.save(blob,name);else{const a=root.document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;root.document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);}
     return {files:files.length,records:scope.groups.reduce((s,g)=>s+g.records.length,0),name};
   }
-  const api=Object.freeze({selection,monthly,reportCoverage,workbook,exportSelection});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
+  const api=Object.freeze({selection,monthly,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
