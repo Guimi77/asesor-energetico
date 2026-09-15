@@ -48,7 +48,8 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
  assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','const reading='));
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
- for(const path of ['auth.js','auth.css','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
+ // Authentication now has a dedicated access-control regression suite.
+ for(const path of ['auth.css','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
