@@ -59,6 +59,18 @@ test('Reading quality is preserved and mixed readings are not presented as one r
   assert.equal(mixed.readingSource,'Varios orígenes');
 });
 
+test('Total cost per kWh uses the complete invoice total, not only energy cost',()=>{
+  const m=api.monthly([row('01/01/2026 - 31/01/2026','A',100,25)])[0];
+  assert.equal(m.energyPrice,0.1);
+  assert.equal(m.totalUnit,0.25);
+});
+
+test('Client workbook keeps body cells aligned with headers and renders total cost per kWh after energy price',()=>{
+  const source=fs.readFileSync(__dirname+'/../client-report-export.js','utf8');
+  assert.match(source,/c\.alignment=\{horizontal:'center',vertical:'middle',wrapText:true\}/);
+  assert.match(source,/\['Precio medio de energía','€\/kWh','energyPrice','price',start\+36\],\['Coste total €\/kWh','€\/kWh','totalUnit','price',start\+54\]/);
+});
+
 test('Filename range reflects the real selected period instead of a hard-coded year',()=>{
   assert.equal(api.rangeTag([row('01/07/2025 - 31/07/2025'),row('01/08/2026 - 31/08/2026')]),'2025-07_a_2026-08');
 });
