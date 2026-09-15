@@ -115,15 +115,10 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-client-upload-access]')){
     const script=document.createElement('script');
-    script.src='client-upload-access.js?v=20260915-1';
+    script.src='client-upload-access.js?v=20260915-loopfix1';
     script.dataset.clientUploadAccess='1';
     document.body.appendChild(script);
   }
-
-  // xtra-completeness.js queda temporalmente fuera del cargador.
-  // Su versión 2026.09.09.1 puede competir con xtra-history v2 y degradar
-  // el detalle semántico de derechos de distribuidora. xtra-history v2 sigue
-  // auditando y guardando el histórico validado mientras se finaliza el sidecar v2.
 
   const loadAlertsUi=()=>{
     if(document.querySelector('script[data-alerts-ui]'))return;
@@ -168,8 +163,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   };
 
-  // La capa de lenguaje sencillo cambia solo la presentación. La lógica técnica
-  // de detección permanece intacta y queda accesible bajo "Ver datos y cálculo".
   if(window.IBTHistoryRecommendations?.__humanLanguage){
     loadHistoryUi();
   }else{
@@ -187,15 +180,9 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
-  // El histórico se inicializa antes de que puedan entrar nuevos clientes. Cuando
-  // termina una importación multicliente, volvemos a lanzar la inicialización con
-  // el perfil activo para recargar clientes, titulares, CUPS y registros.
   window.addEventListener('xtra-history-updated',()=>{
     if(window.ibtCurrentProfile){
       window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
     }
   });
-
-  // El histórico permanece montado en el DOM al cambiar de pestaña.
-  // No se recarga al volver a abrirlo: así evitamos el destello de "Cargando…".
 });
