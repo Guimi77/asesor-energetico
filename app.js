@@ -69,3 +69,20 @@ function exportExcel(){const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser
  const detH=['Nº factura','Empresa','CUPS','Periodo','Tarifa'];for(let p=1;p<=6;p++)detH.push(`P${p} kWh`,`P${p} €`,`P${p} €/kWh`,`P${p} kW contratados`,`P${p} maxímetro kW`);const detR=rows.map(r=>{const x=[r.invoiceNumber,r.company,r.cups,r.period,r.tariff];for(let p=1;p<=6;p++){const key=`P${p}`,has=Object.prototype.hasOwnProperty.call(r.periods,key),q=r.periods[key]||{};x.push(has?q.consumption:'',has?q.cost:'',has?q.price:'',Object.prototype.hasOwnProperty.call(r.contracted,key)?r.contracted[key]:'',r.maximeters[key]??'')}return x}),wd=XLSX.utils.aoa_to_sheet([['INSTAL·LACIONS BT · DETALLE P1-P6'],['Consumos, precios, potencias contratadas y maxímetros'],detH,...detR]);decorate(wd,'INSTAL·LACIONS BT · DETALLE P1-P6','Consumos, precios, potencias contratadas y maxímetros',[18,27,27,25,10,...Array(30).fill(14)],34);XLSX.utils.book_append_sheet(wb,wd,'Detalle P1-P6');
  const opH=['Nº factura','Empresa','CUPS','Periodo','Total €','Excesos €','Reactiva €','Qué revisar'],opR=rows.filter(r=>r.opportunity!=='Sin alertas'||!r.readOk).map(r=>[r.invoiceNumber,r.company,r.cups,r.period,r.total,r.excess,r.reactive,r.opportunity]),wo=XLSX.utils.aoa_to_sheet([['INSTAL·LACIONS BT · PUNTOS A REVISAR'],['Alertas y puntos de revisión detectados'],opH,...opR]);decorate(wo,'INSTAL·LACIONS BT · PUNTOS A REVISAR','Alertas y puntos de revisión detectados',[18,28,27,25,14,14,14,55],7);XLSX.utils.book_append_sheet(wb,wo,'Puntos a revisar');XLSX.writeFile(wb,'Informe_Energetico_Instalacions_BT.xlsx')}
 const dz=$('#dropZone'),input=$('#fileInput');$('#pickFiles').onclick=()=>{input.value='';input.click()};input.onchange=e=>{const f=[...e.target.files];input.value='';process(f)};['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('drag')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('drag')}));dz.addEventListener('drop',e=>process([...e.dataTransfer.files]));$('#exportExcel').onclick=exportExcel;$('#clearData').onclick=()=>{rows=[];input.value='';render()};render();
+
+// Keep the validation reason beside the status so it cannot disappear beyond
+// the horizontal scroll area. Export the same reason instead of an unrelated
+// commercial opportunity whenever the row is red.
+const diagnosticFor=r=>!r.readOk&&r.readMessage?`Motivo del error: ${r.readMessage}`:r.opportunity;
+function bringDiagnosticForward(){
+ const table=$('#resultsBody')?.closest('table'),head=table?.querySelector('thead tr');
+ if(head?.lastElementChild&&!head.children[1]?.dataset.validationReason){const cell=head.lastElementChild;cell.dataset.validationReason='1';head.insertBefore(cell,head.children[1]);}
+ for(const tr of $('#resultsBody')?.rows||[])if(tr.cells.length===16&&!tr.cells[1]?.dataset.validationReason){const cell=tr.cells[15];cell.dataset.validationReason='1';tr.insertBefore(cell,tr.cells[1]);}
+}
+new MutationObserver(bringDiagnosticForward).observe($('#resultsBody'),{childList:true});
+bringDiagnosticForward();
+$('#exportExcel').onclick=()=>{
+ const original=rows.map(r=>r.opportunity);
+ rows.forEach(r=>{r.opportunity=diagnosticFor(r)});
+ try{exportExcel()}finally{rows.forEach((r,i)=>{r.opportunity=original[i]})}
+};
