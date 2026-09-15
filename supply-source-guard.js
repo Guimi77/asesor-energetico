@@ -1,7 +1,14 @@
 (()=>{'use strict';
 const txt=v=>String(v??'').replace(/\s+/g,' ').trim();
 const polluted=v=>/(?:Direcci[oó]n\s+de\s+suministro|Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Peaje\s+de\s+transporte|CUPS\s*:|Distribuidora\s*:)/i.test(txt(v));
-const cleanAddress=v=>txt(v).replace(/^.*?Direcci[oó]n\s+de\s+suministro\s*:\s*/i,'').split(/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Contrato\s+de\s+mercado\s+libre|Potencias?\s+contratadas?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Segmento)\s*:/i)[0].replace(/\.{3,}/g,'').replace(/\s*,\s*,+/g,',').trim();
+const cleanAddress=v=>{
+  const source=txt(v).replace(/^.*?(?:Direcci[oó]n\s+de\s+suministro|Adre[cç]a\s+de\s+subministrament)\s*:\s*/i,'').replace(/\.{3,}/g,'');
+  const marker=/\s+(?:Su\s+comercializadora|Referencia\s+(?:de|del)\s+contrato|Refer[eè]ncia\s+(?:de|del)\s+contracte|Contrato\s+de\s+mercado\s+libre|Contracte\s+de\s+mercat\s+lliure|Potencias?\s+contratadas?|Pot[eè]ncies\s+contractades?|Potencia\s+contratada|CUPS|Distribuidora|Peaje|Peatge|Segmento)\s*:?/i;
+  const stop=source.search(marker),street=txt(stop>=0?source.slice(0,stop):source).replace(/[\s,;:-]+$/,'');
+  if(stop<0)return street.replace(/\s*,\s*,+/g,',').trim();
+  const tail=source.slice(stop),postal=(tail.match(/\b\d{5}\s+[^,;]+?(?:,\s*[^,;]+?)?(?=\s+(?:Peaje|Peatge|Segmento|CUPS|Distribuidora)\b|$)/i)||[])[0]||'';
+  return txt([street,postal].filter(Boolean).join(', ')).replace(/\s*,\s*,+/g,',').trim();
+};
 const validRef=v=>/^\d{8,20}$/.test(txt(v).replace(/\D/g,''));
 const placeFromAddress=v=>{const m=cleanAddress(v).match(/\b\d{5}\s+([^,]+?)(?:,\s*([^,]+?))?\s*$/i);return m?{city:txt(m[1]),province:txt(m[2]||'')}:{city:'',province:''}};
 function wrap(){

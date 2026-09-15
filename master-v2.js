@@ -284,15 +284,17 @@
 
     const existing = supplies.find((supply) => cupsKey(supply.cups) === cupsKey(cups));
     const company = norm(d.company || d.holder || existing?.company || existing?.holder);
+    const provisionalIdentity = Boolean(existing) && [existing.client, existing.company, existing.holder].every(empty);
+    const naturalPerson = /^\d{8}[A-Z]$/i.test(norm(d.taxId || d.clientTaxId).replace(/[\s-]/g, ''));
 
     if (!company && !existing) return { ok: false, reason: 'Titular no identificado' };
 
     const payload = {
-      client: existing?.client || company,
+      client: provisionalIdentity ? company : (existing?.client || company),
       clientTaxId: existing?.clientTaxId || d.clientTaxId || d.taxId || '',
-      clientType: existing?.type || 'PENDIENTE',
-      company: existing?.company || company,
-      holder: existing?.holder || company,
+      clientType: provisionalIdentity ? (naturalPerson ? 'PARTICULAR' : 'PENDIENTE') : (existing?.type || 'PENDIENTE'),
+      company: provisionalIdentity ? company : (existing?.company || company),
+      holder: provisionalIdentity ? company : (existing?.holder || company),
       cups,
       name: d.supplyName || d.name || d.supplyAddress || d.address,
       address: d.supplyAddress || d.address,
@@ -319,7 +321,7 @@
     const result = upsertSupply(payload, {
       allowMove: true,
       fillOnly: true,
-      preserveIdentity: Boolean(existing),
+      preserveIdentity: Boolean(existing) && !provisionalIdentity,
     });
 
     if (result.ok && result.enriched) {
