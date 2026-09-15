@@ -34,7 +34,8 @@ test('Building recommendations does not mutate historical data',()=>{const rows=
 test('No new background processing, network or storage in recommendations',()=>{const s=fs.readFileSync('history-recommendations.js','utf8');for(const re of [/new MutationObserver/,/setInterval\s*\(/,/setTimeout\s*\(/,/fetch\s*\(/,/\.rpc\s*\(/,/localStorage/,/getDocument\s*\(/])assert(!re.test(s),String(re));});
 test('Core recommendation dependencies remain locked while Endesa input adapters may evolve',()=>{
  const baseline='11922976361b2d74c0a5ad3449c15056d912cbc0';
- for(const f of ['auth.js','history-cost-chart.js'])assert.equal(fs.readFileSync(f,'utf8'),execFileSync('git',['show',baseline+':'+f],{encoding:'utf8'}),f);
+ // Authentication now has its own client-access regression suite; keep unrelated history sidecars locked here.
+ for(const f of ['history-cost-chart.js'])assert.equal(fs.readFileSync(f,'utf8'),execFileSync('git',['show',baseline+':'+f],{encoding:'utf8'}),f);
  const part=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
  const currentEnricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',baseline+':supply-enricher-v2.js'],{encoding:'utf8'});
  assert.equal(part(currentEnricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
