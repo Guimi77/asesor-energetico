@@ -1,0 +1,29 @@
+name: Admin data lifecycle regression
+
+on:
+  push:
+    paths:
+      - 'admin-data-management.js'
+      - 'auth.js'
+      - 'supabase-xtra-pilot.js'
+      - 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'
+      - 'tests/admin-data-lifecycle.test.cjs'
+      - '.github/workflows/admin-data-lifecycle-regression.yml'
+  pull_request:
+    paths:
+      - 'admin-data-management.js'
+      - 'auth.js'
+      - 'supabase-xtra-pilot.js'
+      - 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'
+      - 'tests/admin-data-lifecycle.test.cjs'
+      - '.github/workflows/admin-data-lifecycle-regression.yml'
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/admin-data-lifecycle.test.cjs
