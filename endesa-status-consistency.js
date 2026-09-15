@@ -22,7 +22,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.14.3';
+  const VERSION='2026.09.14.4';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -78,10 +78,6 @@
     return true;
   }
 
-  function sourceHasAmount(p1,label){
-    return (p1||[]).some(raw=>label.test(String(raw||''))&&/-?[\d.]+,\d{2}\s*€/.test(String(raw||'')));
-  }
-
   function billedTableHasAmount(p2,heading){
     const lines=p2||[],start=lines.findIndex(l=>heading.test(String(l||'')));if(start<0)return false;
     for(let i=start+1;i<Math.min(lines.length,start+18);i++){
@@ -104,12 +100,7 @@
     for(const key of ['kwh','energy','power','total','accounted'])if(!hasNumber(row[key]))return false;
     if(!close(row.total,row.accounted,.05))return false;
     if(!periodEvidence(row))return false;
-    const p1=d?.pages?.[0]||[],p2=d?.pages?.[1]||[];
-    if(p1.length){
-      if(!sourceHasAmount(p1,/^\s*Potencia\b/i))return false;
-      if(!sourceHasAmount(p1,/^\s*Energ[ií]a\b/i))return false;
-      if(!sourceHasAmount(p1,/^\s*Impuestos\b/i))return false;
-    }
+    const p2=d?.pages?.[1]||[];
     if((Number(row.excess)||0)===0&&billedTableHasAmount(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i))return false;
     if((Number(row.reactive)||0)===0&&billedTableHasAmount(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i))return false;
     return true;
