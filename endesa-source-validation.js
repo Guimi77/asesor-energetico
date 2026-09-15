@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.4';
+  const VERSION='2026.09.15.6';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -93,6 +93,7 @@
     return false;
   }
   function summaryHasAmount(p1,label){return (p1||[]).some(l=>label.test(String(l||''))&&lastEuro(l)!=null);}
+  function summaryHasBilledAmount(p1,label){return (p1||[]).some(l=>label.test(String(l||''))&&Math.abs(Number(lastEuro(l))||0)>.005);}
   function diagnosticOpportunity(r,contracted){
     const alerts=[];
     if(Number(r.excess)>0)alerts.push(`Exceso de potencia: ${money(r.excess)} €`);
@@ -112,7 +113,9 @@
       const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+(Number(raw.excess)||0)+(Number(raw.reactive)||0)+(Number(raw.compensation)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
       const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
       const periodKwh=round2(Object.values(raw.periods||{}).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=raw.kwh==null||(Object.keys(raw.periods||{}).length>0&&Math.abs(periodKwh-Number(raw.kwh))<=.1);
-      const unresolvedExcess=(Number(raw.excess)||0)===0&&tableHasBilledAmount(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),unresolvedReactive=(Number(raw.reactive)||0)===0&&tableHasBilledAmount(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i);
+      // The detail tables express "A facturar" in kW/kVArh, not euros.
+      // Only the economic summary can prove that a monetary charge was billed.
+      const unresolvedExcess=(Number(raw.excess)||0)===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\s+de\s+potencia\b/i),unresolvedReactive=(Number(raw.reactive)||0)===0&&summaryHasBilledAmount(p1,/^\s*Energ[ií]a\s+reactiva\b/i);
       const missing=[];
       if(!raw.company||raw.company==='Por identificar')missing.push('titular');
       if(!raw.cups)missing.push('CUPS');
@@ -132,5 +135,5 @@
     }};
     return Object.freeze(api);
   }
-  return Object.freeze({version:VERSION,patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount});
+  return Object.freeze({version:VERSION,patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount,summaryHasBilledAmount});
 });

@@ -22,7 +22,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.5';
+  const VERSION='2026.09.15.7';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -94,6 +94,14 @@
     return false;
   }
 
+  function summaryHasBilledAmount(p1,label){
+    return (p1||[]).some(line=>{
+      const s=text(line);if(!label.test(s))return false;
+      const values=[...s.matchAll(/-?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d+)?\s*€/g)].map(m=>num(m[0])).filter(v=>v!=null);
+      return values.length>0&&Math.abs(values.at(-1))>.005;
+    });
+  }
+
   function coreEvidence(row,d){
     if(!row||row.unsupported||text(row.sourceFormat).toLowerCase()!=='endesa')return false;
     if(!text(row.company)||/por identificar/i.test(text(row.company)))return false;
@@ -103,9 +111,9 @@
     for(const key of ['kwh','energy','power','total','accounted'])if(!hasNumber(row[key]))return false;
     if(!close(row.total,row.accounted,.05))return false;
     if(!periodEvidence(row))return false;
-    const p2=d?.pages?.[1]||[];
-    if((Number(row.excess)||0)===0&&billedTableHasAmount(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i))return false;
-    if((Number(row.reactive)||0)===0&&billedTableHasAmount(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i))return false;
+    const p1=d?.pages?.[0]||[];
+    if((Number(row.excess)||0)===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\s+de\s+potencia\b/i))return false;
+    if((Number(row.reactive)||0)===0&&summaryHasBilledAmount(p1,/^\s*Energ[ií]a\s+reactiva\b/i))return false;
     return true;
   }
 
@@ -126,5 +134,5 @@
     return base;
   }
 
-  return Object.freeze({version:VERSION,normalize,coreEvidence,periodEvidence,sourceAddress,placeFromAddress,billedTableHasAmount});
+  return Object.freeze({version:VERSION,normalize,coreEvidence,periodEvidence,sourceAddress,placeFromAddress,billedTableHasAmount,summaryHasBilledAmount});
 });

@@ -61,11 +61,16 @@ test('A missing CUPS stays rejected',()=>{
   assert.equal(guard.normalize(baseRow({cups:''}),mallorcaDoc).readOk,false);
 });
 
-test('A real billed reactive amount stays rejected when parsed reactive is zero',()=>{
+test('A technical reactive quantity is not mistaken for billed euros',()=>{
   const d={pages:[mallorcaDoc.pages[0],[
     'ENERGÍA REACTIVA INDUCTIVA kWh','Periodo horario Consumo Cos A facturar','P1 85,000 1,00 0,000','P2 210,000 1,00 3,500',
     'EXCESOS DE POTENCIA kW','Periodo horario Contratada Demandada A facturar','P1 25,000 0,000 0,000'
   ]]};
+  assert.equal(guard.normalize(baseRow({}),d).readOk,true);
+});
+
+test('A real billed reactive euro amount stays rejected when parsed reactive is zero',()=>{
+  const d={pages:[[...mallorcaDoc.pages[0],'Energía reactiva 3,50 €'],mallorcaDoc.pages[1]]};
   assert.equal(guard.normalize(baseRow({}),d).readOk,false);
 });
 
