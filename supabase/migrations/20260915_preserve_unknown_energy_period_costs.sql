@@ -1,5 +1,10 @@
 -- Missing per-period energy cost is not the same as a real zero cost.
 -- Keep unknown values as NULL so reports cannot present 0.000000 €/kWh as if it came from the invoice.
+
+alter table public.invoice_energy_periods
+  alter column energy_cost_eur drop not null,
+  alter column energy_cost_eur drop default;
+
 do $migration$
 declare
   r record;
