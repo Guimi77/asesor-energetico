@@ -55,12 +55,13 @@
     };
     if(item.type==='consumption-up'||item.type==='consumption-down'){
       const up=item.type==='consumption-up',pct=Math.abs(Number(item.changeRatio)||0)*100;
+      const baseline=Number(item.baselineKwhDay),recent=Number(item.recentKwhDay);
       return{
-        title:`Tu consumo ha ${up?'aumentado':'bajado'} un ${fmt(pct,0)} %`,
-        summary:`En las 2 últimas facturas, el consumo diario es aproximadamente un ${fmt(pct,0)} % ${up?'mayor':'menor'} que en los 3 periodos anteriores.`,
+        title:`El consumo diario reciente está un ${fmt(pct,1)} % ${up?'por encima':'por debajo'} de la referencia`,
+        summary:`Referencia: ${fmt(baseline,2)} kWh/día, calculada como mediana de los 3 periodos anteriores. Las 2 últimas facturas promedian ${fmt(recent,2)} kWh/día. Diferencia: ${up?'+':'-'}${fmt(pct,1)} %. Es un cálculo a partir de consumos y días facturados guardados, no un valor estimado por IA.`,
         importance:up?'Puede deberse a más actividad, horarios, climatización, nuevos equipos o un cambio de uso. Merece revisar qué ha cambiado.':'Puede deberse a menos actividad, cambios de horario, cierre parcial o un cambio de uso. Conviene confirmar la causa antes de sacar conclusiones.',
         recommendation:up?'Comprobar si han cambiado la actividad, los horarios, la climatización, la ocupación o los equipos del suministro.':'Comprobar si ha cambiado la actividad o el uso del suministro y confirmar que las lecturas sean coherentes.',
-        badge:'Conviene revisarlo',badgeDetail:`${up?'+':'-'}${fmt(pct,0)} %`
+        badge:'Conviene revisarlo',badgeDetail:`${up?'+':'-'}${fmt(pct,1)} %`
       };
     }
     return{
@@ -84,18 +85,18 @@
     const sources=Array.isArray(item.sources)?item.sources:[];
     if(!sources.length)return'';
     if(item.type==='consumption-up'||item.type==='consumption-down'){
-      const rows=sources.map((r,i)=>`<tr><td>${i<3?'Referencia':'Reciente'}</td><td>${esc(r.invoice)}</td><td>${esc(date(r.start))} – ${esc(date(r.end))}</td><td>${r.kwh==null?'—':fmt(r.kwh,2)+' kWh'}</td><td>${r.kwhDay==null?'—':fmt(r.kwhDay,2)+' kWh/día'}</td><td>${r.readingStatus==='actual'?'Real confirmada':'No determinada'}</td></tr>`).join('');
-      return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Grupo</th><th>Factura</th><th>Periodo</th><th>Consumo</th><th>Consumo diario</th><th>Lectura</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      const rows=sources.map((r,i)=>`<tr><td>${i<3?'Referencia':'Reciente'}</td><td>${esc(r.invoice)}</td><td>${esc(date(r.start))} – ${esc(date(r.end))}</td><td>${r.days??'—'}</td><td>${r.kwh==null?'—':fmt(r.kwh,2)+' kWh'}</td><td>${r.kwhDay==null?'—':fmt(r.kwhDay,2)+' kWh/día'}</td><td>${r.readingStatus==='actual'?'Real confirmada':'No determinada'}</td></tr>`).join('');
+      return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Grupo</th><th>Factura</th><th>Periodo</th><th>Días</th><th>Consumo</th><th>Consumo diario</th><th>Lectura</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
     return`<div class="history-table-wrap"><table class="history-mini-table"><thead><tr><th>Factura</th><th>Periodo facturado</th><th>Importe del concepto</th></tr></thead><tbody>${sources.map(r=>`<tr><td>${esc(r.invoice)}</td><td>${esc(date(r.start))} – ${esc(date(r.end))}</td><td>${r.amount==null?'—':fmt(r.amount)+' €'}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
   function card(item,supplyMap,holderMap){
     const s=supplyMap.get(item.supplyId),h=holderMap.get(s?.holder_id),p=plain(item);
-    const name=s?.supply_name||s?.address||'Suministro';
+    const name=s?.supply_name||'Suministro eléctrico';
     const identity=[h?.legal_name,s?.cups].filter(Boolean).join(' · ');
     const techTable=measurementTable(item),sources=sourceTable(item);
-    return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué conviene revisar</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver detalle técnico</summary><div class="history-tech-body"><p><strong>Detección técnica:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Pendiente de revisión técnica.</strong> ${esc(item.caveat||'')} Este análisis no calcula una propuesta económica.</p>${sources}</div></details></div></details>`;
+    return`<details class="history-rec history-rec-human"><summary><span><strong>${esc(p.title)}</strong><span class="history-rec-name">${esc(name)}</span><span class="history-scope">${esc(identity)}</span><span class="history-rec-simple">${esc(p.summary)}</span></span><span class="history-rec-status">${esc(p.badge)}${p.badgeDetail?`<span>${esc(p.badgeDetail)}</span>`:''}</span></summary><div class="history-rec-body"><div class="history-human-answer"><h4>Por qué importa</h4><p>${esc(p.importance)}</p><h4>Qué conviene revisar</h4><p>${esc(p.recommendation)}</p></div><details class="history-tech-detail"><summary>Ver datos y cálculo</summary><div class="history-tech-body"><p><strong>Qué cambio se ha detectado:</strong> ${esc(item.title||p.title)}</p><p>${esc(item.evidence||'')}</p>${techTable}<p><strong>Criterio de revisión:</strong> ${esc(item.action||'')}</p><p class="history-rec-caution"><strong>Trazabilidad:</strong> ${esc(item.caveat||'')} Este análisis no calcula una propuesta económica ni inventa valores ausentes.</p>${sources}</div></details></div></details>`;
   }
 
   function overview(items){
@@ -142,7 +143,7 @@
     });
     const consumptionSection=consumption.length?section({
       id:'historyConsumptionChanges',title:'Cambios importantes en el consumo',items:consumption,supplyMap,holderMap,limit:5,
-      intro:'Te avisamos cuando las 2 últimas facturas se alejan claramente de los 3 periodos anteriores. Esto señala que algo ha cambiado, pero no significa por sí solo que exista un problema.',
+      intro:'Te mostramos exactamente qué periodos se comparan y con qué datos. La señal usa kWh/día para no confundir una factura más larga con un aumento real de consumo.',
       empty:''
     }):'';
     return overview(items)+costSection+studySection+consumptionSection;
