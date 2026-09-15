@@ -109,7 +109,14 @@
     const confirmedCost=cost('excess')+cost('reactive');
     if(confirmedCost>0)blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>Costes adicionales detectados</small><strong>${fmt(confirmedCost)} €</strong><span>Excesos de potencia y energía reactiva registrados en las facturas analizadas</span></div>`);
     if(power.length)blocks.push(`<div class="history-human-kpi"><small>Potencia posiblemente alta</small><strong>${power.length}</strong><span>suministro${power.length===1?'':'s'} para estudiar</span></div>`);
-    if(consumption.length)blocks.push(`<div class="history-human-kpi"><small>Cambios importantes de consumo</small><strong>${consumption.length}</strong><span>cambio${consumption.length===1?'':'s'} detectado${consumption.length===1?'':'s'}</span></div>`);
+    if(consumption.length){
+      const main=[...consumption].sort((a,b)=>Math.abs(Number(b.changeRatio)||0)-Math.abs(Number(a.changeRatio)||0))[0];
+      const up=main.type==='consumption-up',pct=Math.abs(Number(main.changeRatio)||0)*100;
+      const baseline=Number(main.baselineKwhDay),recent=Number(main.recentKwhDay);
+      const values=Number.isFinite(baseline)&&Number.isFinite(recent)?`De ${fmt(baseline,2)} a ${fmt(recent,2)} kWh/día.`:'Cambio calculado sobre el consumo diario.';
+      const extra=consumption.length>1?` Mostramos el de mayor magnitud de ${consumption.length} cambios detectados.`:'';
+      blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>${up?'Aumento':'Descenso'} del consumo diario</small><strong>${up?'+':'-'}${fmt(pct,1)} %</strong><span>${values} Últimas 2 facturas frente a la mediana de los 3 periodos anteriores.${extra}</span></div>`);
+    }
     if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Datos de consumo a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'} sin lectura suficientemente clara</span></div>`);
     if(!blocks.length)return'';
     return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Los euros son costes que ya aparecen en el histórico.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
