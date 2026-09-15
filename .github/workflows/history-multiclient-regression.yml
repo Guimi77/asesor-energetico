@@ -1,0 +1,26 @@
+name: History multi-client regression
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+      - 'tests/history-multiclient-migration.test.cjs'
+      - '.github/workflows/history-multiclient-regression.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'tests/history-multiclient-migration.test.cjs'
+      - '.github/workflows/history-multiclient-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate multi-client history migration contract
+        run: node --test tests/history-multiclient-migration.test.cjs
