@@ -1,3 +1,5 @@
+'use strict';
+
 window.addEventListener('DOMContentLoaded',()=>{
   const signupCopy=document.querySelector('#signupPanel .auth-copy');
   if(signupCopy)signupCopy.textContent='Crea tu cuenta. El rol se asigna de forma segura desde Supabase según las reglas de acceso internas.';
@@ -177,6 +179,15 @@ window.addEventListener('DOMContentLoaded',()=>{
       document.body.appendChild(script);
     }
   }
+
+  // El histórico se inicializa antes de que puedan entrar nuevos clientes. Cuando
+  // termina una importación multicliente, volvemos a lanzar la inicialización con
+  // el perfil activo para recargar clientes, titulares, CUPS y registros.
+  window.addEventListener('xtra-history-updated',()=>{
+    if(window.ibtCurrentProfile){
+      window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
+    }
+  });
 
   // El histórico permanece montado en el DOM al cambiar de pestaña.
   // No se recarga al volver a abrirlo: así evitamos el destello de "Cargando…".
