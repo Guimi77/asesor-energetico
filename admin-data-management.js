@@ -251,12 +251,13 @@
     const msgTarget = isClientAction ? '#centralClientsMsg' : '#centralSuppliesMsg';
     setMessage(msgTarget, 'Aplicando cambio…');
     try {
-      if (action === 'archive_client' || action === 'delete_client') localMasterRemoveCups(cupsForClient(id));
-      if (action === 'archive_supply' || action === 'delete_supply') {
-        const supply = state.supplies.find((item) => item.id === id);
-        if (supply) localMasterRemoveCups([supply.cups]);
-      }
+      const clientCups = action === 'archive_client' || action === 'delete_client' ? cupsForClient(id) : [];
+      const supplyCups = action === 'archive_supply' || action === 'delete_supply'
+        ? [state.supplies.find((item) => item.id === id)?.cups].filter(Boolean)
+        : [];
       await invoke(action, id);
+      localMasterRemoveCups(clientCups);
+      localMasterRemoveCups(supplyCups);
       setMessage(msgTarget, 'Cambio guardado correctamente.', 'ok');
       await loadState();
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action, id } }));
