@@ -21,3 +21,7 @@ jobs:
           grep -q "id='userSearch'\|id=\"userSearch\"\|input.id='userSearch'" client-search.js
           grep -q "localeCompare" client-search.js
           grep -q "cliente asignado" client-search.js
+          grep -q "user-client-assign-search" client-search.js
+          grep -q "Buscar cliente para asignar" client-search.js
+          grep -q "Sin coincidencias" client-search.js
+          grep -q "matches.slice(0,q?25:15)" client-search.js
