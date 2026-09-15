@@ -32,11 +32,9 @@ function hideInternalLocalViewsForClient(){
   document.querySelectorAll('.sidebar [data-view]').forEach(link=>{
     if(restrictedLinks.includes(link.dataset.view))link.classList.add('hidden');
   });
-  const historical=$('#historicoView');
-  if(historical){
-    historical.classList.remove('hidden');
-    historical.innerHTML='<section class="card placeholder-view"><div class="upload-icon">◷</div><h2>Portal de cliente</h2><p>Tu cuenta está correctamente aislada. Solo se mostrarán aquí los suministros, facturas e histórico que estén asignados a tu usuario en Supabase.</p><span class="status review">Sin datos asignados todavía</span></section>';
-  }
+  // No reemplazamos el contenido del Histórico: history-ui.js lo carga con RLS
+  // y Supabase devuelve exclusivamente los clientes enlazados a esta cuenta.
+  $('#historicoView')?.classList.remove('hidden');
   document.querySelectorAll('.sidebar [data-view]').forEach(link=>link.classList.toggle('active',link.dataset.view==='historico'));
   if($('#pageTitle'))$('#pageTitle').textContent='Portal de cliente';
   if($('#pageSubtitle'))$('#pageSubtitle').textContent='Consulta únicamente la información energética asignada a tu cuenta.';
@@ -86,27 +84,62 @@ async function refreshAuth(){
   if(profile?.role==='admin')await renderUsers();
 }
 
+function clientAccessHtml(profile,clients,assigned){
+  if(profile.role!=='client')return '<span class="status ok">Acceso interno · todos</span>';
+  const current=[...(assigned.get(profile.id)||new Set())];
+  const names=new Map(clients.map(c=>[c.id,c.name]));
+  const chips=current.length
+    ? current.map(id=>`<span class="status ok" style="display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0">${escapeHtml(names.get(id)||'Cliente')}<button type="button" class="user-client-remove" data-user="${profile.id}" data-client="${id}" title="Quitar acceso" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer;padding:0">×</button></span>`).join('')
+    : '<span class="status review">Sin cliente asignado</span>';
+  const available=clients.filter(c=>!current.includes(c.id));
+  const selector=available.length
+    ? `<select class="user-client-assign" data-user="${profile.id}" style="display:block;margin-top:6px;max-width:320px"><option value="">+ Asignar cliente…</option>${available.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>`
+    : '';
+  return `<div>${chips}${selector}</div>`;
+}
+
 async function renderUsers(){
   const body=$('#usersBody');
   if(!body||currentProfile?.role!=='admin')return;
   body.innerHTML='<tr><td colspan="4">Cargando usuarios…</td></tr>';
-  const [{data:profiles,error:pErr},{data:links,error:lErr}]=await Promise.all([
+  const [{data:profiles,error:pErr},{data:links,error:lErr},{data:clients,error:cErr}]=await Promise.all([
     supabase.from('profiles').select('id,display_name,role,active,created_at').order('created_at',{ascending:true}),
-    supabase.from('client_users').select('user_id,client_id')
+    supabase.from('client_users').select('user_id,client_id'),
+    supabase.from('clients').select('id,name,status').order('name',{ascending:true})
   ]);
-  if(pErr||lErr){body.innerHTML='<tr><td colspan="4">No se pudieron cargar usuarios.</td></tr>';return;}
-  const count=new Map();
-  for(const x of links||[])count.set(x.user_id,(count.get(x.user_id)||0)+1);
+  if(pErr||lErr||cErr){body.innerHTML='<tr><td colspan="4">No se pudieron cargar usuarios y permisos.</td></tr>';return;}
+  const assigned=new Map();
+  for(const x of links||[]){
+    if(!assigned.has(x.user_id))assigned.set(x.user_id,new Set());
+    assigned.get(x.user_id).add(x.client_id);
+  }
   body.innerHTML='';
   for(const p of profiles||[]){
     const tr=document.createElement('tr');
     const own=p.id===currentProfile.id;
-    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}</td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${count.get(p.id)||0}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own?'disabled':''}>${p.active?'Activo':'Desactivado'}</button></td>`;
+    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}</td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${clientAccessHtml(p,clients||[],assigned)}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own?'disabled':''}>${p.active?'Activo':'Desactivado'}</button></td>`;
     body.appendChild(tr);
   }
   body.querySelectorAll('.role-select').forEach(el=>el.addEventListener('change',async e=>{
     const {error}=await supabase.from('profiles').update({role:e.target.value}).eq('id',e.target.dataset.id);
-    if(error){alert('No se pudo cambiar el rol: '+error.message);await renderUsers();}
+    if(error)alert('No se pudo cambiar el rol: '+error.message);
+    await renderUsers();
+  }));
+  body.querySelectorAll('.user-client-assign').forEach(el=>el.addEventListener('change',async e=>{
+    const clientId=e.target.value,userId=e.target.dataset.user;
+    if(!clientId||!userId)return;
+    e.target.disabled=true;
+    const {error}=await supabase.from('client_users').insert({user_id:userId,client_id:clientId});
+    if(error)alert('No se pudo asignar el cliente: '+error.message);
+    await renderUsers();
+  }));
+  body.querySelectorAll('.user-client-remove').forEach(el=>el.addEventListener('click',async e=>{
+    const userId=e.currentTarget.dataset.user,clientId=e.currentTarget.dataset.client;
+    if(!userId||!clientId)return;
+    e.currentTarget.disabled=true;
+    const {error}=await supabase.from('client_users').delete().eq('user_id',userId).eq('client_id',clientId);
+    if(error)alert('No se pudo quitar el acceso: '+error.message);
+    await renderUsers();
   }));
   body.querySelectorAll('.user-active').forEach(el=>el.addEventListener('click',async e=>{
     const active=e.currentTarget.dataset.active==='true';
@@ -135,13 +168,17 @@ window.addEventListener('DOMContentLoaded',()=>{
     const email=$('#signupEmail').value.trim(),password=$('#signupPassword').value,display_name=$('#signupName').value.trim();
     const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name}}});
     if(error){setAuthMessage(error.message,'error');return;}
-    if(data.session){setAuthMessage('Cuenta creada.','ok');await refreshAuth();}
-    else setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso.','ok');
+    if(data.session){
+      setAuthMessage('Cuenta creada. Si eres cliente, un administrador debe asignarte tu ficha antes de que puedas ver datos.','ok');
+      await refreshAuth();
+    }else{
+      setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso. Después un administrador debe asignarte tu ficha de cliente.','ok');
+    }
   });
   $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();location.reload();});
   $('#usersNav')?.addEventListener('click',async()=>{
     $('#pageTitle').textContent='Usuarios';
-    $('#pageSubtitle').textContent='Gestiona roles y acceso a clientes.';
+    $('#pageSubtitle').textContent='Gestiona roles y asigna a cada cuenta de cliente únicamente las fichas que puede consultar.';
     $('#pageEyebrow').textContent='Administración';
     await renderUsers();
   });
