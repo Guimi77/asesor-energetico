@@ -3,6 +3,7 @@
 
   const $=s=>document.querySelector(s);
   let currentRole='';
+  let observerQueued=false;
 
   function ensureClientNotice(){
     const view=$('#facturasView');
@@ -25,7 +26,11 @@
     const copy=$('#dropZone p');
     if(!copy)return;
     if(currentRole==='client'){
-      copy.textContent='Carga una o varias facturas PDF de tus suministros. Se analizarán en este navegador y, si el CUPS está vinculado a tu cuenta y la lectura es válida, sus datos se añadirán al histórico compartido con Instal·lacions BT.';
+      const next='Carga una o varias facturas PDF de tus suministros. Se analizarán en este navegador y, si el CUPS está vinculado a tu cuenta y la lectura es válida, sus datos se añadirán al histórico compartido con Instal·lacions BT.';
+      // No reescribir el DOM si el texto ya es correcto. Un MutationObserver
+      // sobre document.body que escriba siempre textContent se retroalimenta y
+      // puede bloquear el navegador al entrar con rol Cliente.
+      if(copy.textContent!==next)copy.textContent=next;
     }
   }
 
@@ -48,11 +53,11 @@
       // auth.js oculta por defecto las vistas internas. Facturas se reabre aquí
       // expresamente; Clientes, CUPS y Usuarios continúan restringidos.
       link?.classList.remove('hidden');
-      if(link)link.textContent='▣ Mis facturas';
+      if(link&&link.textContent!=='▣ Mis facturas')link.textContent='▣ Mis facturas';
       ensureClientNotice();
       adaptUploadCopy();
     }else{
-      if(link)link.textContent='▣ Facturas';
+      if(link&&link.textContent!=='▣ Facturas')link.textContent='▣ Facturas';
       $('#clientInvoiceUploadNotice')?.remove();
     }
     adaptButtons();
@@ -61,10 +66,13 @@
   window.addEventListener('ibt-role-changed',event=>apply(event.detail?.profile));
 
   const observer=new MutationObserver(()=>{
-    if(currentRole==='client'){
+    if(currentRole!=='client'||observerQueued)return;
+    observerQueued=true;
+    requestAnimationFrame(()=>{
+      observerQueued=false;
       adaptButtons();
       adaptUploadCopy();
-    }
+    });
   });
 
   function init(){
