@@ -93,7 +93,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-consumption-anomalies],script[src*="consumption-anomalies.js"]')){
     const script=document.createElement('script');
-    script.src='consumption-anomalies.js?v=20260914-1';
+    script.src='consumption-anomalies.js?v=20260915-trace1';
     script.dataset.consumptionAnomalies='1';
     document.body.appendChild(script);
   }
@@ -162,7 +162,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   };
 
   // La capa de lenguaje sencillo cambia solo la presentación. La lógica técnica
-  // de detección permanece intacta y queda accesible bajo "Ver detalle técnico".
+  // de detección permanece intacta y queda accesible bajo "Ver datos y cálculo".
   if(window.IBTHistoryRecommendations?.__humanLanguage){
     loadHistoryUi();
   }else{
@@ -172,7 +172,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       existing.addEventListener('error',loadHistoryUi,{once:true});
     }else{
       const script=document.createElement('script');
-      script.src='human-language.js?v=20260914-3';
+      script.src='human-language.js?v=20260915-trace1';
       script.dataset.humanLanguage='1';
       script.onload=loadHistoryUi;
       script.onerror=()=>{console.warn('No se pudo cargar la capa de lenguaje sencillo');loadHistoryUi();};
