@@ -84,7 +84,9 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  const payload=persist.slice(persist.indexOf('const payload={'),persist.indexOf("const {data,error}=await"));
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/pdfData/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
- assert(s.includes("const COMPLETENESS_VERSION='fenie-2026.09.09.2'"));
+ assert(s.includes("const COMPLETENESS_VERSION='energy-2026.09.15.1'"));
+ assert(s.includes("if(format==='endesa')return extractEndesa(d,file)"));
+ assert(s.includes("if(format==='fenie')return extractFenie(d,file)"));
  for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'","'needs_review'"])assert(s.includes(state),state);
  assert(!s.includes("adjustments.push(...rights.items)"));
  assert(s.includes("distributor_rights:rights.status"));

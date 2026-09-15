@@ -54,3 +54,10 @@ test('2.0TD reactive absence is not fabricated as zero measured reactive detail'
  assert(source.includes("const reactiveApplicable=!/^2\\.0TD$/i.test(tariff);"));
  assert(source.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
+test('Historical persistence routes Endesa through the validated shared parser',()=>{
+ assert(source.includes('function extractEndesa(d,file)'));
+ assert(source.includes("formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA'"));
+ assert(source.includes("if(format==='endesa')return extractEndesa(d,file)"));
+ assert(source.includes("if(format==='fenie')return extractFenie(d,file)"));
+ assert(source.includes('powerReliable:row.readOk&&Number.isFinite(Number(row.power))'));
+});

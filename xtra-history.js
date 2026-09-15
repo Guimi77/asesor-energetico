@@ -1,7 +1,7 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 const PILOT='GRUPO XTRA';
-const COMPLETENESS_VERSION='fenie-2026.09.09.2';
+const COMPLETENESS_VERSION='energy-2026.09.15.1';
 const $=s=>document.querySelector(s);
 const norm=v=>String(v??'').trim();
 const clean=v=>norm(v).replace(/\s+/g,' ');
@@ -190,6 +190,22 @@ integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present'
 const assessment=Object.values(completeness).some(v=>v==='unreliable'||v==='needs_review')?'needs_review':'complete';
 return {file:file.name,invoiceNumber,cups,tariff,periodText,period,total,kwh,energy,power,excess,reactive,compensation,social,rental,tax,vat,igic,distributorCharges,other,accounted,diff,energyPeriods,powerPeriods,maximeterRows,excessPeriods,reactivePeriods,taxLines,adjustments,distributorRights:rights.items,distributor,retailer:'FENIE ENERGIA',contract,powerReliable:pd.reliable,holderName,holderTaxId,sourceSupplyAddress,accessContract,issueDate,contractType,contractEndDate,meterNumber,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,completeness,assessment};
 }
+function extractEndesa(d,file){
+const formats=window.IBTInvoiceFormats;if(!formats?.parseEndesa)return null;
+const row=formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
+const periodText=norm(row.period),period=parsePeriod(periodText),tariff=norm(row.tariff),periods=row.periods||{},contracted=row.contracted||{},mx=row.maximeters||{};
+const energyPeriods=Object.entries(periods).filter(([key])=>/^P[1-6]$/.test(key)).map(([key,value])=>({period:Number(key.slice(1)),consumption_kwh:Number(value?.consumption)||0,energy_cost_eur:value?.cost==null?null:Number(value.cost),unit_price_eur_kwh:value?.price==null?null:Number(value.price)}));
+const powerEntries=row.powerDetail?.entries||[],powerKeys=Object.keys(contracted).filter(key=>/^P[1-6]$/.test(key)).sort((a,b)=>Number(a.slice(1))-Number(b.slice(1)));
+const powerPeriods=powerKeys.map((key,index)=>({period:Number(key.slice(1)),contracted_kw:Number(contracted[key])||0,billed_power_eur:powerEntries[index]?.amount==null?null:Number(powerEntries[index].amount),unit_price_eur_kw_day:null}));
+const maximeterRows=Object.keys(mx).filter(key=>/^P[1-6]$/.test(key)).map(key=>({period:Number(key.slice(1)),maximeter_kw:Number(mx[key])||0,reliable:!!mx._reliable,source:'ENDESA · tabla potencia'}));
+const taxLines=[];if(Number(row.tax))taxLines.push({tax_type:'ELECTRICITY_TAX',label:'Impuesto electricidad',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.tax)});if(Number(row.vat))taxLines.push({tax_type:'IVA',label:'IVA',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.vat)});if(Number(row.igic))taxLines.push({tax_type:'IGIC',label:'IGIC',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.igic)});
+const adjustments=[];if(Number(row.discounts))adjustments.push({concept:'Descuentos',amount_eur:Number(row.discounts),category:'discount'});if(Number(row.summaryOther))adjustments.push({concept:'Otros',amount_eur:Number(row.summaryOther),category:'other'});if(Number(row.adjustments))adjustments.push({concept:'Ajustes de peajes',amount_eur:Number(row.adjustments),category:'adjustment'});
+const reactiveApplicable=!/^2\.0TD$/i.test(tariff),hasMaximeters=!!mx._reliable;
+const completeness={version:COMPLETENESS_VERSION,invoice_number:status(row.invoiceNumber),cups:status(row.cups),billing_period:status(period.start&&period.end),issue_date:'not_present',holder_name:status(row.company),holder_tax_id:status(row.taxId,false),supply_address:status(row.supplyAddress),access_contract_number:status(row.accessContract,false),contract_number:status(row.contract,false),contract_type:status(row.contractType,false),contract_end_date:status(row.renewalDate,false),meter_number:'not_present',tariff:status(tariff),distributor:status(row.distributor,false),energy_periods:energyPeriods.length?'extracted':'unreliable',energy_price_components:'not_present',power_periods:powerPeriods.length?'extracted':'unreliable',power_price_components:'not_present',maximeters:hasMaximeters?'extracted':reactiveApplicable?'not_present':'not_applicable',excess_detail:Number(row.excess)?'extracted':'not_present',reactive_detail:Number(row.reactive)?'extracted':reactiveApplicable?'not_present':'not_applicable',compensation:Number(row.compensation)?'extracted':'not_present',social_bonus:'not_present',meter_rental:'not_present',electricity_tax:Number(row.tax)?'extracted':'not_present',tax_lines:taxLines.length?'extracted':'not_present',distributor_rights:'not_present',integrator_adjustment:'not_present',reactive_regularization:'not_present'};
+const assessment=row.readOk&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
+return {file:file.name,invoiceNumber:row.invoiceNumber,cups:row.cups,tariff,periodText,period,total:Number(row.total)||0,kwh:Number(row.kwh)||0,energy:Number(row.energy)||0,power:Number(row.power)||0,excess:Number(row.excess)||0,reactive:Number(row.reactive)||0,compensation:Number(row.compensation)||0,social:Number(row.social)||0,rental:Number(row.rental)||0,tax:Number(row.tax)||0,vat:Number(row.vat)||0,igic:Number(row.igic)||0,distributorCharges:Number(row.distributorCharges)||0,other:Number(row.other)||0,accounted:Number(row.accounted)||0,diff:Number(row.diff)||0,energyPeriods,powerPeriods,maximeterRows,excessPeriods:[],reactivePeriods:[],taxLines,adjustments,distributorRights:[],distributor:row.distributor||'',retailer:row.retailer||'Endesa Energía S.A.U.',contract:row.contract||row.contractNumber||'',powerReliable:row.readOk&&Number.isFinite(Number(row.power)),holderName:row.company||'',holderTaxId:row.taxId||'',sourceSupplyAddress:row.supplyAddress||'',accessContract:row.accessContract||'',issueDate:'',contractType:row.contractType||'',contractEndDate:row.renewalDate||'',meterNumber:'',readingStatus:row.readingStatus||'unknown',readingSourceLabel:row.readingSourceLabel||'',completeness,assessment};
+}
+function extractHistory(d,file){const formats=window.IBTInvoiceFormats,format=formats?.detect?.(d.text);if(format==='endesa')return extractEndesa(d,file);if(format==='fenie')return extractFenie(d,file);return null;}
 function parseUiNumber(s){return num(String(s||'').replace(/\s*€/g,''))}
 function rowSnapshot(cups,periodText){
 for(const tr of document.querySelectorAll('#resultsBody tr')){const c=tr.children;if(c.length<16)continue;if(cupsKey(c[2].textContent)!==cupsKey(cups))continue;if(norm(c[3].textContent)!==norm(periodText))continue;return {status:norm(c[0].textContent),kwh:parseUiNumber(c[5].textContent),energy:parseUiNumber(c[6].textContent),power:parseUiNumber(c[7].textContent),excess:parseUiNumber(c[8].textContent),reactive:parseUiNumber(c[9].textContent),total:parseUiNumber(c[12].textContent),balance:norm(c[13].textContent)}}
@@ -204,8 +220,8 @@ el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
 if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
-const x=extractFenie(await readPdf(file),file);
-if(!x.cups||!x.invoiceNumber||!x.period.start||!x.powerReliable)return {skipped:true,reason:'source_incomplete'};
+const x=extractHistory(await readPdf(file),file);
+if(!x?.cups||!x.invoiceNumber||!x.period.start||!x.powerReliable)return {skipped:true,reason:'source_incomplete'};
 const ui=await waitForMainRow(x.cups,x.periodText);if(!ui)return {skipped:true,reason:'main_parser_not_found'};
 const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'&&same(ui.kwh,x.kwh,.02)&&same(ui.energy,x.energy)&&same(ui.power,x.power)&&same(ui.excess,x.excess)&&same(ui.reactive,x.reactive)&&same(ui.total,x.total);
 if(!validated)return {skipped:true,reason:'crosscheck_failed'};

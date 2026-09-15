@@ -99,7 +99,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=20260909-3';
+    script.src='xtra-history.js?v=20260915-endesa1';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
