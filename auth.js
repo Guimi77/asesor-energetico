@@ -4,6 +4,8 @@ const SUPABASE_URL='https://rxvowuswudutuaajkcky.supabase.co';
 const SUPABASE_KEY='sb_publishable_hn8DvxyLNaYxIm-4xmtuOw_9Bn0BEjl';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 window.ibtSupabase=supabase;
+const APP_ROOT=new URL('./',window.location.href);
+const SIGNUP_CONFIRM_URL=new URL('registro-completado.html',APP_ROOT).href;
 
 const $=s=>document.querySelector(s);
 let currentProfile=null;
@@ -166,13 +168,13 @@ window.addEventListener('DOMContentLoaded',()=>{
   signupForm?.addEventListener('submit',async e=>{
     e.preventDefault();setAuthMessage('Creando cuenta…');
     const email=$('#signupEmail').value.trim(),password=$('#signupPassword').value,display_name=$('#signupName').value.trim();
-    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name}}});
+    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name},emailRedirectTo:SIGNUP_CONFIRM_URL}});
     if(error){setAuthMessage(error.message,'error');return;}
     if(data.session){
       setAuthMessage('Cuenta creada. Si eres cliente, un administrador debe asignarte tu ficha antes de que puedas ver datos.','ok');
       await refreshAuth();
     }else{
-      setAuthMessage('Cuenta creada. Revisa tu correo para confirmar el acceso. Después un administrador debe asignarte tu ficha de cliente.','ok');
+      setAuthMessage('Cuenta creada. Revisa tu correo y pulsa el enlace de confirmación. Te llevaremos a una página que verificará que el registro se ha completado correctamente.','ok');
     }
   });
   $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();location.reload();});
