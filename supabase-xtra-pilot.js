@@ -122,6 +122,7 @@
 
   window.addEventListener('ibt-role-changed', scheduleSync);
   window.addEventListener('energy-master-ready', scheduleSync);
+  window.addEventListener('ibt-central-data-changed', () => { lastSyncKey = ''; scheduleSync(); });
   window.addEventListener('DOMContentLoaded', scheduleSync);
   if (document.readyState !== 'loading') scheduleSync();
 
