@@ -44,6 +44,6 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  // The audit can evolve only to distinguish unavailable detail from an actual zero/error.
  const audit=source('parser-audit.js');assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));assert(audit.includes('Detalle energético coherente o no informado'));
- // app.js and client-report-export.js are intentionally allowed to evolve with approved report improvements.
- for(const f of ['auth.js','history-recommendations.js','history-recommendations.css','history-cost-chart.js'])assert.equal(source(f),old(f),f);
+ // app.js, client-report-export.js and auth.js are allowed to evolve through their dedicated regression suites.
+ for(const f of ['history-recommendations.js','history-recommendations.css','history-cost-chart.js'])assert.equal(source(f),old(f),f);
 });
