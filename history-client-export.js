@@ -92,7 +92,7 @@
   function chartPng(points,key,title,unit){
     const c=root.document.createElement('canvas');c.width=900;c.height=300;const x=c.getContext('2d');if(!x)throw Error('No se han podido generar las gr\u00e1ficas.');
     const p=colors(),valid=points.map(a=>number(a[key])).filter(v=>v!=null),low=Math.min(0,...valid),high=Math.max(0,...valid),span=high-low||1,min=low<0?low-span*.1:0,max=high+span*.1||1;
-    const L=94,T=48,W=782,H=204,step=W/Math.max(points.length,1),price=key==='energyPrice';
+    const L=94,T=48,W=782,H=204,step=W/Math.max(points.length,1),price=key==='energyPrice'||key==='totalUnit';
     x.fillStyle='#FFFFFF';x.fillRect(0,0,900,300);x.fillStyle=p.text;x.font='bold 17px sans-serif';x.fillText(title,18,25);x.font='11px sans-serif';x.fillStyle=p.muted;x.fillText(unit,18,41);
     for(let i=0;i<=4;i++){const val=min+(max-min)*i/4,y=T+H-H*i/4;x.strokeStyle='#DCE4ED';x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(L+W,y);x.stroke();x.textAlign='right';x.fillStyle=p.muted;x.fillText(fmt(val,price?3:0),L-8,y+4);}
     const y=v=>T+H-(v-min)/(max-min)*H;
@@ -103,7 +103,7 @@
   }
   function addCharts(wb,ws,mo,lastRow){
     const first=lastRow+3;
-    [['kwh','Consumo mensual','kWh'],['energyPrice','Precio de energ\u00eda','\u20ac/kWh'],['total','Gasto total mensual','\u20ac']].forEach(([key,title,unit],i)=>{
+    [['kwh','Consumo mensual','kWh'],['total','Gasto total mensual','\u20ac'],['energyPrice','Precio medio de energ\u00eda','\u20ac/kWh'],['totalUnit','Coste total \u20ac/kWh','\u20ac/kWh']].forEach(([key,title,unit],i)=>{
       const row=first+i*17;for(let r=row;r<row+17;r++)ws.getRow(r).height=15;
       const id=wb.addImage({base64:chartPng(mo,key,title,unit),extension:'png'});let remaining=900,col=0;while(col<6){const width=Math.floor((ws.getColumn(col+1).width||8.43)*7+5);if(remaining<width)break;remaining-=width;col++;}const br={nativeCol:col,nativeColOff:Math.round(remaining*9525),nativeRow:row+14,nativeRowOff:0};ws.addImage(id,{tl:{col:0,row:row-1},br,editAs:'oneCell'});
     });
