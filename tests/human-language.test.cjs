@@ -27,21 +27,32 @@ test('Excess is explained in plain language while keeping technical detail',()=>
   assert.match(html,/Estás pagando penalizaciones por superar la potencia contratada/);
   assert.match(html,/Por qué importa/);
   assert.match(html,/Qué conviene revisar/);
-  assert.match(html,/Ver detalle técnico/);
+  assert.match(html,/Ver datos y cálculo/);
   assert.match(html,/Excesos de potencia repetidos/);
   assert.match(html,/Este análisis no calcula una propuesta económica/);
   assert.doesNotMatch(html,/Ahorro estimado/i);
 });
 
-test('Consumption change leads with the percentage and hides jargon in technical detail',()=>{
-  const api=load([{type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',confidence:'media',changeRatio:0.684,evidence:'Referencia técnica.',action:'Revisar actividad.',caveat:'Confianza media.',sources:Array.from({length:5},(_,i)=>({invoice:'INV-'+i,start:'2026-0'+(i+1)+'-01',end:'2026-0'+(i+1)+'-28',kwh:100+i*20,kwhDay:4+i,readingStatus:'unknown'})),measurements:[],detailKind:'consumption-change'}]);
+test('Consumption change explains the exact comparison and data provenance',()=>{
+  const api=load([{type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',confidence:'alta',changeRatio:0.4014,baselineKwhDay:16.18307,recentKwhDay:22.67892,evidence:'Referencia técnica con mediana y media.',action:'Revisar actividad.',caveat:'Confianza alta.',sources:Array.from({length:5},(_,i)=>({invoice:'INV-'+i,start:'2026-0'+(i+3)+'-01',end:'2026-0'+(i+4)+'-01',days:30,kwh:400+i*50,kwhDay:14+i*2,readingStatus:'actual'})),measurements:[],detailKind:'consumption-change'}]);
   const html=api.render({supplies:[supply],holders:[holder]});
-  assert.match(html,/Cambios importantes de consumo/);
-  assert.match(html,/Tu consumo ha aumentado un 68 %/);
-  assert.match(html,/2 últimas facturas/);
-  assert.match(html,/Conviene revisarlo/);
-  assert.match(html,/Ver detalle técnico/);
-  assert.match(html,/Confianza media/);
+  assert.match(html,/Cambios importantes en el consumo/);
+  assert.match(html,/40,1 %/);
+  assert.match(html,/Referencia: 16,18 kWh\/día/);
+  assert.match(html,/22,68 kWh\/día/);
+  assert.match(html,/mediana de los 3 periodos anteriores/);
+  assert.match(html,/no un valor estimado por IA/);
+  assert.match(html,/Ver datos y cálculo/);
+  assert.match(html,/Confianza alta/);
+  assert.match(html,/>Días</);
+});
+
+test('Consumption alert does not expose raw polluted supply address as its title',()=>{
+  const dirty={id:'s1',holder_id:'h1',cups:'ES_TEST',address:'CALLE 1, Referencia del contrato de acceso: 123'};
+  const api=load([{type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',confidence:'alta',changeRatio:0.5,baselineKwhDay:10,recentKwhDay:15,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]}]);
+  const html=api.render({supplies:[dirty],holders:[holder]});
+  assert.match(html,/Suministro eléctrico/);
+  assert.doesNotMatch(html,/Referencia del contrato de acceso/);
 });
 
 test('Confirmed historical costs are ordered before study signals',()=>{
@@ -54,7 +65,7 @@ test('Confirmed historical costs are ordered before study signals',()=>{
 });
 
 test('Long anomaly lists show the most important five first and collapse the rest',()=>{
-  const items=Array.from({length:8},(_,i)=>({type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',changeRatio:0.5+i/100,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]}));
+  const items=Array.from({length:8},(_,i)=>({type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',changeRatio:0.5+i/100,baselineKwhDay:10,recentKwhDay:15,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]}));
   const api=load(items),html=api.render({supplies:[supply],holders:[holder]});
   assert.match(html,/Cambios importantes en el consumo/);
   assert.match(html,/Ver otros 3 avisos/);
