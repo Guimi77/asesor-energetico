@@ -37,6 +37,81 @@ function initClientSearch(){
   observer.observe(grid,{childList:true,subtree:true});
 }
 
+function setupAssignmentPicker(select){
+  if(!select||select.dataset.searchReady==='1')return;
+  select.dataset.searchReady='1';
+
+  const allOptions=[...select.options]
+    .filter(o=>o.value)
+    .map(o=>({value:o.value,text:o.textContent.trim()}))
+    .sort((a,b)=>a.text.localeCompare(b.text,'es',{sensitivity:'base',numeric:true}));
+
+  const search=document.createElement('input');
+  search.type='search';
+  search.className='user-client-assign-search';
+  search.autocomplete='off';
+  search.placeholder='Buscar cliente para asignar…';
+  search.setAttribute('aria-label','Buscar cliente para asignar');
+  search.style.cssText='display:block;width:100%;max-width:320px;box-sizing:border-box;margin-top:6px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a';
+  select.parentNode.insertBefore(search,select);
+
+  function renderOptions(){
+    const q=norm(search.value).trim();
+    const matches=allOptions.filter(o=>!q||norm(o.text).includes(q));
+    const visible=matches.slice(0,q?25:15);
+    select.replaceChildren();
+
+    const first=document.createElement('option');
+    first.value='';
+    first.textContent=q
+      ? `+ Selecciona cliente… (${matches.length})`
+      : `+ Asignar cliente… (${allOptions.length})`;
+    select.appendChild(first);
+
+    visible.forEach(item=>{
+      const option=document.createElement('option');
+      option.value=item.value;
+      option.textContent=item.text;
+      select.appendChild(option);
+    });
+
+    if(!matches.length){
+      const empty=document.createElement('option');
+      empty.value='';
+      empty.disabled=true;
+      empty.textContent='Sin coincidencias';
+      select.appendChild(empty);
+    }else if(matches.length>visible.length){
+      const more=document.createElement('option');
+      more.value='';
+      more.disabled=true;
+      more.textContent=`Escribe más para filtrar · ${matches.length-visible.length} más`;
+      select.appendChild(more);
+    }
+    select.value='';
+  }
+
+  search.addEventListener('input',renderOptions);
+  search.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const q=norm(search.value).trim();
+    if(!q)return;
+    const matches=allOptions.filter(o=>norm(o.text).includes(q));
+    if(matches.length===1){
+      e.preventDefault();
+      select.value=matches[0].value;
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  });
+  renderOptions();
+}
+
+function rowSearchText(row){
+  const copy=row.cloneNode(true);
+  copy.querySelectorAll('.user-client-assign,.user-client-assign-search').forEach(el=>el.remove());
+  return norm(copy.textContent);
+}
+
 function initUserDirectory(){
   const view=document.querySelector('#usersView');
   const body=document.querySelector('#usersBody');
@@ -63,7 +138,7 @@ function initUserDirectory(){
   function applyFilter(){
     const q=norm(input.value).trim();
     const rows=realRows();
-    rows.forEach(row=>{row.hidden=!!q&&!norm(row.textContent).includes(q);});
+    rows.forEach(row=>{row.hidden=!!q&&!rowSearchText(row).includes(q);});
     let empty=body.querySelector('tr[data-user-search-empty]');
     const visible=rows.some(row=>!row.hidden);
     if(q&&rows.length&&!visible){
@@ -94,6 +169,7 @@ function initUserDirectory(){
         observer.observe(body,{childList:true});
       }
     }
+    body.querySelectorAll('.user-client-assign').forEach(setupAssignmentPicker);
     applyFilter();
   }
   function schedule(){
