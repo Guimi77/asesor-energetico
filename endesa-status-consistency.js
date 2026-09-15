@@ -8,7 +8,8 @@
     const base=root.IBTInvoiceFormats;
     const original=base.parseEndesa.bind(base);
     root.IBTInvoiceFormats=Object.freeze({...base,__statusConsistencyVersion:api.version,parseEndesa(d,file,options={}){
-      const fixed=api.normalize(original(d,file,options),d);
+      const source=base.canonicalEndesaLines&&d?.pages?{...d,pages:d.pages.map(lines=>base.canonicalEndesaLines(lines))}:d;
+      const fixed=api.normalize(original(d,file,options),source);
       try{if(fixed?.readOk&&root?.EnergyMaster?.learnInvoice&&fixed.cups)root.EnergyMaster.learnInvoice(fixed);}catch(error){root?.console?.warn?.('No se pudo resincronizar el maestro Endesa tras la validacion final',error);}
       return fixed;
     }});
@@ -22,7 +23,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.7';
+  const VERSION='2026.09.15.9';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');

@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.6';
+  const VERSION='2026.09.15.8';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -108,7 +108,7 @@
     const original=base.parseEndesa.bind(base);
     const api={...base,__sourceValidated:true,__sourceValidationVersion:VERSION,parseEndesa(d,file,options={}){
       const raw=original(d,file,options);if(!raw||raw.unsupported)return raw;
-      const pages=d?.pages||[],p1=pages[0]||[],p2=pages[1]||[];
+      const pages=(d?.pages||[]).map(lines=>base.canonicalEndesaLines?base.canonicalEndesaLines(lines):lines),p1=pages[0]||[],p2=pages[1]||[];
       const period=sourcePeriod(pages,raw.period),total=sourceTotal(p1,raw.total),contracted=sourceContracted(p2,raw.tariff,raw.contracted),address=sourceAddress(p2,raw.supplyAddress),place=placeFromAddress(address),refs=sourceRefs(p2,raw.contract,raw.accessContract);
       const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+(Number(raw.excess)||0)+(Number(raw.reactive)||0)+(Number(raw.compensation)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
       const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;

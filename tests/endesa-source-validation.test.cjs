@@ -84,3 +84,24 @@ test('Source period ignores a duplicated start date introduced by PDF text group
   const pages=[['Periodo de facturación: del 07/04/2024 a','07/04/2024','11/05/2024 (34 días)']];
   assert.equal(fix.sourcePeriod(pages,'Por identificar'),'07/04/2024 - 11/05/2024 (34 días)');
 });
+
+test('Catalan Endesa 2.0TD layout is normalized before validation',()=>{
+  const api=fix.patch(base,{});
+  const p1=[
+    'Endesa Energia, S.A. Unipersonal.','Núm. factura: P26CON036026175','Període de facturació: del 19/07/2026 a 19/08/2026 (31 dies)',
+    'Potència 31,32 €','Energia 101,71 €','Altres 1,60 €','Impostos 36,55 €','Total 171,18 €','Consum Total 736,563 kWh'
+  ];
+  const p2=[
+    'Titular del contracte: GUILLEM MATEU MOREY','NIF: 43156090V','Adreça de subministrament: DE LA PAU FTE LLORENÇ VILL 29 1,','07190 ESPORLES, LES BALEARS',
+    'Contracte de mercat lliure: One 3 Períodes','Referència de contracte de subministrament: 130116808001','Referència del contracte d\'accés: 500019144432',
+    'Potències contractades: punta-pla 5,600 kW; vall 5,600 kW','CUPS: ES0031500560405004PY0F','Peatge de transport i distribució: 2.0TD',
+    'Pot. Punta-Pla 5,600 kW x 0,090214 Eur/kW x 31 dies 15,66 €','Pot. P3 5,600 kW x 0,090214 Eur/kW x 31 dies 15,66 €',
+    'Impost electricitat ( 133,80 Eur X 5,1126963 %) 6,84 €','IVA normal 21 % s/ 141,47 29,71 €',
+    'Període 19/07/2026 19/08/2026 Multipl. Ajust Consum','Lectura Lectura','real real','Energia kWh',
+    'Punta 21.691,536 21.921,945 1,00 0,000 230,409','Pla 14.227,678 14.421,495 1,00 0,000 193,817','Vall 22.571,153 22.883,491 1,00 0,000 312,338'
+  ];
+  const r=api.parseEndesa(doc(p1,p2),{name:'catala.pdf'});
+  assert.equal(r.company,'GUILLEM MATEU MOREY');assert.equal(r.period,'19/07/2026 - 19/08/2026 (31 días)');
+  assert.equal(r.kwh,736.563);assert.equal(r.power,31.32);assert.equal(r.energy,101.71);assert.equal(r.tax,6.84);assert.equal(r.vat,29.71);
+  assert.equal(r.accounted,171.18);assert.equal(r.readOk,true);assert.equal(r.supplyCity,'ESPORLES');
+});
