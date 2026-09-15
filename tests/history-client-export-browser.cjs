@@ -24,9 +24,9 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const queries=await page.evaluate(()=>window.queryCount),file=await downloadOne();assert(file.name.endsWith('.xlsx'));assert(file.name.includes('2027-01-31'));
   assert.equal(await page.evaluate(()=>window.queryCount),queries,'Export must not query or alter Supabase');
   const wb=new ExcelJS.Workbook();await wb.xlsx.load(file.buffer);
-  assert.deepEqual(wb.worksheets.map(w=>w.name),['SUMINISTROS','CUPS 1','RESUMEN EMPRESA','PERIODOS','DETALLE P1-P6']);
+  assert.deepEqual(wb.worksheets.map(w=>w.name),['SUMINISTROS','CUPS 1','RESUMEN TOTAL','PERIODOS','DETALLE P1-P6']);
   const periods=wb.getWorksheet('PERIODOS');assert.equal(periods.rowCount,7);assert.equal(periods.getCell('U5').value,20);assert.equal(periods.getCell('U6').value,90);assert.equal(periods.getCell('U7').value,10);assert.equal(periods.getCell('W6').result,.3);
-  const s=wb.getWorksheet('CUPS 1');assert.equal(s.getCell('A5').value,'ENERO 2026');assert.equal(s.getCell('A17').value,'ENERO 2027');assert.equal(s.getCell('C18').result,120);assert.match(s.getCell('B5').formula,/SUMIFS/);assert.equal(s.getCell('B7').value,null,'Missing March remains blank');assert.equal(s.getImages().length,3);assert.equal(wb.getWorksheet('RESUMEN EMPRESA').getImages().length,3);
+  const s=wb.getWorksheet('CUPS 1');assert.equal(s.getCell('A5').value,'ENERO 2026');assert.equal(s.getCell('A17').value,'ENERO 2027');assert.equal(s.getCell('C18').result,120);assert.match(s.getCell('B5').formula,/SUMIFS/);assert.equal(s.getCell('B7').value,null,'Missing March remains blank');assert.equal(s.getImages().length,3);assert.equal(wb.getWorksheet('RESUMEN TOTAL').getImages().length,3);
   const anchors=s.getImages().map(i=>i.range.tl.nativeRow);assert(anchors[0]>18&&anchors[1]-anchors[0]===17&&anchors[2]-anchors[1]===17);
   assert.equal(wb.getWorksheet('SUMINISTROS').getCell('G5').value,'2.0TD','Use observed tariff, not future/current master tariff');
   const zipXml=await JSZip.loadAsync(file.buffer),strings=await zipXml.file('xl/sharedStrings.xml').async('string');assert(!strings.includes('FOREIGN'));assert(!strings.includes('TEST-CUPS-002'));

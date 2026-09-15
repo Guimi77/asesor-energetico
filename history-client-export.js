@@ -136,8 +136,8 @@
     master.autoFilter={from:'A4',to:'K'+master.rowCount};
     const detail=addDetails(wb,g,range);idx=0;
     for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id);monthlySheet(wb,'CUPS '+(++idx),text(s.supply_name)||text(s.address)||text(s.cups),rows,detail.name,detail.rowCount,s.cups,'CUPS '+text(s.cups)+' \u00b7 '+range,1);await pause();}
-    monthlySheet(wb,'RESUMEN EMPRESA',text(g.holder.legal_name)+' \u00b7 RESUMEN',g.records,detail.name,detail.rowCount,null,range,g.supplies.size);
-    const order=['SUMINISTROS',...Array.from({length:idx},(_,i)=>'CUPS '+(i+1)),'RESUMEN EMPRESA','PERIODOS','DETALLE P1-P6','AJUSTES'];order.forEach((name,i)=>{const ws=wb.getWorksheet(name);if(ws)ws.orderNo=i;});
+    monthlySheet(wb,'RESUMEN TOTAL',text(g.holder.legal_name)+' \u00b7 RESUMEN',g.records,detail.name,detail.rowCount,null,range,g.supplies.size);
+    const order=['SUMINISTROS',...Array.from({length:idx},(_,i)=>'CUPS '+(i+1)),'RESUMEN TOTAL','PERIODOS','DETALLE P1-P6','AJUSTES'];order.forEach((name,i)=>{const ws=wb.getWorksheet(name);if(ws)ws.orderNo=i;});
     return wb;
   }
   async function exportSelection(input,options={}){

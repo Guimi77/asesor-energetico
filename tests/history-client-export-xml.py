@@ -12,8 +12,8 @@ with warnings.catch_warnings(record=True) as caught:
     formulas = openpyxl.load_workbook(path, data_only=False)
     values = openpyxl.load_workbook(path, data_only=True)
 assert not caught, [str(w.message) for w in caught]
-assert formulas.sheetnames == ['SUMINISTROS', 'CUPS 1', 'RESUMEN EMPRESA', 'PERIODOS', 'DETALLE P1-P6']
-for name in ['CUPS 1', 'RESUMEN EMPRESA']:
+assert formulas.sheetnames == ['SUMINISTROS', 'CUPS 1', 'RESUMEN TOTAL', 'PERIODOS', 'DETALLE P1-P6']
+for name in ['CUPS 1', 'RESUMEN TOTAL']:
     ws = formulas[name]
     assert len(ws._images) == 3, (name, len(ws._images))
     anchors = [image.anchor for image in ws._images]
