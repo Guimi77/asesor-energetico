@@ -103,7 +103,7 @@ async function renderUsers(){
   if(!body||currentProfile?.role!=='admin')return;
   body.innerHTML='<tr><td colspan="4">Cargando usuarios…</td></tr>';
   const [{data:profiles,error:pErr},{data:links,error:lErr},{data:clients,error:cErr}]=await Promise.all([
-    supabase.from('profiles').select('id,display_name,role,active,created_at').order('created_at',{ascending:true}),
+    supabase.from('profiles').select('id,email,display_name,role,active,created_at').order('created_at',{ascending:true}),
     supabase.from('client_users').select('user_id,client_id'),
     supabase.from('clients').select('id,name,status').order('name',{ascending:true})
   ]);
@@ -117,7 +117,7 @@ async function renderUsers(){
   for(const p of profiles||[]){
     const tr=document.createElement('tr');
     const own=p.id===currentProfile.id;
-    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}</td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${clientAccessHtml(p,clients||[],assigned)}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own?'disabled':''}>${p.active?'Activo':'Desactivado'}</button></td>`;
+    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}<small style="display:block;color:#65758a;margin-top:3px">${escapeHtml(p.email||'Sin correo')}</small></td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${clientAccessHtml(p,clients||[],assigned)}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own?'disabled':''}>${p.active?'Activo':'Desactivado'}</button></td>`;
     body.appendChild(tr);
   }
   body.querySelectorAll('.role-select').forEach(el=>el.addEventListener('change',async e=>{
