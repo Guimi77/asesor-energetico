@@ -61,6 +61,17 @@
     }
     function cleanAddress(){history.replaceState({},document.title,location.pathname);}
 
+    async function notifyAdmin(supabase){
+      try{
+        const {data,error}=await supabase.functions.invoke('notify-new-registration',{body:{}});
+        if(error){console.warn('No se pudo avisar al administrador',error);return false;}
+        return data?.ok===true;
+      }catch(err){
+        console.warn('No se pudo avisar al administrador',err);
+        return false;
+      }
+    }
+
     async function verifyConfirmation(){
       const params=paramsFromLocation();
       const authError=params.get('error_description')||params.get('error');
@@ -85,9 +96,13 @@
         return;
       }
       const email=data.user.email||'tu correo';
+      const notified=await notifyAdmin(supabase);
       cleanAddress();
       await supabase.auth.signOut({scope:'local'}).catch(()=>{});
-      render('ok','Registro completado','El correo '+email+' ha quedado confirmado correctamente.','<strong>Siguiente paso:</strong> avisa a Instal·lacions BT de que ya te has registrado. Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Hasta entonces no podrás ver datos de ningún suministro.');
+      const notice=notified
+        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido un aviso de tu registro. Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Hasta entonces no podrás ver datos de ningún suministro.'
+        : '<strong>Siguiente paso:</strong> tu registro está confirmado, pero no hemos podido enviar el aviso automático. Contacta con Instal·lacions BT para que un administrador vincule tu cuenta con tu ficha y tus CUPS.';
+      render('ok','Registro completado','El correo '+email+' ha quedado confirmado correctamente.',notice);
     }
     verifyConfirmation().catch(err=>{
       console.error(err);
