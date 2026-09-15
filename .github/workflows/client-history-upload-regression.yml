@@ -1,0 +1,38 @@
+name: Client history upload regression
+
+on:
+  push:
+    paths:
+      - 'client-upload-access.js'
+      - 'auth-bootstrap.js'
+      - 'xtra-history.js'
+      - 'supabase/migrations/20260915123000_allow_client_uploads_to_assigned_energy_history.sql'
+      - 'tests/client-history-upload.test.cjs'
+      - '.github/workflows/client-history-upload-regression.yml'
+  pull_request:
+    paths:
+      - 'client-upload-access.js'
+      - 'auth-bootstrap.js'
+      - 'xtra-history.js'
+      - 'supabase/migrations/20260915123000_allow_client_uploads_to_assigned_energy_history.sql'
+      - 'tests/client-history-upload.test.cjs'
+      - '.github/workflows/client-history-upload-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate client upload scope
+        run: |
+          node --check client-upload-access.js
+          node --check auth-bootstrap.js
+          node --test tests/client-history-upload.test.cjs
