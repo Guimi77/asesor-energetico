@@ -1,0 +1,28 @@
+name: Auth confirmation regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'auth.js'
+      - 'registro-completado.html'
+      - '404.html'
+      - 'tests/auth-confirmation-redirect.test.cjs'
+      - '.github/workflows/auth-confirmation-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and confirmation flow regression
+        run: |
+          node --check auth.js
+          node --test tests/auth-confirmation-redirect.test.cjs
