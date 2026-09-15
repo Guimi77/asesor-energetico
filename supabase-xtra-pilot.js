@@ -33,11 +33,12 @@
         .from('clients')
         .select('id,name,tax_id,status')
         .eq('name', PILOT_CLIENT)
+        .eq('status', 'active')
         .limit(1);
       if (clientError) throw clientError;
       const client = clients?.[0];
       if (!client) {
-        setStatus('no se ha encontrado el cliente piloto en la base.', 'error');
+        setStatus('no se ha encontrado el cliente piloto activo en la base.', 'error');
         return;
       }
 
@@ -45,6 +46,7 @@
         .from('holders')
         .select('id,legal_name,tax_id,status')
         .eq('client_id', client.id)
+        .eq('status', 'active')
         .order('legal_name');
       if (holderError) throw holderError;
 
@@ -55,6 +57,7 @@
           .from('supplies')
           .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status')
           .in('holder_id', holderIds)
+          .eq('status', 'active')
           .order('cups');
         if (error) throw error;
         supplies = data || [];
@@ -87,7 +90,7 @@
           contract: supply.current_contract_number || '',
           retailer: supply.current_retailer || '',
           distributor: supply.current_distributor || '',
-          status: supply.status === 'active' ? 'ACTIVO' : String(supply.status || 'ACTIVO').toUpperCase(),
+          status: 'ACTIVO',
           source: 'Supabase · GRUPO XTRA',
         }, {
           allowMove: true,
@@ -101,7 +104,7 @@
       }
 
       lastSyncKey = syncKey;
-      setStatus(`${holders?.length || 0} titulares · ${supplies.length} CUPS leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}. Fuente central: Supabase; sin almacenar PDFs.`, 'ok');
+      setStatus(`${holders?.length || 0} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}. Fuente central: Supabase; sin almacenar PDFs.`, 'ok');
       window.dispatchEvent(new CustomEvent('xtra-supabase-synced', {
         detail: { clientId: client.id, holders: holders?.length || 0, supplies: supplies.length }
       }));
