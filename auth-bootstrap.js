@@ -96,6 +96,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-history-row-compat]')){
+    const script=document.createElement('script');
+    script.src='history-row-compat.js?v=20260915-1';
+    script.dataset.historyRowCompat='1';
+    document.body.appendChild(script);
+  }
+
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
