@@ -37,13 +37,13 @@ test('implementation-only writer and anonymous reading enrichment stay closed',(
 });
 
 test('client portal exposes only invoice upload in addition to RLS-scoped history',()=>{
-  assert.match(portal,/data-view=\\"facturas\\"/);
+  assert.match(portal,/data-view="facturas"/);
   assert.match(portal,/link\?\.classList\.remove\('hidden'\)/);
   assert.match(portal,/Mis facturas/);
   assert.match(portal,/Solo se guardarán datos estructurados validados de CUPS/);
-  assert.doesNotMatch(portal,/data-view=\\"clientes\\"/);
-  assert.doesNotMatch(portal,/data-view=\\"cups\\"/);
-  assert.doesNotMatch(portal,/data-view=\\"users\\"/);
+  assert.doesNotMatch(portal,/data-view="clientes"/);
+  assert.doesNotMatch(portal,/data-view="cups"/);
+  assert.doesNotMatch(portal,/data-view="users"/);
 });
 
 test('portal control is loaded and uploads use the guarded central history RPC',()=>{
