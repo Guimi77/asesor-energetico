@@ -26,8 +26,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const wb=new ExcelJS.Workbook();await wb.xlsx.load(file.buffer);
   assert.deepEqual(wb.worksheets.map(w=>w.name),['SUMINISTROS','CUPS 1','RESUMEN TOTAL','PERIODOS','DETALLE P1-P6']);
   const periods=wb.getWorksheet('PERIODOS');assert.equal(periods.rowCount,7);assert.equal(periods.getCell('U5').value,20);assert.equal(periods.getCell('U6').value,90);assert.equal(periods.getCell('U7').value,10);assert.equal(periods.getCell('W6').result,.3);
-  const s=wb.getWorksheet('CUPS 1');assert.equal(s.getCell('A5').value,'ENERO 2026');assert.equal(s.getCell('A17').value,'ENERO 2027');assert.equal(s.getCell('C18').result,120);assert.match(s.getCell('B5').formula,/SUMIFS/);assert.equal(s.getCell('B7').value,null,'Missing March remains blank');assert.equal(s.getImages().length,3);assert.equal(wb.getWorksheet('RESUMEN TOTAL').getImages().length,3);
-  const anchors=s.getImages().map(i=>i.range.tl.nativeRow);assert(anchors[0]>18&&anchors[1]-anchors[0]===17&&anchors[2]-anchors[1]===17);
+  const s=wb.getWorksheet('CUPS 1');assert.equal(s.getCell('A5').value,'ENERO 2026');assert.equal(s.getCell('A17').value,'ENERO 2027');assert.equal(s.getCell('C18').result,120);assert.match(s.getCell('B5').formula,/SUMIFS/);assert.equal(s.getCell('B7').value,null,'Missing March remains blank');assert.equal(s.getImages().length,4);assert.equal(wb.getWorksheet('RESUMEN TOTAL').getImages().length,4);
+  const anchors=s.getImages().map(i=>i.range.tl.nativeRow);assert(anchors[0]>18&&anchors[1]-anchors[0]===17&&anchors[2]-anchors[1]===17&&anchors[3]-anchors[2]===17);
   assert.equal(wb.getWorksheet('SUMINISTROS').getCell('G5').value,'2.0TD','Use observed tariff, not future/current master tariff');
   const zipXml=await JSZip.loadAsync(file.buffer),strings=await zipXml.file('xl/sharedStrings.xml').async('string');assert(!strings.includes('FOREIGN'));assert(!strings.includes('TEST-CUPS-002'));
   fs.mkdirSync('test-output',{recursive:true});fs.writeFileSync('test-output/history-export-synthetic.xlsx',file.buffer);
@@ -46,6 +46,6 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.locator('.history-detail-btn').first().click();assert.match(await page.locator('#historyDetailHost').innerText(),/periodos/i);assert.equal(await page.locator('.history-chart').count(),3);
   await page.screenshot({path:'test-output/history-export-controls.png',fullPage:false});
   const collision=await page.evaluate(async()=>{const db=window.testDB;const result=[];await window.IBTHistoryClientExport.exportSelection({client:db.clients[0],holders:db.holders.map(h=>({...h,legal_name:'Same/name'})),supplies:db.supplies,records:db.invoices},{save:async(blob,name)=>{result.push(name,[...new Uint8Array(await blob.arrayBuffer())])}});return result;});assert.equal(Object.keys((await JSZip.loadAsync(Buffer.from(collision[1]))).files).filter(n=>n.endsWith('.xlsx')).length,2);
-  assert.deepEqual(errors,[]);console.log('PASS: real XLSX/ZIP generation, cached formulas, images below tables, years, all four filters, query races, failed/empty states, per-holder isolation, scoped client access, preserved charts/detail, no PDF or browser-master access. Synthetic data only; production RLS not simulated.');
+  assert.deepEqual(errors,[]);console.log('PASS: real XLSX/ZIP generation, cached formulas, four Excel charts below tables, years, all four filters, query races, failed/empty states, per-holder isolation, scoped client access, preserved UI charts/detail, no PDF or browser-master access. Synthetic data only; production RLS not simulated.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
