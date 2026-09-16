@@ -98,6 +98,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.appendChild(script);
   }
 
+  if(!document.querySelector('script[data-historical-export-enrichment]')){
+    const script=document.createElement('script');
+    script.src='historical-export-enrichment.js?v=20260916-history1';
+    script.dataset.historicalExportEnrichment='1';
+    document.body.appendChild(script);
+  }
+
   if(!document.querySelector('script[data-history-row-compat]')){
     const script=document.createElement('script');
     script.src='history-row-compat.js?v=20260915-1';
