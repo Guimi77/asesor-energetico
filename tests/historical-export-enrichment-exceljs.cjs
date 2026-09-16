@@ -6,11 +6,15 @@ const vm=require('node:vm');
 const ExcelJS=require('exceljs');
 
 const source=fs.readFileSync(__dirname+'/../historical-export-enrichment.js','utf8');
-const context={ExcelJS,console,setTimeout,clearTimeout,document:{addEventListener(){}}};
-context.globalThis=context;
-vm.createContext(context);
-vm.runInContext(source,context,{filename:'historical-export-enrichment.js'});
-const api=context.IBTHistoricalExportEnrichment;
+
+// The production browser and ExcelJS share one JS realm. Keep this integration test
+// in that same shape: ExcelJS checks array-like row values internally, and a separate
+// vm realm can turn a valid row into an empty one even though that cannot happen in-page.
+global.ExcelJS=ExcelJS;
+global.document={addEventListener(){}};
+delete global.IBTHistoricalExportEnrichment;
+vm.runInThisContext(source,{filename:'historical-export-enrichment.js'});
+const api=global.IBTHistoricalExportEnrichment;
 
 const ALCONASER='ES0031500164216001LX0F';
 const OTHER='ES0000000000000000AA';
