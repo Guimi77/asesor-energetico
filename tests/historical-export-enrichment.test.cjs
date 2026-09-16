@@ -6,6 +6,8 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 
 const source=fs.readFileSync(__dirname+'/../historical-export-enrichment.js','utf8');
+const indexSource=fs.readFileSync(__dirname+'/../index.html','utf8');
+const bootstrapSource=fs.readFileSync(__dirname+'/../auth-bootstrap.js','utf8');
 
 const ALCONASER='ES0031500164216001LX0F';
 const OTHER='ES0000000000000000AA';
@@ -138,4 +140,12 @@ test('internal workbook gets a historical recommendations sheet and a historical
   assert.match(recommendation[3][7],/4 facturas comparables/);
   assert.equal(workbook.Sheets['Puntos a revisar'].__appended.length,1);
   assert.equal(workbook.Sheets['Puntos a revisar'].__appended[0][0],'HISTÓRICO');
+});
+
+test('the enrichment loads after the canonical history engine and is cache-busted',()=>{
+  const historyPos=indexSource.indexOf('history-recommendations.js?v=20260916-powerboundary1');
+  const enrichmentPos=indexSource.indexOf('historical-export-enrichment.js?v=20260916-history1');
+  assert.ok(historyPos>=0 && enrichmentPos>historyPos,'the canonical history engine must load first');
+  assert.match(indexSource,/auth-bootstrap\.js\?v=20260916-history1/);
+  assert.match(bootstrapSource,/historical-export-enrichment\.js\?v=20260916-history1/);
 });
