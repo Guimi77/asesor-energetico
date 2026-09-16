@@ -20,8 +20,21 @@ const continuation=[[],[
 ]];
 
 test('normal FENIE text page never enters OCR fallback',()=>{
-  const pages=[['FENIE ENERGÍA','Periodo Facturación: 01/06/2026 - 30/06/2026 (30 días)','Término de potencia'],continuation[1]];
-  assert.equal(helper.needsOcr(pages),false);
+  const first=[
+    'FENIE ENERGÍA',
+    'Razón Social: TEST CLIENTE, S.L.',
+    `CUPS: ${cups}`,
+    'Datos Factura TEST CLIENTE, S.L.',
+    'Fecha de Factura: 30/06/2026',
+    'Periodo Facturación: 01/06/2026 - 30/06/2026 (30 días)',
+    'Nº Factura: 202600000099',
+    'Tarifa: 3.0TD',
+    'Término energía variable P1: 0,100000 €/kWh x 100,00 kWh = 10,00 €',
+    'Término de potencia P1: 0,003333 €/kW día x 10,000 kW x 30 días = 1,00 €',
+    'Impuesto electricidad 1,00 € IVA 0,00 € TOTAL FACTURA: 18,00 €',
+  ];
+  assert.ok(first.join('').length>120,'fixture must model a real text-rich first page');
+  assert.equal(helper.needsOcr([first,continuation[1]]),false);
 });
 
 test('blank first page with strong FENIE continuation enters fallback',()=>{
@@ -108,4 +121,15 @@ test('recovered OCR goes through the existing parseFenie and must balance before
 test('missing total remains fail-closed instead of inventing a compatible invoice',()=>{
   const lines=helper.normalizeRecoveredText(ocr,'sin total legible',continuation);
   assert.equal(helper.criticalShape(lines,continuation),false);
+});
+
+test('production load order and cache bust expose the fallback before app.js',()=>{
+  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const helperPos=html.indexOf('fenie-image-fallback.js?v=20260916-1');
+  const appPos=html.indexOf('app.js?v=20260916-fenieocr1');
+  assert.ok(helperPos>=0,'fallback script must be loaded');
+  assert.ok(appPos>helperPos,'fallback must be available before app.js starts');
+  const appSource=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.match(appSource,/IBTFenieImageFallback/);
+  assert.match(appSource,/fallback\?\.needsOcr\?\.\(pages\)/);
 });
