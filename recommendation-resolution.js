@@ -200,6 +200,7 @@
   function installPresentation() {
     if (presentationInstalled) return true;
     const current = root.IBTHistoryRecommendations;
+    if (!current?.__humanLanguage) return false;
     if (!current?.build || !current?.render || current.__resolvedAlertsPresentation) return Boolean(current?.__resolvedAlertsPresentation);
     const presentation = Object.freeze({...current,
       build(options = {}) {
@@ -229,7 +230,10 @@
     snapshot:() => ({loaded, scopeKey, incidents:[...incidents]}),
   });
 
-  root.addEventListener('ibt-role-changed', () => { void refreshIncidents(false); });
+  root.addEventListener('ibt-role-changed', () => {
+    installPresentation();
+    void refreshIncidents(false);
+  });
   root.addEventListener('ibt-alerts-changed', () => { void refreshIncidents(true); });
   root.addEventListener('xtra-history-saved', refreshViews);
   if (root.ibtCurrentProfile) void refreshIncidents(false);
