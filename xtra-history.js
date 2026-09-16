@@ -119,6 +119,15 @@ for(let i=1;i<=Math.min(pdf.numPages,3);i++){
 const p=await pdf.getPage(i),c=await p.getTextContent();
 raw.push(c.items);pages.push(lines(c.items));
 }
+const fallback=window.IBTFenieImageFallback;
+if(fallback?.needsOcr?.(pages)){
+  try{
+    const firstPage=await pdf.getPage(1),recovered=await fallback.recoverFirstPage(firstPage,pages);
+    if(recovered?.ok&&recovered.lines?.length)pages[0]=recovered.lines;
+  }catch(error){
+    console.warn('Fallback OCR FENIE no disponible para histórico; se omite de forma segura si no valida',error);
+  }
+}
 return {pages,raw,text:pages.flat().join('\n')};
 }finally{
 await task.destroy();
