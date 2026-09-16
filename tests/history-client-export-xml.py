@@ -15,11 +15,11 @@ assert not caught, [str(w.message) for w in caught]
 assert formulas.sheetnames == ['SUMINISTROS', 'CUPS 1', 'RESUMEN TOTAL', 'PERIODOS', 'DETALLE P1-P6']
 for name in ['CUPS 1', 'RESUMEN TOTAL']:
     ws = formulas[name]
-    assert len(ws._images) == 3, (name, len(ws._images))
+    assert len(ws._images) == 4, (name, len(ws._images))
     anchors = [image.anchor for image in ws._images]
     assert all(type(a).__name__ == 'TwoCellAnchor' for a in anchors)
     assert all(a.to.row - a._from.row == 15 for a in anchors)
-    assert all(anchors[i+1]._from.row > anchors[i].to.row for i in range(2))
+    assert all(anchors[i+1]._from.row > anchors[i].to.row for i in range(3))
     assert anchors[0]._from.row >= 20
     assert values[name]['B18'].value == 450
     assert values[name]['C18'].value == 120
@@ -55,6 +55,6 @@ with ZipFile(path) as z:
     assert len(drawings) == 2
     for name in drawings:
         root = ET.fromstring(z.read(name))
-        assert len(root.findall('xdr:twoCellAnchor', ns)) == 3
+        assert len(root.findall('xdr:twoCellAnchor', ns)) == 4
         assert len(root.findall('xdr:oneCellAnchor', ns)) == 0
-print('PASS: independent openpyxl load without warnings; six retained images; valid drawing anchors without overlaps; cached totals, unit prices, reading quality, source notes and XML. Synthetic test only.')
+print('PASS: independent openpyxl load without warnings; eight retained images; valid drawing anchors without overlaps; cached totals, unit prices, reading quality, source notes and XML. Synthetic test only.')
