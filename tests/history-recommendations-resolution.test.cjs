@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const resolution = require('../recommendation-resolution.js');
 
 const item = (overrides={}) => ({
@@ -52,6 +53,15 @@ test('dismissed alerts are also treated as attended until later evidence appears
   assert.equal(result.handledItems[0].tracking.incident.status, 'dismissed');
 });
 
+test('a second filtering pass preserves handled items from earlier recommendation wrappers', () => {
+  const alreadyHandled = item({supplyId:'s-old',tracking:{state:'handled'}});
+  const result = resolution.partitionResult({items:[item()],handledItems:[alreadyHandled]}, [incident()]);
+  assert.equal(result.items.length, 0);
+  assert.equal(result.handledItems.length, 2);
+  assert.ok(result.handledItems.some(x => x.supplyId === 's-old'));
+  assert.ok(result.handledItems.some(x => x.supplyId === 's-1'));
+});
+
 test('current human-facing alert titles map back to stable recommendation kinds', () => {
   const cases = [
     ['Estás pagando penalizaciones por superar la potencia contratada','excess'],
@@ -64,4 +74,20 @@ test('current human-facing alert titles map back to stable recommendation kinds'
     ['El consumo diario reciente está un 32,0 % por debajo de la referencia','consumption-change'],
   ];
   for (const [title, expected] of cases) assert.equal(resolution.inferType(title), expected, title);
+});
+
+test('browser load order installs resolution after the base engine and before UI bootstrap', () => {
+  const index = fs.readFileSync('index.html','utf8');
+  const basePos = index.indexOf('history-recommendations.js');
+  const resolutionPos = index.indexOf('recommendation-resolution.js');
+  const bootstrapPos = index.indexOf('auth-bootstrap.js');
+  assert.ok(basePos >= 0, 'base recommendations must load');
+  assert.ok(resolutionPos > basePos, 'resolution bridge must wrap the base engine');
+  assert.ok(bootstrapPos > resolutionPos, 'resolution bridge must exist before human-language/history UI bootstrap');
+});
+
+test('bootstrap installs handled presentation after human-language loads', () => {
+  const bootstrap = fs.readFileSync('auth-bootstrap.js','utf8');
+  assert.match(bootstrap, /IBTRecommendationResolution\?\.installPresentation\?\.\(\)/);
+  assert.match(bootstrap, /script\.onload=loadHistoryUi/);
 });
