@@ -39,9 +39,9 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
  assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
  assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
- // The FENIE supply parser stays byte-for-byte locked. Only the later format router may add Endesa.
+ // The FENIE supply parser stays byte-for-byte locked. Endesa has its own adapter after this boundary.
  const enricher=source('supply-enricher-v2.js'),oldEnricher=old('supply-enricher-v2.js');
- assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
+ assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  // The audit can evolve only to distinguish unavailable detail from an actual zero/error.
  const audit=source('parser-audit.js');assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));assert(audit.includes('Detalle energético coherente o no informado'));
