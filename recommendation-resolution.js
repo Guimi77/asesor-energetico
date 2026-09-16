@@ -81,7 +81,7 @@
 
   function partitionResult(result, incidents = []) {
     const active = [];
-    const handled = [];
+    const handled = [...(Array.isArray(result?.handledItems) ? result.handledItems : [])];
     for (const item of Array.isArray(result?.items) ? result.items : []) {
       const tracking = classifyItem(item, incidents);
       const enriched = Object.assign({}, item, { tracking });
@@ -202,11 +202,15 @@
     const current = root.IBTHistoryRecommendations;
     if (!current?.build || !current?.render || current.__resolvedAlertsPresentation) return Boolean(current?.__resolvedAlertsPresentation);
     const presentation = Object.freeze({...current,
+      build(options = {}) {
+        return partitionResult(current.build(options), currentIncidents(options));
+      },
       render(options = {}) {
+        const result = partitionResult(current.build(options), currentIncidents(options));
         const raw = current.render(options);
-        const result = current.build(options);
         return raw + handledSection(result, options);
       },
+      __resolvedAlertsAware:true,
       __resolvedAlertsPresentation:true,
     });
     root.IBTHistoryRecommendations = presentation;
