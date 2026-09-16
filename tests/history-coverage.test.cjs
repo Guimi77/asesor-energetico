@@ -25,7 +25,7 @@ test('Coverage changes stay isolated from authentication, history data and FENIE
  assert.equal(fs.readFileSync('auth.js','utf8'),execFileSync('git',['show',base+':auth.js'],{encoding:'utf8'}),'auth.js');
  const old=execFileSync('git',['show',base+':history-ui.js'],{encoding:'utf8'});assert.equal(ui.slice(ui.indexOf('  async function refreshRecords')),old.slice(old.indexOf('  async function refreshRecords')));
  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',base+':supply-enricher-v2.js'],{encoding:'utf8'});
- assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
+ assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente o no informado'));
  const historyExport=fs.readFileSync('history-client-export.js','utf8'),clientExport=fs.readFileSync('client-report-export.js','utf8');
