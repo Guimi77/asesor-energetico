@@ -6,9 +6,10 @@
 
   const norm = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
   const nameKey = (v) => norm(v).toLocaleLowerCase('es');
+  const taxKey = (v) => norm(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const cupsKey = (v) => norm(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const roleIsInternal = (profile) => ['admin', 'staff'].includes(profile?.role);
-  const naturalPersonTaxId = (value) => /^\d{8}[A-Z]$/i.test(norm(value).replace(/[\s-]/g, ''));
+  const naturalPersonTaxId = (value) => /^\d{8}[A-Z]$/i.test(taxKey(value));
 
   function setStatus(message, type = 'ok') {
     const el = document.querySelector('#masterStatus');
@@ -35,37 +36,123 @@
     return data || [];
   }
 
+  function buildIdentityIndexes(activeClients, holders) {
+    const clientsById = new Map(activeClients.map((client) => [client.id, client]));
+    const clientsByName = new Map();
+    const clientsByTax = new Map();
+    const holdersByClientAndName = new Map();
+    const holdersByClientAndTax = new Map();
+    const uniqueHoldersByTax = new Map();
+    const duplicateHolderTaxes = new Set();
+
+    for (const client of activeClients) {
+      const nKey = nameKey(client.name);
+      const tKey = taxKey(client.tax_id);
+      if (nKey) clientsByName.set(nKey, client);
+      if (tKey) clientsByTax.set(tKey, client);
+    }
+
+    for (const holder of holders) {
+      const nKey = nameKey(holder.legal_name);
+      const tKey = taxKey(holder.tax_id);
+      if (nKey) holdersByClientAndName.set(`${holder.client_id}|${nKey}`, holder);
+      if (tKey) holdersByClientAndTax.set(`${holder.client_id}|${tKey}`, holder);
+      if (tKey) {
+        if (uniqueHoldersByTax.has(tKey)) {
+          duplicateHolderTaxes.add(tKey);
+          uniqueHoldersByTax.delete(tKey);
+        } else if (!duplicateHolderTaxes.has(tKey)) {
+          uniqueHoldersByTax.set(tKey, holder);
+        }
+      }
+    }
+
+    return {
+      clientsById,
+      clientsByName,
+      clientsByTax,
+      holdersByClientAndName,
+      holdersByClientAndTax,
+      uniqueHoldersByTax,
+    };
+  }
+
+  function resolveLegacyIdentity(row, indexes) {
+    const clientTax = taxKey(row?.clientTaxId);
+    const holderTax = taxKey(row?.holderTaxId);
+    const clientName = nameKey(row?.client);
+    const holderName = nameKey(row?.company || row?.holder || row?.client);
+
+    let client = (clientTax && indexes.clientsByTax.get(clientTax)) || indexes.clientsByName.get(clientName) || null;
+
+    if (!client && holderTax) {
+      const uniqueHolder = indexes.uniqueHoldersByTax.get(holderTax);
+      if (uniqueHolder) client = indexes.clientsById.get(uniqueHolder.client_id) || null;
+    }
+
+    if (!client) return { ok: false, reason: 'client_not_found' };
+
+    let holder = null;
+    if (holderTax) holder = indexes.holdersByClientAndTax.get(`${client.id}|${holderTax}`) || null;
+    if (!holder && holderName) holder = indexes.holdersByClientAndName.get(`${client.id}|${holderName}`) || null;
+    if (!holder && holderTax) {
+      const uniqueHolder = indexes.uniqueHoldersByTax.get(holderTax);
+      if (uniqueHolder?.client_id === client.id) holder = uniqueHolder;
+    }
+
+    if (!holder) return { ok: false, reason: 'holder_not_found', client };
+    return { ok: true, client, holder };
+  }
+
+  function isEligibleLegacyRow(row, centralKeys) {
+    const key = cupsKey(row?.cups);
+    if (key.length < 18 || !key.startsWith('ES') || centralKeys.has(key)) return false;
+    if (/supabase/i.test(norm(row?.source))) return false;
+    if (['BAJA', 'ARCHIVADO', 'ARCHIVED'].includes(norm(row?.status).toUpperCase())) return false;
+    return true;
+  }
+
   async function reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies }) {
-    if (typeof master.all !== 'function' || typeof supabase.rpc !== 'function') return { migrated: 0, failed: 0 };
+    if (typeof master.all !== 'function' || typeof supabase.rpc !== 'function') {
+      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [] };
+    }
 
     const localRows = master.all() || [];
-    if (!localRows.length) return { migrated: 0, failed: 0 };
+    if (!localRows.length) {
+      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [] };
+    }
 
     const centralKeys = new Set(supplies.map((supply) => cupsKey(supply.cups)).filter(Boolean));
-    const clientsByName = new Map(activeClients.map((client) => [nameKey(client.name), client]));
-    const holdersByIdentity = new Map(
-      holders.map((holder) => [`${holder.client_id}|${nameKey(holder.legal_name)}`, holder]),
-    );
+    const indexes = buildIdentityIndexes(activeClients, holders);
+    const candidateKeys = new Set();
 
     let migrated = 0;
     let failed = 0;
+    let unresolved = 0;
+    let attempted = 0;
 
     for (const row of localRows) {
-      const key = cupsKey(row?.cups);
-      if (key.length < 18 || !key.startsWith('ES') || centralKeys.has(key)) continue;
-      if (/supabase/i.test(norm(row?.source))) continue;
-      if (['BAJA', 'ARCHIVADO', 'ARCHIVED'].includes(norm(row?.status).toUpperCase())) continue;
+      if (!isEligibleLegacyRow(row, centralKeys)) continue;
 
-      const client = clientsByName.get(nameKey(row?.client));
-      if (!client) continue;
-      const holderName = norm(row?.company || row?.holder || row?.client);
-      const holder = holdersByIdentity.get(`${client.id}|${nameKey(holderName)}`);
-      if (!holder) continue;
+      const key = cupsKey(row.cups);
+      candidateKeys.add(key);
+      const identity = resolveLegacyIdentity(row, indexes);
+      if (!identity.ok) {
+        unresolved += 1;
+        console.warn('Suministro heredado pendiente: no se ha podido resolver cliente/titular', {
+          cups: row.cups,
+          client: row.client,
+          company: row.company || row.holder,
+          reason: identity.reason,
+        });
+        continue;
+      }
 
+      attempted += 1;
       try {
         const { data, error } = await supabase.rpc('ensure_supply_from_master', {
-          p_client_name: client.name,
-          p_holder_name: holder.legal_name,
+          p_client_name: identity.client.name,
+          p_holder_name: identity.holder.legal_name,
           p_cups: row.cups,
           p_supply_name: row.name || row.address || null,
           p_address: row.address || null,
@@ -90,7 +177,13 @@
       }
     }
 
-    return { migrated, failed };
+    return {
+      migrated,
+      failed,
+      unresolved,
+      attempted,
+      candidateKeys: [...candidateKeys],
+    };
   }
 
   async function syncCentralMaster() {
@@ -132,7 +225,14 @@
       const holderIds = holders.map((holder) => holder.id);
       let supplies = await loadActiveSupplies(supabase, holderIds);
       const legacy = await reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies });
-      if (legacy.migrated) supplies = await loadActiveSupplies(supabase, holderIds);
+      if (legacy.attempted) supplies = await loadActiveSupplies(supabase, holderIds);
+
+      const activeCentralKeys = new Set(supplies.map((supply) => cupsKey(supply.cups)).filter(Boolean));
+      const legacyPendingKeys = legacy.candidateKeys.filter((key) => !activeCentralKeys.has(key));
+      const legacyPending = legacyPendingKeys.length;
+      if (legacyPending) {
+        console.error('Hay suministros heredados que siguen fuera del maestro central', legacyPendingKeys);
+      }
 
       const clientById = new Map(activeClients.map((client) => [client.id, client]));
       const holderById = new Map(holders.map((holder) => [holder.id, holder]));
@@ -186,8 +286,8 @@
 
       lastSyncKey = syncKey;
       const legacyText = legacy.migrated ? ` · ${legacy.migrated} CUPS heredado${legacy.migrated === 1 ? '' : 's'} recuperado${legacy.migrated === 1 ? '' : 's'} en central` : '';
-      const legacyErrorText = legacy.failed ? ` · ${legacy.failed} migración${legacy.failed === 1 ? '' : 'es'} local${legacy.failed === 1 ? '' : 'es'} pendiente${legacy.failed === 1 ? '' : 's'}` : '';
-      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${legacyErrorText}. Fuente central: Supabase; sin almacenar PDFs.`, legacy.failed ? 'warning' : 'ok');
+      const pendingText = legacyPending ? ` · ATENCIÓN: ${legacyPending} CUPS heredado${legacyPending === 1 ? '' : 's'} sigue${legacyPending === 1 ? '' : 'n'} fuera de la base central` : '';
+      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
 
       const detail = {
         clients: activeClients.length,
@@ -195,6 +295,9 @@
         supplies: supplies.length,
         legacyMigrated: legacy.migrated,
         legacyMigrationFailed: legacy.failed,
+        legacyIdentityUnresolved: legacy.unresolved,
+        legacyPending,
+        legacyPendingKeys,
       };
       window.dispatchEvent(new CustomEvent('central-supabase-synced', { detail }));
       window.dispatchEvent(new CustomEvent('xtra-supabase-synced', {
@@ -223,7 +326,7 @@
 
   const api = {
     reload: () => { lastSyncKey = ''; return syncCentralMaster(); },
-    mode: 'central-master-with-legacy-reconciliation',
+    mode: 'central-master-global-reconciliation-with-audit',
     scope: 'all-active-clients',
   };
 
