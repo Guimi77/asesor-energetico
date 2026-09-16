@@ -123,13 +123,23 @@ test('missing total remains fail-closed instead of inventing a compatible invoic
   assert.equal(helper.criticalShape(lines,continuation),false);
 });
 
-test('production load order and cache bust expose the fallback before app.js',()=>{
+test('production load order and cache bust expose the fallback to main and history readers',()=>{
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const helperPos=html.indexOf('fenie-image-fallback.js?v=20260916-1');
   const appPos=html.indexOf('app.js?v=20260916-fenieocr1');
   assert.ok(helperPos>=0,'fallback script must be loaded');
   assert.ok(appPos>helperPos,'fallback must be available before app.js starts');
+
   const appSource=fs.readFileSync(path.join(root,'app.js'),'utf8');
   assert.match(appSource,/IBTFenieImageFallback/);
   assert.match(appSource,/fallback\?\.needsOcr\?\.\(pages\)/);
+
+  const historySource=fs.readFileSync(path.join(root,'xtra-history.js'),'utf8');
+  assert.match(historySource,/IBTFenieImageFallback/);
+  assert.match(historySource,/fallback\?\.needsOcr\?\.\(pages\)/);
+  assert.match(historySource,/return \{pages,raw,text:pages\.flat\(\)\.join\('\\n'\)\};/,'history reader must preserve its normal return shape');
+
+  const bootstrap=fs.readFileSync(path.join(root,'auth-bootstrap.js'),'utf8');
+  assert.match(bootstrap,/xtra-history\.js\?v=20260916-fenieocr1/,'history cache must be busted so deployed browsers load the fix');
+  assert.doesNotMatch(bootstrap,/xtra-history\.js\?v=20260915-endesa1/);
 });
