@@ -46,7 +46,15 @@ test('client portal exposes only invoice upload in addition to RLS-scoped histor
   assert.doesNotMatch(portal,/data-view="users"/);
 });
 
+test('client portal observer remains idempotent and throttled to avoid login freezes',()=>{
+  assert.match(portal,/if\(copy\.textContent!==next\)copy\.textContent=next/);
+  assert.match(portal,/let observerQueued=false/);
+  assert.match(portal,/if\(currentRole!==['"]client['"]\|\|observerQueued\)return/);
+  assert.match(portal,/requestAnimationFrame\(\(\)=>\{/);
+  assert.match(portal,/observerQueued=false/);
+});
+
 test('portal control is loaded and uploads use the guarded central history RPC',()=>{
-  assert.match(bootstrap,/client-upload-access\.js\?v=20260915-1/);
+  assert.match(bootstrap,/client-upload-access\.js\?v=20260915-loopfix1/);
   assert.match(history,/rpc\('upsert_xtra_energy_history'/);
 });
