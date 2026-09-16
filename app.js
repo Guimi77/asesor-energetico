@@ -7,7 +7,6 @@ function lines(items){const p=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.tr
 async function pdfData(file){
  const task=pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())});
  const pages=[],rawPages=[];
- let fenieImageFallback=null;
  try{
   const pdf=await task.promise;
   for(let i=1;i<=pdf.numPages;i++){
@@ -18,12 +17,12 @@ async function pdfData(file){
   if(fallback?.needsOcr?.(pages)){
    try{
     const firstPage=await pdf.getPage(1),recovered=await fallback.recoverFirstPage(firstPage,pages);
-    if(recovered?.ok&&recovered.lines?.length){pages[0]=recovered.lines;fenieImageFallback=recovered.source||'local_ocr_first_page'}
+    if(recovered?.ok&&recovered.lines?.length)pages[0]=recovered.lines;
    }catch(error){
     console.warn('Fallback OCR FENIE no disponible; se conserva el comportamiento seguro',error);
    }
   }
-  return{pages,rawPages,text:pages.flat().join('\n'),fenieImageFallback};
+  return{pages,rawPages,text:pages.flat().join('\n')};
  }finally{
   // Close the document AND its owned worker, including failed reads.
   await task.destroy();
