@@ -76,8 +76,8 @@
     }
     return items.sort((a,b)=>Math.abs(b.changeRatio)-Math.abs(a.changeRatio)||a.supplyId.localeCompare(b.supplyId));
   }
-  function render({records=[],supplies=[],holders=[]}={}){
-    const items=analyze({records,supplies});
+  function render({records=[],supplies=[],holders=[],signalItems=null}={}){
+    const items=Array.isArray(signalItems)?signalItems:analyze({records,supplies});
     if(!items.length)return '';
     const supplyMap=new Map((supplies||[]).map(s=>[s.id,s])),holderMap=new Map((holders||[]).map(h=>[h.id,h]));
     const cards=items.map(item=>{
@@ -90,9 +90,23 @@
   function install(root){
     const base=root.IBTHistoryRecommendations;
     if(!base||base.__consumptionAnomalies)return false;
+    const resolveResult=result=>{
+      const bridge=root.IBTRecommendationResolution;
+      const incidents=bridge?.snapshot?.()?.incidents||[];
+      return bridge?.partitionResult?bridge.partitionResult(result,incidents):result;
+    };
     const wrapped={...base,
-      build(options={}){const result=base.build(options),signals=analyze(options);return {...result,items:[...(result.items||[]),...signals],consumptionAnomalies:signals};},
-      render(options={}){return base.render(options)+render(options);},
+      build(options={}){
+        const result=base.build(options),signals=analyze(options);
+        const filteredSignals=resolveResult({items:signals}).items||signals;
+        const combined=resolveResult({...result,items:[...(result.items||[]),...signals]});
+        return {...combined,consumptionAnomalies:filteredSignals};
+      },
+      render(options={}){
+        const signals=analyze(options);
+        const activeSignals=resolveResult({items:signals}).items||signals;
+        return base.render(options)+render({...options,signalItems:activeSignals});
+      },
       __consumptionAnomalies:true,
     };
     root.IBTHistoryRecommendations=Object.freeze(wrapped);return true;
