@@ -9,6 +9,7 @@
   const RULES = Object.freeze({
     minimumPowerRecords: 3,
     minimumPowerDays: 80,
+    minimumBoundaryPowerDays: 14,
     maximumUseRatio: 0.5,
   });
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -50,6 +51,26 @@
       last = end;
     }
     return {ok:true, days, first, last};
+  }
+  function powerCoverage(list) {
+    let previous = null, days = 0, first = null, last = null, partialBoundaryPeriods = 0;
+    for (let index = 0; index < list.length; index++) {
+      const r = list[index];
+      const start = day(r.billing_start), end = day(r.billing_end);
+      if (start == null || end == null || end < start) return {ok:false, days:0, first:null, last:null, partialBoundaryPeriods:0};
+      const duration = end - start + 1;
+      const boundary = index === 0 || index === list.length - 1;
+      if (duration > 40 || (!boundary && duration < 21) || (boundary && duration < RULES.minimumBoundaryPowerDays)) {
+        return {ok:false, days:0, first:null, last:null, partialBoundaryPeriods:0};
+      }
+      if (duration < 21) partialBoundaryPeriods++;
+      if (previous != null && (start <= previous || start > previous + 1)) return {ok:false, days:0, first:null, last:null, partialBoundaryPeriods:0};
+      if (first == null) first = start;
+      days += duration;
+      previous = end;
+      last = end;
+    }
+    return {ok:true, days, first, last, partialBoundaryPeriods};
   }
   function continuous(list, minDays) {
     const c = coverage(list);
@@ -101,7 +122,7 @@
     const tariff = String(list[0]?.tariff || '').toUpperCase();
     if (list.length < RULES.minimumPowerRecords || !/^(3\.0TD|6\.[1-4]TD)$/.test(tariff)) return null;
     if (!list.every(r => String(r.tariff || '').toUpperCase() === tariff && number(r.excess_cost_eur) === 0)) return null;
-    const cov = coverage(list);
+    const cov = powerCoverage(list);
     if (!cov.ok || cov.days < RULES.minimumPowerDays) return null;
 
     const contracted = list.map(r=>periods(r.invoice_power_periods,'contracted_kw'));
@@ -131,12 +152,13 @@
     const strongest = lowestRatio <= 0.25;
     const title = allPeriodsLow ? 'Potencia contratada claramente por encima de la demanda observada' : 'Estudiar un posible ajuste de potencia';
     const periodText = measurements.map(m=>`P${m.period}`).join(', ');
-    const evidence = `${list.length} facturas comparables (${cov.days} días) sin excesos registrados. En ${periodText}, el máximo demandado de todo el periodo analizado no supera el ${Math.round(RULES.maximumUseRatio*100)} % de la potencia contratada.${allPeriodsLow ? ' La señal aparece en los seis periodos.' : ''}${strongest ? ' Al menos un periodo no alcanza el 25 %.' : ''}`;
+    const boundaryText = cov.partialBoundaryPeriods ? ` La serie incluye ${cov.partialBoundaryPeriods} factura(s) parcial(es) únicamente en el inicio o final de la selección; la cobertura sigue siendo continua.` : '';
+    const evidence = `${list.length} facturas comparables (${cov.days} días) sin excesos registrados.${boundaryText} En ${periodText}, el máximo demandado de todo el periodo analizado no supera el ${Math.round(RULES.maximumUseRatio*100)} % de la potencia contratada.${allPeriodsLow ? ' La señal aparece en los seis periodos.' : ''}${strongest ? ' Al menos un periodo no alcanza el 25 %.' : ''}`;
     return {
       type:'power', supplyId, title, amount:null, evidence,
       action:'Revisar un ciclo anual completo, la curva de demanda, la estacionalidad y las necesidades reales de la instalación. Después comparar varios escenarios de potencia y su coste antes de proponer nuevos kW.',
-      caveat:'Señal de revisión con criterio interno: mínimo 3 facturas, 80 días, potencia estable, maxímetros fiables y sin excesos. No es un umbral legal ni una potencia recomendada. El máximo observado no debe copiarse como potencia a contratar.',
-      sources, measurements, detailKind:'power', coverageDays:cov.days,
+      caveat:`Señal de revisión con criterio interno: mínimo 3 facturas y 80 días continuos, potencia estable, maxímetros fiables y sin excesos. Se admite una factura parcial de al menos ${RULES.minimumBoundaryPowerDays} días solo en los extremos de la serie. No es un umbral legal ni una potencia recomendada. El máximo observado no debe copiarse como potencia a contratar.`,
+      sources, measurements, detailKind:'power', coverageDays:cov.days, partialBoundaryPeriods:cov.partialBoundaryPeriods,
     };
   }
   function build({ records = [], supplies = [] } = {}) {
