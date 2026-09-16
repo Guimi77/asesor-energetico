@@ -1,21 +1,27 @@
 (() => {
   'use strict';
 
-  const PILOT_CLIENT = 'GRUPO XTRA';
   let syncing = false;
   let lastSyncKey = '';
 
   const norm = (v) => String(v ?? '').trim();
   const roleIsInternal = (profile) => ['admin', 'staff'].includes(profile?.role);
+  const naturalPersonTaxId = (value) => /^\d{8}[A-Z]$/i.test(norm(value).replace(/[\s-]/g, ''));
 
   function setStatus(message, type = 'ok') {
     const el = document.querySelector('#masterStatus');
     if (!el) return;
-    el.innerHTML = `<strong>GRUPO XTRA · Supabase</strong> ${message}`;
+    el.innerHTML = `<strong>Base central · Supabase</strong> ${message}`;
     el.dataset.remoteStatus = type;
   }
 
-  async function syncPilot() {
+  function clientType(client, holderCount) {
+    if (naturalPersonTaxId(client?.tax_id)) return 'PARTICULAR';
+    if (holderCount > 1 || /\bGRUPO\b/i.test(norm(client?.name))) return 'GRUPO';
+    return 'EMPRESA';
+  }
+
+  async function syncCentralMaster() {
     if (syncing) return;
     const supabase = window.ibtSupabase;
     const profile = window.ibtCurrentProfile;
@@ -27,30 +33,31 @@
 
     syncing = true;
     try {
-      setStatus('conectando con el maestro central…', 'loading');
+      setStatus('sincronizando todos los clientes activos…', 'loading');
 
       const { data: clients, error: clientError } = await supabase
         .from('clients')
         .select('id,name,tax_id,status')
-        .eq('name', PILOT_CLIENT)
         .eq('status', 'active')
-        .limit(1);
+        .order('name');
       if (clientError) throw clientError;
-      const client = clients?.[0];
-      if (!client) {
-        setStatus('no se ha encontrado el cliente piloto activo en la base.', 'error');
-        return;
+
+      const activeClients = clients || [];
+      const clientIds = activeClients.map((client) => client.id);
+
+      let holders = [];
+      if (clientIds.length) {
+        const { data, error } = await supabase
+          .from('holders')
+          .select('id,client_id,legal_name,tax_id,status')
+          .in('client_id', clientIds)
+          .eq('status', 'active')
+          .order('legal_name');
+        if (error) throw error;
+        holders = data || [];
       }
 
-      const { data: holders, error: holderError } = await supabase
-        .from('holders')
-        .select('id,legal_name,tax_id,status')
-        .eq('client_id', client.id)
-        .eq('status', 'active')
-        .order('legal_name');
-      if (holderError) throw holderError;
-
-      const holderIds = (holders || []).map((h) => h.id);
+      const holderIds = holders.map((holder) => holder.id);
       let supplies = [];
       if (holderIds.length) {
         const { data, error } = await supabase
@@ -63,7 +70,13 @@
         supplies = data || [];
       }
 
-      const holderById = new Map((holders || []).map((h) => [h.id, h]));
+      const clientById = new Map(activeClients.map((client) => [client.id, client]));
+      const holderById = new Map(holders.map((holder) => [holder.id, holder]));
+      const holderCountByClient = new Map();
+      for (const holder of holders) {
+        holderCountByClient.set(holder.client_id, (holderCountByClient.get(holder.client_id) || 0) + 1);
+      }
+
       let added = 0;
       let enriched = 0;
       let unchanged = 0;
@@ -71,12 +84,15 @@
 
       for (const supply of supplies) {
         const holder = holderById.get(supply.holder_id);
-        if (!holder || !norm(supply.cups)) continue;
+        const client = clientById.get(holder?.client_id);
+        if (!holder || !client || !norm(supply.cups)) continue;
+
+        const type = clientType(client, holderCountByClient.get(client.id) || 0);
         const result = master.add({
           client: client.name,
           clientTaxId: client.tax_id || '',
-          clientType: 'GRUPO',
-          type: 'GRUPO',
+          clientType: type,
+          type,
           company: holder.legal_name,
           holder: holder.legal_name,
           holderTaxId: holder.tax_id || '',
@@ -91,12 +107,13 @@
           retailer: supply.current_retailer || '',
           distributor: supply.current_distributor || '',
           status: 'ACTIVO',
-          source: 'Supabase · GRUPO XTRA',
+          source: 'Supabase · Base central',
         }, {
           allowMove: true,
           fillOnly: true,
           preserveIdentity: false,
         });
+
         if (!result?.ok) blocked += 1;
         else if (!result.updated) added += 1;
         else if (result.enriched) enriched += 1;
@@ -104,12 +121,22 @@
       }
 
       lastSyncKey = syncKey;
-      setStatus(`${holders?.length || 0} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}. Fuente central: Supabase; sin almacenar PDFs.`, 'ok');
+      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}. Fuente central: Supabase; sin almacenar PDFs.`, 'ok');
+
+      const detail = {
+        clients: activeClients.length,
+        holders: holders.length,
+        supplies: supplies.length,
+      };
+      window.dispatchEvent(new CustomEvent('central-supabase-synced', { detail }));
       window.dispatchEvent(new CustomEvent('xtra-supabase-synced', {
-        detail: { clientId: client.id, holders: holders?.length || 0, supplies: supplies.length }
+        detail: {
+          ...detail,
+          clientId: activeClients.find((client) => norm(client.name).toUpperCase() === 'GRUPO XTRA')?.id || null,
+        },
       }));
     } catch (error) {
-      console.error('No se pudo sincronizar GRUPO XTRA desde Supabase', error);
+      console.error('No se pudo sincronizar el maestro central desde Supabase', error);
       setStatus(`no se ha podido leer el maestro central: ${String(error?.message || error)}. El maestro local continúa funcionando.`, 'error');
     } finally {
       syncing = false;
@@ -117,7 +144,7 @@
   }
 
   function scheduleSync() {
-    setTimeout(syncPilot, 0);
+    setTimeout(syncCentralMaster, 0);
   }
 
   window.addEventListener('ibt-role-changed', scheduleSync);
@@ -126,9 +153,15 @@
   window.addEventListener('DOMContentLoaded', scheduleSync);
   if (document.readyState !== 'loading') scheduleSync();
 
-  window.XtraSupabasePilot = {
-    reload: () => { lastSyncKey = ''; return syncPilot(); },
-    clientName: PILOT_CLIENT,
+  const api = {
+    reload: () => { lastSyncKey = ''; return syncCentralMaster(); },
     mode: 'read-only-master',
+    scope: 'all-active-clients',
+  };
+
+  window.CentralSupabaseMaster = api;
+  window.XtraSupabasePilot = {
+    ...api,
+    clientName: 'GRUPO XTRA',
   };
 })();
