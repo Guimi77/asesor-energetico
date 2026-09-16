@@ -1,8 +1,9 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
-// Stable production baseline after the approved reading-quality and recommendation work.
-const BASE='851c3e19a94382ea266d5447250cc867f273d2f4';
+// Stable production baseline after the approved boundary-period power-history fix.
+// This is deliberately advanced instead of removing any lock: new work must still preserve the now-approved history logic.
+const BASE='2bc997c07165b1feb2064158957826b0cfe0b288';
 const source=f=>fs.readFileSync(f,'utf8'),old=f=>execFileSync('git',['show',BASE+':'+f],{encoding:'utf8'});
 const ui=source('history-ui.js');
 const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
