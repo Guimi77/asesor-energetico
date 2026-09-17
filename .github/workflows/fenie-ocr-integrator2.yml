@@ -18,7 +18,9 @@ jobs:
         with:
           node-version: '22'
       - name: Apply narrow integration
-        run: python tools/integrate-fenie-ocr.py
+        run: |
+          python tools/integrate-fenie-ocr.py
+          python tools/fix-fenie-fallback.py
       - name: Check syntax and regression tests
         run: |
           set +e
@@ -44,6 +46,7 @@ jobs:
           rm -f integration-test.log
           rm .github/workflows/fenie-ocr-integrator2.yml
           rm tools/integrate-fenie-ocr.py
+          rm tools/fix-fenie-fallback.py
           rm -f tools/.fenie-ocr-trigger
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
