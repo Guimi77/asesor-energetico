@@ -20,6 +20,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Correct temporary integrator target
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tools/apply-fenie-power-label-gap-fix.py')
+          s=p.read_text(encoding='utf-8')
+          old="replace_once('app.js', \"script.src='xtra-history.js?v=20260917-powerlabels1';\", \"script.src='xtra-history.js?v=20260917-powerlabels2';\")"
+          new="replace_once('auth-bootstrap.js', \"script.src='xtra-history.js?v=20260917-powerlabels1';\", \"script.src='xtra-history.js?v=20260917-powerlabels2';\")"
+          if s.count(old)!=1:
+              raise SystemExit(f'integrator target mismatch: {s.count(old)}')
+          s=s.replace(old,new)
+          anchor="replace_once('index.html', 'app.js?v=20260917-powerlabels1', 'app.js?v=20260917-powerlabels2')"
+          replacement="replace_once('index.html', 'auth-bootstrap.js?v=20260917-powerlabels1', 'auth-bootstrap.js?v=20260917-powerlabels2')\n"+anchor
+          if s.count(anchor)!=1:
+              raise SystemExit(f'index anchor mismatch: {s.count(anchor)}')
+          p.write_text(s.replace(anchor,replacement),encoding='utf-8')
+          PY
       - name: Apply narrow parser fix
         run: python tools/apply-fenie-power-label-gap-fix.py
       - name: Syntax checks
@@ -27,6 +44,7 @@ jobs:
           node --check app.js
           node --check xtra-history.js
           node --check parser-audit.js
+          node --check auth-bootstrap.js
           node --check fenie-ocr-fallback.js
           node --check client-report-export.js
       - name: Parser and history regressions
