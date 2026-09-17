@@ -15,6 +15,12 @@
     if (panel) panel.style.setProperty('display', 'none', 'important');
   }
 
+  function simplifyFooter() {
+    const footer = $('footer');
+    if (!footer) return;
+    footer.innerHTML = '<strong>Electrica BT Mallorca SL</strong>';
+  }
+
   function simplifyClientHierarchy(card) {
     const title = $('.client-tree-title h3', card)?.textContent || '';
     const clientKey = norm(title);
@@ -36,6 +42,7 @@
     syncing = true;
     try {
       hideDuplicatePanel();
+      simplifyFooter();
       const rows = $$('#centralClientsList .db-admin-row');
       const cards = $$('#companyGrid .company-card-tree');
       if (!cards.length) return;
@@ -74,6 +81,8 @@
     style.id = 'integratedClientArchiveStyles';
     style.textContent = `
       #centralClientsAdmin{display:none!important}
+      footer{justify-content:flex-start!important}
+      footer span{display:none!important}
       .client-tree-title{gap:8px;align-items:center;flex-wrap:wrap}
       .client-tree-title .integrated-client-archive{
         margin-left:auto!important;
@@ -107,6 +116,7 @@
   function init() {
     installStyles();
     hideDuplicatePanel();
+    simplifyFooter();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('ibt-role-changed', schedule);
