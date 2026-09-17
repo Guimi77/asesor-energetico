@@ -1,9 +1,9 @@
 name: Parser regression
 on:
   push:
-    paths: ['index.html', 'app.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   pull_request:
-    paths: ['index.html', 'app.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,6 +21,7 @@ jobs:
       - name: Check syntax
         run: |
           node --check app.js
+          node --check invoice-supersession.js
           node --check fenie-ocr-fallback.js
           node --check client-report-export.js
           node --check invoice-formats.js
@@ -39,4 +40,4 @@ jobs:
           node --check alerts-ui.js
           node --check human-language.js
       - name: Run synthetic and real-layout regression cases
-        run: node --test tests/power-regression.test.cjs tests/fenie-ocr-fallback.test.cjs tests/client-report-export.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
+        run: node --test tests/invoice-supersession.test.cjs tests/power-regression.test.cjs tests/fenie-ocr-fallback.test.cjs tests/client-report-export.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
