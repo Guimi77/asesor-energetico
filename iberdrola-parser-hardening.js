@@ -7,7 +7,7 @@
   'use strict';
   if(!base||typeof base.parse!=='function'||typeof base.detect!=='function')return base;
 
-  const REVISION='2026.09.17.1';
+  const REVISION='2026.09.17.2';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{
@@ -110,7 +110,7 @@
     const taxScope=segment(lines,/Impuesto\s+sobre\s+electricidad/i,[/TOTAL\s+ENERG[IÍ]A/i,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i],5),taxValues=euroValues(taxScope);let tax=taxValues.length?taxValues.at(-1):null;
     if((tax==null||tax<0)&&summaryEnergy!=null&&power!=null&&energy!=null)tax=round2(summaryEnergy-power-energy);
     const rentalScope=segment(lines,/Alquiler\s+equipos?\s+medida/i,[/TOTAL\s+SERVICIOS/i,/IMPORTE\s+TOTAL/i,/^\s*IVA\b/i],5),rental=lastEuro(rentalScope)??summaryServices??0;
-    const vatScope=segment(lines,/^\s*IVA(?:\s|\()/i,[/TOTAL\s+IMPORTE\s+FACTURA/i],4),vat=lastEuro(vatScope)??summaryVat??0;
+    const vatScope=segment(lines,/^\s*IVA(?:\s|\()/i,[/TOTAL\s+IMPORTE\s+FACTURA/i],4),vat=summaryVat??lastEuro(vatScope)??0;
     return{discount,social,tax:tax??0,rental,vat,summaryEnergy};
   }
 
