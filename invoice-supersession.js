@@ -54,26 +54,41 @@
 
   function periodEntries(row){
     const periods=row?.periods||row?.energyPeriods||{};
-    const entries=[];
+    const result=new Map();
+    const add=(p,value)=>{
+      const consumption=number(value);
+      if(!Number.isInteger(p)||p<1||p>6||consumption==null||consumption<0||result.has(p))return false;
+      result.set(p,consumption);return true;
+    };
     if(Array.isArray(periods)){
       for(const item of periods){
-        const p=Number(item?.period),consumption=number(item?.consumption_kwh??item?.consumption);
-        if(Number.isInteger(p)&&p>=1&&p<=6&&consumption!=null)entries.push([p,consumption]);
+        if(!add(Number(item?.period),item?.consumption_kwh??item?.consumption))return [];
       }
     }else{
       for(let p=1;p<=6;p++){
-        const item=periods[`P${p}`],consumption=number(item?.consumption_kwh??item?.consumption);
-        if(item&&consumption!=null)entries.push([p,consumption]);
+        const item=periods[`P${p}`];
+        if(item&&!add(p,item?.consumption_kwh??item?.consumption))return [];
       }
     }
-    return entries.sort((a,b)=>a[0]-b[0]);
+    return [...result.entries()].sort((a,b)=>a[0]-b[0]);
+  }
+
+  function canonicalProfile(row){
+    const entries=periodEntries(row),total=number(row?.kwh??row?.consumption_kwh);
+    if(!entries.length||total==null||total<0)return null;
+    const measured=entries.reduce((sum,item)=>sum+item[1],0);
+    // A missing P1-P6 row is only allowed to mean zero when the rows that do
+    // exist already add up to the invoice total. This covers PDFs that omit
+    // zero-consumption periods without guessing away a real missing period.
+    if(!near(measured,total))return null;
+    const byPeriod=new Map(entries);
+    return Array.from({length:6},(_,index)=>[index+1,byPeriod.get(index+1)??0]);
   }
 
   function sameProfile(a,b){
-    const x=periodEntries(a),y=periodEntries(b);
-    if(!x.length||!y.length)return false;
-    if(x.length!==y.length)return false;
-    for(let i=0;i<x.length;i++)if(x[i][0]!==y[i][0]||!near(x[i][1],y[i][1]))return false;
+    const x=canonicalProfile(a),y=canonicalProfile(b);
+    if(!x||!y)return false;
+    for(let i=0;i<6;i++)if(!near(x[i][1],y[i][1]))return false;
     return true;
   }
 
@@ -136,5 +151,5 @@
     return {active:rows.filter(row=>!row?.superseded),superseded,ambiguous};
   }
 
-  return Object.freeze({cupsKey,period,invoiceDate,periodEntries,sameProfile,samePhysicalPeriod,compareRecency,reconcile});
+  return Object.freeze({cupsKey,period,invoiceDate,periodEntries,canonicalProfile,sameProfile,samePhysicalPeriod,compareRecency,reconcile});
 });
