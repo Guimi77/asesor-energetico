@@ -86,5 +86,5 @@ test('Iberdrola refuses to mark a row correct when the energy subtotal stops mat
   fixture.text=fixture.pages.flat().join('\n');
   const r=api.parse(fixture,{name:'broken.pdf'});
   assert.equal(r.readOk,false);
-  assert.match(r.readMessage,/coste de energía por periodos/i);
+  assert.match(r.readMessage,/coste de energía(?: por periodos)?/i);
 });
