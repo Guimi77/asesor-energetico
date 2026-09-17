@@ -1,0 +1,36 @@
+name: Refacturation FENIE lock fix
+on:
+  push:
+    branches: ['fix/refacturation-dedupe-20260917']
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[fenie-lock-restored]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/refacturation-dedupe-20260917
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore locked FENIE parser source
+        run: python3 tools/revert-fenie-issuedate.py
+      - name: Verify focused regressions
+        run: |
+          node --check app.js
+          node --test tests/pdf-lifecycle.test.cjs tests/invoice-supersession.test.cjs tests/power-regression.test.cjs
+      - name: Commit app-only fix
+        run: |
+          if git diff --quiet app.js; then
+            echo 'No app change'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js
+          git commit -m 'Restaurar bloqueo del parser FENIE [fenie-lock-restored]'
+          git push origin HEAD:fix/refacturation-dedupe-20260917
