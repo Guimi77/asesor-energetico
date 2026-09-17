@@ -74,3 +74,12 @@ test('concurrent consumers share one OCR result for the same File object',async(
   const [a,b]=await Promise.all([api.prepare(file,d,null,{ocr}),api.prepare(file,d,null,{ocr})]);
   assert.equal(calls,1);assert.equal(a.attempted,true);assert.equal(b.attempted,true);
 });
+
+test('OCR identity uses native later-page CUPS and tariff before parsing',()=>{
+  const d=special();
+  const out=api.mergeOcrText(d,'FENIE ENERGIA\nCUPS: ES0031500123456789ABOF\nTarifa: 2.0TD\nTOTAL FACTURA 120,00 €');
+  const first=out.pages[0].join(' ');
+  assert.match(first,/ES0031500123456789AB0F/);
+  assert.doesNotMatch(first,/ES0031500123456789ABOF/);
+  assert.match(first,/Tarifa: 3\.0TD/);
+});

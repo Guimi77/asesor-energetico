@@ -56,7 +56,13 @@
   }
 
   function mergeOcrText(data,ocrText){
-    const lines=String(ocrText||'').split(/\r?\n/).map(v=>text(v)).filter(Boolean);
+    const later=laterText(data);
+    const nativeCups=(later.match(/\bES[A-Z0-9]{16,24}\b/i)||[])[0]||'';
+    const nativeTariff=(later.match(/\b(?:2\.0TD|3\.0TD|6\.[1-4]TD)\b/i)||[])[0]||'';
+    let normalized=String(ocrText||'');
+    if(nativeCups&&/\bES[A-Z0-9]{16,24}\b/i.test(normalized))normalized=normalized.replace(/\bES[A-Z0-9]{16,24}\b/i,nativeCups);
+    if(nativeTariff&&/\b(?:2\.0TD|3\.0TD|6\.[1-4]TD)\b/i.test(normalized))normalized=normalized.replace(/\b(?:2\.0TD|3\.0TD|6\.[1-4]TD)\b/i,nativeTariff);
+    const lines=normalized.split(/\r?\n/).map(v=>text(v)).filter(Boolean);
     const pages=(data?.pages||[]).map(p=>Array.isArray(p)?p.slice():[]);
     if(!pages.length)pages.push([]);
     pages[0]=lines;
