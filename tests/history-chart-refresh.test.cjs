@@ -43,8 +43,13 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  const enricher=source('supply-enricher-v2.js'),oldEnricher=old('supply-enricher-v2.js');
  assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
- // The audit can evolve only to distinguish unavailable detail from an actual zero/error.
- const audit=source('parser-audit.js');assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));assert(audit.includes('Detalle energético coherente o no informado'));
+ // The audit may evolve, but missing energy/period data must remain fail-closed.
+ const audit=source('parser-audit.js');
+ assert(audit.includes('const expectedEnergyPeriods='));
+ assert(audit.includes('const hasAnyPeriodCost='));
+ assert(audit.includes('if(consumption>0&&energy<=0)'));
+ assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));
+ assert(audit.includes('Detalle energético coherente'));
  // app.js, client-report-export.js and auth.js are allowed to evolve through their dedicated regression suites.
  for(const f of ['history-recommendations.js','history-recommendations.css','history-cost-chart.js'])assert.equal(source(f),old(f),f);
 });
