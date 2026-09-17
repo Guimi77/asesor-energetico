@@ -74,9 +74,11 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
  assert(app.includes('Factura no compatible todavía'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  assert(enricher.includes("retailer:'Endesa Energía S.A.U.'"));
+ assert(audit.includes('const expectedEnergyPeriods='));
  assert(audit.includes('const hasAnyPeriodCost='));
- assert(audit.includes('if(!hasAnyPeriodCost)energyOk++'));
- assert(audit.includes('Detalle energético coherente o no informado'));
+ assert(audit.includes('if(consumption>0&&energy<=0)'));
+ assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));
+ assert(audit.includes('Detalle energético coherente'));
  assert(guard.includes("data?.retailer||data?.commercializer"));
 });
 test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
