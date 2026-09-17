@@ -15,8 +15,8 @@ function invoice(number,issueDate,total=1995.14){
     readOk:true,
     balanced:true,
     periods:{
-      P1:{consumption:1458},P2:{consumption:1558},P3:{consumption:2174},
-      P4:{consumption:1933},P5:{consumption:1057},P6:{consumption:2868},
+      P1:{consumption:0},P2:{consumption:0},P3:{consumption:4420},
+      P4:{consumption:2931},P5:{consumption:0},P6:{consumption:3697},
     }
   };
 }
@@ -58,8 +58,8 @@ test('same period with different total consumption is never auto-superseded',()=
 test('same period and kWh with a different P1-P6 profile is not treated as the same physical billing',()=>{
   const a=invoice('2026070411734','2026-07-04');
   const b=invoice('2026073102923','2026-07-31');
-  b.periods.P3.consumption=2175;
-  b.periods.P6.consumption=2867;
+  b.periods.P3.consumption=4421;
+  b.periods.P6.consumption=3696;
   assert.equal(api.samePhysicalPeriod(a,b),false);
   assert.equal(api.reconcile([a,b]).active.length,2);
 });
