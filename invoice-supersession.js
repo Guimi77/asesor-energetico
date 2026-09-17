@@ -91,13 +91,10 @@
 
   function compareRecency(a,b){
     const da=invoiceDate(a),db=invoiceDate(b);
-    if(da&&db&&da!==db)return da>db?1:-1;
-    if(da&&!db)return 1;
-    if(!da&&db)return -1;
-    if(da&&db&&da===db){
-      const ia=key(a.invoiceNumber||a.invoice_number),ib=key(b.invoiceNumber||b.invoice_number);
-      if(/^\d+$/.test(ia)&&/^\d+$/.test(ib)&&ia.length===ib.length&&ia!==ib)return ia>ib?1:-1;
-    }
+    if(!da||!db)return 0;
+    if(da!==db)return da>db?1:-1;
+    const ia=key(a.invoiceNumber||a.invoice_number),ib=key(b.invoiceNumber||b.invoice_number);
+    if(/^\d+$/.test(ia)&&/^\d+$/.test(ib)&&ia.length===ib.length&&ia!==ib)return ia>ib?1:-1;
     return 0;
   }
 
