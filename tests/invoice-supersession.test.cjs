@@ -38,6 +38,15 @@ test('invoice date can be recovered from a FENIE numeric invoice number',()=>{
   assert.equal(api.invoiceDate(row),'2026-07-31');
 });
 
+test('FENIE supersession does not require changing the locked parser to expose issueDate',()=>{
+  const old=invoice('2026070411734','',2043.91);
+  const newer=invoice('2026073102923','',1995.14);
+  const result=api.reconcile([old,newer]);
+  assert.equal(result.active.length,1);
+  assert.equal(result.active[0].invoiceNumber,'2026073102923');
+  assert.equal(old.superseded,true);
+});
+
 test('same period with different total consumption is never auto-superseded',()=>{
   const a=invoice('2026070411734','2026-07-04');
   const b=invoice('2026073102923','2026-07-31');
