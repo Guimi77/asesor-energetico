@@ -23,33 +23,15 @@ jobs:
           python tools/fix-fenie-fallback.py
       - name: Check syntax and regression tests
         run: |
-          set +e
-          (
-            node --check app.js &&
-            node --check fenie-ocr-fallback.js &&
-            node --check xtra-history.js &&
-            node --check auth-bootstrap.js &&
-            node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
-          ) > integration-test.log 2>&1
-          status=$?
-          cat integration-test.log
-          if [ "$status" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add integration-test.log
-            git commit -m "Guardar diagnóstico temporal de regresión FENIE [skip ci]"
-            git push origin HEAD:fix/fenie-image-first-page
-            exit "$status"
-          fi
+          node --check app.js
+          node --check fenie-ocr-fallback.js
+          node --check xtra-history.js
+          node --check auth-bootstrap.js
+          node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
       - name: Commit tested integration
         run: |
-          rm -f integration-test.log
-          rm .github/workflows/fenie-ocr-integrator2.yml
-          rm tools/integrate-fenie-ocr.py
-          rm tools/fix-fenie-fallback.py
-          rm -f tools/.fenie-ocr-trigger
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add app.js xtra-history.js auth-bootstrap.js index.html .github/workflows/parser-regression.yml fenie-ocr-fallback.js tests/fenie-ocr-integration.test.cjs
           git commit -m "Integrar fallback OCR FENIE sin alterar el flujo normal [skip ci]"
           git push origin HEAD:fix/fenie-image-first-page
