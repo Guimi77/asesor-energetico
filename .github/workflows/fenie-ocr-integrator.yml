@@ -1,0 +1,111 @@
+name: Temporary FENIE OCR integrator
+on:
+  push:
+    branches: [fix/fenie-image-first-page]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/fenie-image-first-page
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Integrate fallback narrowly
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f'Expected text not found in {path}: {old[:100]}')
+              p.write_text(s.replace(old,new,1))
+
+          replace_once('app.js', "const PARSER_VERSION='2026.09.15.1';", "const PARSER_VERSION='2026.09.17.1';")
+          old="async function process(files){for(const file of [...files]){if(!file.name.toLowerCase().endsWith('.pdf'))continue;try{const r=parseInvoice(await pdfData(file),file),k=cleanKey(r.invoiceNumber);if(!(k&&k!==cleanKey('Por identificar')&&rows.some(x=>cleanKey(x.invoiceNumber)===k)))rows.push(r)}catch(e){console.warn('Error leyendo',file.name,e)}render()}}"
+          new="""async function parseInvoiceFile(file){
+ const original=await pdfData(file),fallback=window.IBTFenieOcrFallback;
+ if(!fallback?.prepare)return parseInvoice(original,file);
+ const prepared=await fallback.prepare(file,original,pdfjsLib);
+ if(!prepared.attempted)return parseInvoice(original,file);
+ if(prepared.error){
+  const row=unsupportedFallback(file);row.readMessage='No se pudo leer la primera página escaneada de esta posible factura FENIE';row.opportunity=row.readMessage;row.ocrFallback=true;row.ocrValidated=false;return row;
+ }
+ const row=parseInvoice(prepared.data,file);row.ocrFallback=true;
+ if(row.unsupported){row.readMessage='La primera página se ha leído por OCR, pero el formato FENIE no se ha podido validar';row.opportunity=row.readMessage;row.ocrValidated=false;return row}
+ const reason=fallback.criticalReason?.(row)||'';
+ if(!fallback.criticalRowOk?.(row)){
+  row.readOk=false;row.readMessage=`OCR FENIE requiere revisión: ${reason||'faltan datos críticos'}`;row.ocrValidated=false;return row;
+ }
+ row.ocrValidated=true;return row;
+}
+async function process(files){for(const file of [...files]){if(!file.name.toLowerCase().endsWith('.pdf'))continue;try{const r=await parseInvoiceFile(file),k=cleanKey(r.invoiceNumber);if(!(k&&k!==cleanKey('Por identificar')&&rows.some(x=>cleanKey(x.invoiceNumber)===k)))rows.push(r)}catch(e){console.warn('Error leyendo',file.name,e)}render()}}"""
+          replace_once('app.js',old,new)
+
+          old="const x=extractHistory(await readPdf(file),file);"
+          new="""const source=await readPdf(file),fallback=window.IBTFenieOcrFallback,prepared=fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
+if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
+const x=extractHistory(prepared.data,file);"""
+          replace_once('xtra-history.js',old,new)
+
+          replace_once('auth-bootstrap.js', "script.src='xtra-history.js?v=20260915-endesa1';", "script.src='xtra-history.js?v=20260917-fenieocr1';")
+
+          replace_once('index.html', '<script src="reading-status.js?v=20260915-truth1"></script><script src="invoice-formats.js?v=20260915-truth1"></script>', '<script src="reading-status.js?v=20260915-truth1"></script><script src="fenie-ocr-fallback.js?v=20260917-1"></script><script src="invoice-formats.js?v=20260915-truth1"></script>')
+          replace_once('index.html', '<script type="module" src="app.js?v=20260915-diagnostic1"></script>', '<script type="module" src="app.js?v=20260917-fenieocr1"></script>')
+          replace_once('index.html', '<script src="auth-bootstrap.js?v=20260916-history1"></script>', '<script src="auth-bootstrap.js?v=20260917-fenieocr1"></script>')
+
+          wf=Path('.github/workflows/parser-regression.yml')
+          s=wf.read_text()
+          s=s.replace("'invoice-formats.js',", "'invoice-formats.js', 'fenie-ocr-fallback.js',")
+          s=s.replace('          node --check invoice-formats.js\n', '          node --check invoice-formats.js\n          node --check fenie-ocr-fallback.js\n')
+          s=s.replace('tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs', 'tests/invoice-formats.test.cjs tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/endesa-real-layout-regression.test.cjs')
+          wf.write_text(s)
+
+          Path('tests/fenie-ocr-integration.test.cjs').write_text(r'''\
+          'use strict';
+          const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+          const root=path.resolve(__dirname,'..');
+          const read=name=>fs.readFileSync(path.join(root,name),'utf8');
+          test('fallback loads before the main parser and Tesseract stays lazy',()=>{
+            const html=read('index.html');
+            assert.ok(html.indexOf('fenie-ocr-fallback.js')<html.indexOf('app.js'));
+            assert.ok(!/tesseract(?:\.min)?\.js/i.test(html));
+          });
+          test('main parser only routes individual PDF processing through guarded fallback',()=>{
+            const app=read('app.js');
+            assert.match(app,/async function parseInvoiceFile\(file\)/);
+            assert.match(app,/fallback\.prepare\(file,original,pdfjsLib\)/);
+            assert.match(app,/criticalRowOk/);
+            assert.match(app,/const r=await parseInvoiceFile\(file\)/);
+            assert.match(app,/function parseFenie\(/);
+            assert.match(app,/formats\.parseEndesa/);
+          });
+          test('historical persistence reuses the same fallback and keeps crosscheck gate',()=>{
+            const history=read('xtra-history.js');
+            assert.match(history,/fallback\.prepare\(file,source,pdfjsLib\)/);
+            assert.match(history,/crosscheck_failed/);
+            assert.match(history,/\/Correcta\/i\.test\(ui\.status\).*ui\.balance==='OK'/s);
+          });
+          ''')
+      - name: Check syntax and regression tests
+        run: |
+          node --check app.js
+          node --check fenie-ocr-fallback.js
+          node --check xtra-history.js
+          node --check auth-bootstrap.js
+          node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
+      - name: Commit tested integration
+        run: |
+          rm .github/workflows/fenie-ocr-integrator.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrar fallback OCR FENIE sin alterar el flujo normal [skip ci]"
+          git push origin HEAD:fix/fenie-image-first-page
