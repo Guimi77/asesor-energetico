@@ -84,6 +84,7 @@
         line-height:1.2!important;
         border-radius:8px!important;
       }
+      .add-supply-holder{display:none!important}
       .simple-client-folder>summary{display:none!important}
       .simple-client-folder{border-top:1px solid #e7ebf1}
       .simple-client-folder>.holder-supplies{padding-top:8px}
