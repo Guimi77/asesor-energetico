@@ -1,0 +1,692 @@
+TAP version 13
+# Subtest: alerts use incidents as an internal tracking inbox
+ok 1 - alerts use incidents as an internal tracking inbox
+  ---
+  duration_ms: 1.828289
+  type: 'test'
+  ...
+# Subtest: analysis findings can be promoted without becoming automatic savings proposals
+ok 2 - analysis findings can be promoted without becoming automatic savings proposals
+  ---
+  duration_ms: 0.296645
+  type: 'test'
+  ...
+# Subtest: alerts module is loaded after analysis module
+ok 3 - alerts module is loaded after analysis module
+  ---
+  duration_ms: 0.264334
+  type: 'test'
+  ...
+# Subtest: 2.0TD power lines split by price dates are aggregated by power period, never by array position
+ok 4 - 2.0TD power lines split by price dates are aggregated by power period, never by array position
+  ---
+  duration_ms: 16.190443
+  type: 'test'
+  ...
+# Subtest: 2.0TD Endesa label P3 is normalized to the second contracted power period
+ok 5 - 2.0TD Endesa label P3 is normalized to the second contracted power period
+  ---
+  duration_ms: 0.313617
+  type: 'test'
+  ...
+# Subtest: Endesa energy detail fills P1-P3 costs and weighted prices only when kWh and subtotal reconcile
+ok 6 - Endesa energy detail fills P1-P3 costs and weighted prices only when kWh and subtotal reconcile
+  ---
+  duration_ms: 0.928777
+  type: 'test'
+  ...
+# Subtest: Endesa energy detail fails closed if the labelled lines do not reconcile with invoice energy
+ok 7 - Endesa energy detail fails closed if the labelled lines do not reconcile with invoice energy
+  ---
+  duration_ms: 0.199634
+  type: 'test'
+  ...
+# Subtest: Real Endesa header cannot hide billed energy or invent reactive charges
+ok 8 - Real Endesa header cannot hide billed energy or invent reactive charges
+  ---
+  duration_ms: 17.590638
+  type: 'test'
+  ...
+# Subtest: Older Endesa billing period survives line wrapping and real legal header
+ok 9 - Older Endesa billing period survives line wrapping and real legal header
+  ---
+  duration_ms: 2.763248
+  type: 'test'
+  ...
+# Subtest: The other three real Endesa invoices keep their exact economic balance
+ok 10 - The other three real Endesa invoices keep their exact economic balance
+  ---
+  duration_ms: 3.642603
+  type: 'test'
+  ...
+# Subtest: production HTML cache-bust matches the current Endesa source validation version
+ok 11 - production HTML cache-bust matches the current Endesa source validation version
+  ---
+  duration_ms: 1.771644
+  type: 'test'
+  ...
+# Subtest: Old Endesa layout recovers wrapped period and total even when PDF.js prefixes dots
+ok 12 - Old Endesa layout recovers wrapped period and total even when PDF.js prefixes dots
+  ---
+  duration_ms: 14.397088
+  type: 'test'
+  ...
+# Subtest: Reactive measurements with zero billed amount stay zero and all six contracted periods are preserved
+ok 13 - Reactive measurements with zero billed amount stay zero and all six contracted periods are preserved
+  ---
+  duration_ms: 53.478256
+  type: 'test'
+  ...
+# Subtest: Explicit Endesa power summary stays valid when PDF line fragmentation hides the per-period power breakdown
+ok 14 - Explicit Endesa power summary stays valid when PDF line fragmentation hides the per-period power breakdown
+  ---
+  duration_ms: 1.530502
+  type: 'test'
+  ...
+# Subtest: Source period ignores a duplicated start date introduced by PDF text grouping
+ok 15 - Source period ignores a duplicated start date introduced by PDF text grouping
+  ---
+  duration_ms: 0.671266
+  type: 'test'
+  ...
+# Subtest: Catalan Endesa 2.0TD layout is normalized before validation
+ok 16 - Catalan Endesa 2.0TD layout is normalized before validation
+  ---
+  duration_ms: 1.752267
+  type: 'test'
+  ...
+# Subtest: A coherent 3.0TD row is correct even when PDF power detail is fragmented
+ok 17 - A coherent 3.0TD row is correct even when PDF power detail is fragmented
+  ---
+  duration_ms: 3.63608
+  type: 'test'
+  ...
+# Subtest: Summary labels may be merged or wrapped without creating a false ERROR
+ok 18 - Summary labels may be merged or wrapped without creating a false ERROR
+  ---
+  duration_ms: 0.559175
+  type: 'test'
+  ...
+# Subtest: Estimated 3.0TD readings are correct when source billing evidence is coherent
+ok 19 - Estimated 3.0TD readings are correct when source billing evidence is coherent
+  ---
+  duration_ms: 1.175919
+  type: 'test'
+  ...
+# Subtest: A missing CUPS stays rejected
+ok 20 - A missing CUPS stays rejected
+  ---
+  duration_ms: 0.249727
+  type: 'test'
+  ...
+# Subtest: A technical reactive quantity is not mistaken for billed euros
+ok 21 - A technical reactive quantity is not mistaken for billed euros
+  ---
+  duration_ms: 0.427429
+  type: 'test'
+  ...
+# Subtest: A real billed reactive euro amount stays rejected when parsed reactive is zero
+ok 22 - A real billed reactive euro amount stays rejected when parsed reactive is zero
+  ---
+  duration_ms: 0.650506
+  type: 'test'
+  ...
+# Subtest: A consumption-period mismatch stays rejected
+ok 23 - A consumption-period mismatch stays rejected
+  ---
+  duration_ms: 0.262962
+  type: 'test'
+  ...
+# Subtest: Address cleanup stops before Endesa contract metadata
+ok 24 - Address cleanup stops before Endesa contract metadata
+  ---
+  duration_ms: 0.874426
+  type: 'test'
+  ...
+# Subtest: Zero in A facturar is not confused with measured demand or reactive consumption
+ok 25 - Zero in A facturar is not confused with measured demand or reactive consumption
+  ---
+  duration_ms: 1.114314
+  type: 'test'
+  ...
+# Subtest: Fragmented Endesa rows do not treat demand or reactive consumption as billed euros
+ok 26 - Fragmented Endesa rows do not treat demand or reactive consumption as billed euros
+  ---
+  duration_ms: 0.509082
+  type: 'test'
+  ...
+# Subtest: normal FENIE with readable first page never enters OCR fallback
+not ok 27 - normal FENIE with readable first page never enters OCR fallback
+  ---
+  duration_ms: 3.224761
+  type: 'test'
+  location: '/home/runner/work/asesor-energetico/asesor-energetico/tests/fenie-ocr-fallback.test.cjs:18:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/asesor-energetico/asesor-energetico/tests/fenie-ocr-fallback.test.cjs:21:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: image-first-page FENIE with strong later-page evidence enters fallback
+ok 28 - image-first-page FENIE with strong later-page evidence enters fallback
+  ---
+  duration_ms: 1.132608
+  type: 'test'
+  ...
+# Subtest: Endesa is explicitly excluded even if page one is sparse
+ok 29 - Endesa is explicitly excluded even if page one is sparse
+  ---
+  duration_ms: 0.306674
+  type: 'test'
+  ...
+# Subtest: unknown PDF with only CUPS and tariff is not guessed as FENIE
+ok 30 - unknown PDF with only CUPS and tariff is not guessed as FENIE
+  ---
+  duration_ms: 0.275205
+  type: 'test'
+  ...
+# Subtest: OCR text only replaces first-page text and preserves later-page/raw data
+ok 31 - OCR text only replaces first-page text and preserves later-page/raw data
+  ---
+  duration_ms: 2.914831
+  type: 'test'
+  ...
+# Subtest: critical validation requires holder, CUPS, period, positive total and economic balance
+ok 32 - critical validation requires holder, CUPS, period, positive total and economic balance
+  ---
+  duration_ms: 0.698255
+  type: 'test'
+  ...
+# Subtest: prepare calls OCR only for the guarded special case
+not ok 33 - prepare calls OCR only for the guarded special case
+  ---
+  duration_ms: 1.157265
+  type: 'test'
+  location: '/home/runner/work/asesor-energetico/asesor-energetico/tests/fenie-ocr-fallback.test.cjs:61:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/asesor-energetico/asesor-energetico/tests/fenie-ocr-fallback.test.cjs:68:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: concurrent consumers share one OCR result for the same File object
+ok 34 - concurrent consumers share one OCR result for the same File object
+  ---
+  duration_ms: 13.054798
+  type: 'test'
+  ...
+# Subtest: fallback loads before the main parser and Tesseract stays lazy
+ok 35 - fallback loads before the main parser and Tesseract stays lazy
+  ---
+  duration_ms: 1.726509
+  type: 'test'
+  ...
+# Subtest: main parser only routes individual PDF processing through guarded fallback
+ok 36 - main parser only routes individual PDF processing through guarded fallback
+  ---
+  duration_ms: 0.553646
+  type: 'test'
+  ...
+# Subtest: historical persistence reuses the same fallback and keeps crosscheck gate
+ok 37 - historical persistence reuses the same fallback and keeps crosscheck gate
+  ---
+  duration_ms: 0.501939
+  type: 'test'
+  ...
+# Subtest: Format detector accepts Endesa and FENIE but never guesses an unknown layout
+ok 38 - Format detector accepts Endesa and FENIE but never guesses an unknown layout
+  ---
+  duration_ms: 1.343874
+  type: 'test'
+  ...
+# Subtest: Endesa 2.0TD real invoice balances and keeps service invoices outside the electricity total
+ok 39 - Endesa 2.0TD real invoice balances and keeps service invoices outside the electricity total
+  ---
+  duration_ms: 23.602345
+  type: 'test'
+  ...
+# Subtest: Endesa 3.0TD estimated invoice reads P1-P6 and current demands without inventing period prices
+ok 40 - Endesa 3.0TD estimated invoice reads P1-P6 and current demands without inventing period prices
+  ---
+  duration_ms: 3.79574
+  type: 'test'
+  ...
+# Subtest: Endesa regulated adjustments are included exactly instead of disappearing into a fake mismatch
+ok 41 - Endesa regulated adjustments are included exactly instead of disappearing into a fake mismatch
+  ---
+  duration_ms: 3.043646
+  type: 'test'
+  ...
+# Subtest: Endesa two-column 2.0TD text keeps every reading instead of losing right-column periods
+ok 42 - Endesa two-column 2.0TD text keeps every reading instead of losing right-column periods
+  ---
+  duration_ms: 1.528869
+  type: 'test'
+  ...
+# Subtest: Endesa two-column 3.0TD text uses exact active-energy register codes
+ok 43 - Endesa two-column 3.0TD text uses exact active-energy register codes
+  ---
+  duration_ms: 1.287478
+  type: 'test'
+  ...
+# Subtest: Older Endesa layout accepts a-period wording and keeps P3
+ok 44 - Older Endesa layout accepts a-period wording and keeps P3
+  ---
+  duration_ms: 0.670445
+  type: 'test'
+  ...
+# Subtest: Endesa refuses a green status when period consumption does not reconcile
+ok 45 - Endesa refuses a green status when period consumption does not reconcile
+  ---
+  duration_ms: 0.661407
+  type: 'test'
+  ...
+# Subtest: Unsupported format never receives invented zero values
+ok 46 - Unsupported format never receives invented zero values
+  ---
+  duration_ms: 0.644566
+  type: 'test'
+  ...
+# Subtest: Active and inactive status labels are classified safely
+ok 47 - Active and inactive status labels are classified safely
+  ---
+  duration_ms: 2.882041
+  type: 'test'
+  ...
+# Subtest: Inactive CUPS keep their history but are removed from current recommendation input
+ok 48 - Inactive CUPS keep their history but are removed from current recommendation input
+  ---
+  duration_ms: 2.034856
+  type: 'test'
+  ...
+# Subtest: Unknown supply status defaults to active so new supplies are not silently hidden
+ok 49 - Unknown supply status defaults to active so new supplies are not silently hidden
+  ---
+  duration_ms: 1.012062
+  type: 'test'
+  ...
+# Subtest: Bootstrap loads lifecycle analysis guard before history UI
+ok 50 - Bootstrap loads lifecycle analysis guard before history UI
+  ---
+  duration_ms: 1.771413
+  type: 'test'
+  ...
+# Subtest: Current invoice view explicitly suppresses recommendations for known inactive CUPS
+ok 51 - Current invoice view explicitly suppresses recommendations for known inactive CUPS
+  ---
+  duration_ms: 0.379901
+  type: 'test'
+  ...
+# Subtest: app.js closes all 341 document tasks and preserves reader output
+ok 52 - app.js closes all 341 document tasks and preserves reader output
+  ---
+  duration_ms: 183.710048
+  type: 'test'
+  ...
+# Subtest: app.js releases resources after load failure
+ok 53 - app.js releases resources after load failure
+  ---
+  duration_ms: 1.8286
+  type: 'test'
+  ...
+# Subtest: app.js releases resources after page failure
+ok 54 - app.js releases resources after page failure
+  ---
+  duration_ms: 1.173114
+  type: 'test'
+  ...
+# Subtest: app.js releases resources after text failure
+ok 55 - app.js releases resources after text failure
+  ---
+  duration_ms: 1.113733
+  type: 'test'
+  ...
+# Subtest: xtra-history.js closes all 341 document tasks and preserves reader output
+ok 56 - xtra-history.js closes all 341 document tasks and preserves reader output
+  ---
+  duration_ms: 80.867008
+  type: 'test'
+  ...
+# Subtest: xtra-history.js releases resources after load failure
+ok 57 - xtra-history.js releases resources after load failure
+  ---
+  duration_ms: 3.36055
+  type: 'test'
+  ...
+# Subtest: xtra-history.js releases resources after page failure
+ok 58 - xtra-history.js releases resources after page failure
+  ---
+  duration_ms: 0.92511
+  type: 'test'
+  ...
+# Subtest: xtra-history.js releases resources after text failure
+ok 59 - xtra-history.js releases resources after text failure
+  ---
+  duration_ms: 0.821396
+  type: 'test'
+  ...
+# Subtest: supply-enricher-v2.js closes all 341 document tasks and preserves reader output
+ok 60 - supply-enricher-v2.js closes all 341 document tasks and preserves reader output
+  ---
+  duration_ms: 84.891438
+  type: 'test'
+  ...
+# Subtest: supply-enricher-v2.js releases resources after load failure
+ok 61 - supply-enricher-v2.js releases resources after load failure
+  ---
+  duration_ms: 1.561821
+  type: 'test'
+  ...
+# Subtest: supply-enricher-v2.js releases resources after page failure
+ok 62 - supply-enricher-v2.js releases resources after page failure
+  ---
+  duration_ms: 0.985153
+  type: 'test'
+  ...
+# Subtest: supply-enricher-v2.js releases resources after text failure
+ok 63 - supply-enricher-v2.js releases resources after text failure
+  ---
+  duration_ms: 0.95167
+  type: 'test'
+  ...
+# Subtest: Fenie calculations stay locked while Endesa routing and audit rules can evolve safely
+ok 64 - Fenie calculations stay locked while Endesa routing and audit rules can evolve safely
+  ---
+  duration_ms: 16.868792
+  type: 'test'
+  ...
+# Subtest: Bulk loader tracks large folders without concurrent auxiliary PDF readers
+ok 65 - Bulk loader tracks large folders without concurrent auxiliary PDF readers
+  ---
+  duration_ms: 0.306293
+  type: 'test'
+  ...
+# Subtest: Historical completeness persistence remains fail-closed, cross-checked and PDF-free
+ok 66 - Historical completeness persistence remains fail-closed, cross-checked and PDF-free
+  ---
+  duration_ms: 0.428011
+  type: 'test'
+  ...
+# Subtest: Observed power changes have before, after, delta, identity and source periods
+ok 67 - Observed power changes have before, after, delta, identity and source periods
+  ---
+  duration_ms: 22.64762
+  type: 'test'
+  ...
+# Subtest: Missing, null and ambiguous power periods never become false zero or a change
+ok 68 - Missing, null and ambiguous power periods never become false zero or a change
+  ---
+  duration_ms: 0.975605
+  type: 'test'
+  ...
+# Subtest: Comparable tariff changes remain visible
+ok 69 - Comparable tariff changes remain visible
+  ---
+  duration_ms: 0.773307
+  type: 'test'
+  ...
+# Subtest: preserves both 2.0 power periods with a two-decimal unit rate
+ok 70 - preserves both 2.0 power periods with a two-decimal unit rate
+  ---
+  duration_ms: 4.949999
+  type: 'test'
+  ...
+# Subtest: does not treat a nonzero euro/kW-day rate as an amount
+ok 71 - does not treat a nonzero euro/kW-day rate as an amount
+  ---
+  duration_ms: 0.35832
+  type: 'test'
+  ...
+# Subtest: ignores a subtotal next to the P1 amount when summing rows
+ok 72 - ignores a subtotal next to the P1 amount when summing rows
+  ---
+  duration_ms: 0.510014
+  type: 'test'
+  ...
+# Subtest: accepts a separately printed subtotal between P1 and P2
+ok 73 - accepts a separately printed subtotal between P1 and P2
+  ---
+  duration_ms: 0.265597
+  type: 'test'
+  ...
+# Subtest: retains explicitly printed subtotal with independent cent rounding
+ok 74 - retains explicitly printed subtotal with independent cent rounding
+  ---
+  duration_ms: 0.420226
+  type: 'test'
+  ...
+# Subtest: reads a formula before its Pn label, without using the subtotal as P1
+ok 75 - reads a formula before its Pn label, without using the subtotal as P1
+  ---
+  duration_ms: 0.50824
+  type: 'test'
+  ...
+# Subtest: allows a header preceding P1 without modifying energy extraction
+ok 76 - allows a header preceding P1 without modifying energy extraction
+  ---
+  duration_ms: 0.359713
+  type: 'test'
+  ...
+# Subtest: reads the singular dia form
+ok 77 - reads the singular dia form
+  ---
+  duration_ms: 0.280444
+  type: 'test'
+  ...
+# Subtest: reads wrapped formulas and multiplication sign
+ok 78 - reads wrapped formulas and multiplication sign
+  ---
+  duration_ms: 0.719004
+  type: 'test'
+  ...
+# Subtest: does not approve a conflicting subtotal or hide the difference
+ok 79 - does not approve a conflicting subtotal or hide the difference
+  ---
+  duration_ms: 0.634157
+  type: 'test'
+  ...
+# Subtest: does not approve missing per-period amounts
+ok 80 - does not approve missing per-period amounts
+  ---
+  duration_ms: 0.326892
+  type: 'test'
+  ...
+# Subtest: does not approve ambiguous duplicate subtotals
+ok 81 - does not approve ambiguous duplicate subtotals
+  ---
+  duration_ms: 0.24586
+  type: 'test'
+  ...
+# Subtest: empty input remains unreliable, not a validated zero
+ok 82 - empty input remains unreliable, not a validated zero
+  ---
+  duration_ms: 0.273061
+  type: 'test'
+  ...
+# Subtest: explicit zero power remains distinguishable from missing power
+ok 83 - explicit zero power remains distinguishable from missing power
+  ---
+  duration_ms: 0.245399
+  type: 'test'
+  ...
+# Subtest: preserves the sign of negative billed amounts
+ok 84 - preserves the sign of negative billed amounts
+  ---
+  duration_ms: 0.225161
+  type: 'test'
+  ...
+# Subtest: reads Spanish thousands without including unit rates
+ok 85 - reads Spanish thousands without including unit rates
+  ---
+  duration_ms: 2.012244
+  type: 'test'
+  ...
+# Subtest: keeps renderer and existing internal export entry points
+ok 86 - keeps renderer and existing internal export entry points
+  ---
+  duration_ms: 0.126897
+  type: 'test'
+  ...
+# Subtest: Telegestion Distribuidora is a source label, not proof of an actual reading
+ok 87 - Telegestion Distribuidora is a source label, not proof of an actual reading
+  ---
+  duration_ms: 2.248786
+  type: 'test'
+  ...
+# Subtest: Explicit estimated distributor reading is classified as estimated
+ok 88 - Explicit estimated distributor reading is classified as estimated
+  ---
+  duration_ms: 0.821186
+  type: 'test'
+  ...
+# Subtest: Explicit actual reading can be classified without inferring it from consumption
+ok 89 - Explicit actual reading can be classified without inferring it from consumption
+  ---
+  duration_ms: 0.511297
+  type: 'test'
+  ...
+# Subtest: Endesa table labels distinguish real and estimated readings
+ok 90 - Endesa table labels distinguish real and estimated readings
+  ---
+  duration_ms: 0.365023
+  type: 'test'
+  ...
+# Subtest: Explicit missing distributor reading is kept separate from zero consumption
+ok 91 - Explicit missing distributor reading is kept separate from zero consumption
+  ---
+  duration_ms: 0.274723
+  type: 'test'
+  ...
+# Subtest: Ambiguous invoice text fails closed as unknown
+ok 92 - Ambiguous invoice text fails closed as unknown
+  ---
+  duration_ms: 2.056557
+  type: 'test'
+  ...
+# Subtest: Reading enrichment stays on the existing validated history path
+ok 93 - Reading enrichment stays on the existing validated history path
+  ---
+  duration_ms: 0.603679
+  type: 'test'
+  ...
+# Subtest: CUPS lifecycle offers the three safe state changes
+ok 94 - CUPS lifecycle offers the three safe state changes
+  ---
+  duration_ms: 1.198842
+  type: 'test'
+  ...
+# Subtest: Every visible CUPS receives an Estado control, even before central sync
+ok 95 - Every visible CUPS receives an Estado control, even before central sync
+  ---
+  duration_ms: 0.192109
+  type: 'test'
+  ...
+# Subtest: Lifecycle UI explains that invoice history is preserved
+ok 96 - Lifecycle UI explains that invoice history is preserved
+  ---
+  duration_ms: 0.274794
+  type: 'test'
+  ...
+# Subtest: Only internal users can operate lifecycle controls
+ok 97 - Only internal users can operate lifecycle controls
+  ---
+  duration_ms: 0.147446
+  type: 'test'
+  ...
+# Subtest: Bootstrap loads the lifecycle module once with the current cache-busted URL
+ok 98 - Bootstrap loads the lifecycle module once with the current cache-busted URL
+  ---
+  duration_ms: 0.144029
+  type: 'test'
+  ...
+# Subtest: Completeness states distinguish missing, not applicable and unreliable data
+ok 99 - Completeness states distinguish missing, not applicable and unreliable data
+  ---
+  duration_ms: 1.28852
+  type: 'test'
+  ...
+# Subtest: Period excess detail keeps measured kW, unit price and exact amount
+ok 100 - Period excess detail keeps measured kW, unit price and exact amount
+  ---
+  duration_ms: 2.216997
+  type: 'test'
+  ...
+# Subtest: Reactive detail keeps source quantities, cos phi, unit price and amount
+ok 101 - Reactive detail keeps source quantities, cos phi, unit price and amount
+  ---
+  duration_ms: 0.603719
+  type: 'test'
+  ...
+# Subtest: Multiple tax lines remain separate instead of being collapsed
+ok 102 - Multiple tax lines remain separate instead of being collapsed
+  ---
+  duration_ms: 0.782985
+  type: 'test'
+  ...
+# Subtest: Monetary extraction never mistakes unit prices for billed euros
+ok 103 - Monetary extraction never mistakes unit prices for billed euros
+  ---
+  duration_ms: 0.266929
+  type: 'test'
+  ...
+# Subtest: Distributor rights keep explicit detail and surface any unknown residual
+ok 104 - Distributor rights keep explicit detail and surface any unknown residual
+  ---
+  duration_ms: 1.046307
+  type: 'test'
+  ...
+# Subtest: Structured payload carries completeness detail and never carries PDF bytes or filenames
+ok 105 - Structured payload carries completeness detail and never carries PDF bytes or filenames
+  ---
+  duration_ms: 0.35309
+  type: 'test'
+  ...
+# Subtest: Automatic history write cannot bypass the validated main parser row
+ok 106 - Automatic history write cannot bypass the validated main parser row
+  ---
+  duration_ms: 0.183643
+  type: 'test'
+  ...
+# Subtest: 2.0TD reactive absence is not fabricated as zero measured reactive detail
+ok 107 - 2.0TD reactive absence is not fabricated as zero measured reactive detail
+  ---
+  duration_ms: 0.421328
+  type: 'test'
+  ...
+# Subtest: Historical persistence routes Endesa through the validated shared parser
+ok 108 - Historical persistence routes Endesa through the validated shared parser
+  ---
+  duration_ms: 0.407151
+  type: 'test'
+  ...
+1..108
+# tests 108
+# suites 0
+# pass 106
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 721.741565
