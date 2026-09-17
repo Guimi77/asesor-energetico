@@ -13,12 +13,6 @@ def replace_once(path, old, new):
 
 app=Path('app.js')
 text=app.read_text(encoding='utf-8')
-if "import './invoice-supersession.js?v=20260917-1';" not in text:
-    text=text.replace(
-        "import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';\n",
-        "import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';\nimport './invoice-supersession.js?v=20260917-1';\n",
-        1,
-    )
 text=text.replace("const PARSER_VERSION='2026.09.17.4';","const PARSER_VERSION='2026.09.17.5';",1)
 text=text.replace(
     ",period=((find(a,/Periodo Facturaci[oó]n:/i).match(/\\d{2}\\/\\d{2}\\/\\d{4}\\s*-\\s*\\d{2}\\/\\d{2}\\/\\d{4}(?:\\s*\\(\\d+\\s*d[ií]as\\))?/i)||[])[0])||'Por identificar',total=lastEuro(find(a,/TOTAL FACTURA/i));",
@@ -69,7 +63,7 @@ text=text.replace(
 )
 app.write_text(text,encoding='utf-8')
 
-replace_once('index.html','app.js?v=20260917-powerlabels2','app.js?v=20260917-refact1')
+replace_once('index.html','<script type="module" src="app.js?v=20260917-powerlabels2"></script>','<script src="invoice-supersession.js?v=20260917-1"></script><script type="module" src="app.js?v=20260917-refact1"></script>')
 
 wf=Path('.github/workflows/parser-regression.yml')
 w=wf.read_text(encoding='utf-8')
