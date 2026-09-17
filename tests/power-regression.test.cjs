@@ -8,6 +8,7 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const appPath = process.env.PARSER_FILE || path.join(root, 'app.js');
 const source = fs.readFileSync(appPath, 'utf8');
+const auditSource = fs.readFileSync(path.join(root, 'parser-audit.js'), 'utf8');
 const boot = source.indexOf("const dz=$('#dropZone')");
 assert.ok(boot > 0, 'Application bootstrap must remain present');
 const ctx = vm.createContext({window: {}, document: {}, pdfjsLib: {GlobalWorkerOptions: {}}, console});
@@ -19,9 +20,9 @@ const row = (p, amount, days = '30 d\u00edas', price = '0,00') =>
   `P${p}: ${price} ${euro}/kW d\u00eda + 0,000001 ${euro}/kW d\u00eda = 0,012345 ${euro}/kW d\u00eda x 17,000 kW x ${days} = ${amount} ${euro}`;
 const two = [row(1, '10,00'), row(2, '0,25')];
 const six = [1,2,3,4,5,6].map(p => row(p, `${p},00`));
-function check(lines, expected, reliable = true) {
+function check(lines, expected, reliable = true, expectedPeriods = 0) {
   const input = lines.slice();
-  const got = read(input);
+  const got = read(input, expectedPeriods);
   assert.equal(got.value, expected);
   assert.equal(got.reliable, reliable);
   assert.deepEqual(input, lines, 'Reading must not alter source text');
@@ -48,6 +49,26 @@ test('duplicate OCR period labels do not invalidate six complete power amounts',
   const input = six.flatMap((r, i) => [r, `P${i+1}:`]);
   check(input, 21);
 });
+test('3.0TD OCR may lose P4/P5 labels when all six billed power formulas remain', () => {
+  const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
+  const input=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} ${euro}`);
+  check(input,108,true,6);
+});
+test('3.0TD expected period count stays fail-closed when a billed power formula is really missing', () => {
+  const amounts=['50,80','26,47','11,17','9,69','6,27'];
+  const input=amounts.map((amount,i)=>`P${i+1}: 70,000 kW x 13 dias = ${amount} ${euro}`);
+  check(input,104.4,false,6);
+});
+test('FENIE 3.0TD restores missing contracted P4/P5 labels from six ordered formulas', () => {
+  const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
+  const powerRows=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} ${euro}`);
+  const page=['Razón Social: CLIENTE SINTETICO','CUPS: ES123456789012345678','Tarifa: 3.0TD','Periodo Facturación: 01/01/2026 - 13/01/2026 (13 días)','Término de energía','Término de potencia',...powerRows,'Excesos de Potencia',`TOTAL FACTURA 108,00 ${euro}`];
+  const parsed=ctx.check.parseFenie({pages:[page],rawPages:[[],[]],text:page.join('\n')},{name:'synthetic.pdf'});
+  assert.equal(parsed.powerDetail.reliable,true);
+  assert.equal(parsed.power,108);
+  assert.equal(parsed.readOk,true);
+  for(let p=1;p<=6;p++)assert.equal(parsed.contracted[`P${p}`],70);
+});
 test('allows a header preceding P1 without modifying energy extraction', () =>
   check(['T\u00e9rmino de potencia ' + two[0], two[1]], 10.25));
 test('reads the singular dia form', () => check([row(1, '10,00', '19 d\u00eda'), two[1]], 10.25));
@@ -70,4 +91,9 @@ test('reads Spanish thousands without including unit rates', () =>
 test('keeps renderer and existing internal export entry points', () => {
   assert.equal(typeof ctx.check.render, 'function');
   assert.equal(typeof ctx.check.exportExcel, 'function');
+});
+
+test('parser audit surfaces rows rejected by the main parser', () => {
+  assert.match(auditSource,/ESTADO PARSER/);
+  assert.match(auditSource,/\^CORRECTA\$/);
 });

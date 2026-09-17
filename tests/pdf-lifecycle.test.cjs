@@ -49,7 +49,17 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
   " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1]));\n const complete=entries.length>0&&entries.length===labels.length;",
   " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];\n const complete=entries.length>0&&entries.length===uniqueLabels.length;"
  );
- assert.equal(slice(current,'const find=','const reading='),parserExpected);
+ const candidate=slice(current,'const find=','const reading=');
+ assert(candidate.includes('function powerSectionDetails(a,expectedPeriods=0){'));
+ assert(candidate.includes('const expected=Number(expectedPeriods)||0;'));
+ assert(candidate.includes('expected?entries.length===expected:entries.length===uniqueLabels.length'));
+ assert(candidate.includes('powerDetail.entries.length===expectedPowerPeriods'));
+ assert(candidate.includes('contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw'));
+ const normalized=candidate
+  .replace('function powerSectionDetails(a,expectedPeriods=0){','function powerSectionDetails(a){')
+  .replace(/ const expected=Number\(expectedPeriods\)\|\|0;\s+const complete=entries\.length>0&&\(expected\?entries\.length===expected:entries\.length===uniqueLabels\.length\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')
+  .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
+ assert.equal(normalized,parserExpected);
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
  // Authentication now has a dedicated access-control regression suite.
