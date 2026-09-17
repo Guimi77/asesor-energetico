@@ -30,13 +30,13 @@ function powerDetails(a){
 const text=(a||[]).join('\n');
 const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
 const entries=[...text.matchAll(expression)].map(m=>({contractedKw:num(m[1]),days:Number(m[2]),amount:num(m[3])}));
-const labels=[...text.matchAll(/\bP([1-6])\s*:/g)].map(m=>Number(m[1]));
+const labels=[...text.matchAll(/\bP([1-6])\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];
 const sum=round2(entries.reduce((s,e)=>s+e.amount,0));
 const remaining=text.replace(expression,'');
 const subtotals=[...remaining.matchAll(/(-?[\d.]+,\d{2})\s*€(?!\s*\/)/g)].map(m=>num(m[1]));
 const printed=subtotals.length===1?subtotals[0]:null;
 const bound=(entries.length+1)*0.005+0.000001;
-const reliable=entries.length>0&&entries.length===labels.length&&subtotals.length<=1&&(printed==null||Math.abs(printed-sum)<=bound);
+const reliable=entries.length>0&&entries.length===uniqueLabels.length&&subtotals.length<=1&&(printed==null||Math.abs(printed-sum)<=bound);
 return {entries,labels,reliable,value:reliable&&printed!=null?printed:sum};
 }
 function maximeters(items){

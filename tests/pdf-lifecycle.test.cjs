@@ -45,7 +45,11 @@ for(const [path,name,end] of readerSpec){
 }
 test('Fenie calculations stay locked while Endesa routing and audit rules can evolve safely',()=>{
  const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');
- assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','const reading='));
+ const parserExpected=slice(parserSnapshot,'const find=','const reading=').replace(
+  " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1]));\n const complete=entries.length>0&&entries.length===labels.length;",
+  " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];\n const complete=entries.length>0&&entries.length===uniqueLabels.length;"
+ );
+ assert.equal(slice(current,'const find=','const reading='),parserExpected);
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
  // Authentication now has a dedicated access-control regression suite.

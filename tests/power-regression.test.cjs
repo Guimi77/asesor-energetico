@@ -44,6 +44,10 @@ test('reads a formula before its Pn label, without using the subtotal as P1', ()
   input[1] += ` 21,00 ${euro}`;
   check(input, 21);
 });
+test('duplicate OCR period labels do not invalidate six complete power amounts', () => {
+  const input = six.flatMap((r, i) => [r, `P${i+1}:`]);
+  check(input, 21);
+});
 test('allows a header preceding P1 without modifying energy extraction', () =>
   check(['T\u00e9rmino de potencia ' + two[0], two[1]], 10.25));
 test('reads the singular dia form', () => check([row(1, '10,00', '19 d\u00eda'), two[1]], 10.25));
