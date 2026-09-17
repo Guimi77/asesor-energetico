@@ -74,3 +74,12 @@ test('Client workbook keeps body cells aligned with headers and renders total co
 test('Filename range reflects the real selected period instead of a hard-coded year',()=>{
   assert.equal(api.rangeTag([row('01/07/2025 - 31/07/2025'),row('01/08/2026 - 31/08/2026')]),'2025-07_a_2026-08');
 });
+
+test('Client report excludes parser ERROR and REVISAR rows',()=>{
+  const ok=Array(23).fill('');ok[0]='CORRECTA';ok[1]='INV-OK';ok[18]='OK';
+  const error=[...ok];error[0]='ERROR';
+  const review=[...ok];review[18]='REVISAR';
+  assert.equal(api.validClientRow(ok),true);
+  assert.equal(api.validClientRow(error),false);
+  assert.equal(api.validClientRow(review),false);
+});

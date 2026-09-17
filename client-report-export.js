@@ -1,6 +1,7 @@
 (()=>{'use strict';
 const oldWrite=XLSX.writeFile.bind(XLSX),MONTHS=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];let clientMode=false;
 const clean=v=>String(v??'').trim(),safe=v=>clean(v).replace(/[\\/:*?"<>|]/g,'_').slice(0,80)||'EMPRESA';
+function validClientRow(r){return clean(r?.[1])&&/^CORRECTA$/i.test(clean(r?.[0]))&&clean(r?.[18]).toUpperCase()==='OK'}
 const palette=(window.IBT_REPORT_TEMPLATE||{}).palette||{navy:'#061B38',blue:'#1834B8',green:'#27943B',amber:'#EFAB29',red:'#B42318',light:'#F4F7FB',text:'#10233F',muted:'#65758A'};
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function monthKey(period){const m=clean(period).match(/-\s*(\d{2})\/(\d{2})\/(\d{4})/);return m?`${m[3]}-${m[2]}`:null}
@@ -9,7 +10,7 @@ function nextMonth(key){let y=Number(key.slice(0,4)),m=Number(key.slice(5,7))+1;
 function parseBook(wb){
  const summary=XLSX.utils.sheet_to_json(wb.Sheets['Resumen'],{header:1,raw:true,defval:''}),sr=summary.slice(3),dr=XLSX.utils.sheet_to_json(wb.Sheets['Detalle P1-P6'],{header:1,raw:true,defval:''}).slice(3),detail=new Map;
  for(const r of dr){const k=clean(r[0]);if(k)detail.set(k,r)}
- return sr.filter(r=>clean(r[1])).map(r=>{const d=detail.get(clean(r[1]))||[],periods={};for(let p=1;p<=6;p++){const o=5+(p-1)*5;periods['P'+p]={kwh:Number(d[o])||0,cost:Number(d[o+1])||0,price:Number(d[o+2])||0,contracted:Number(d[o+3])||0,maximeter:d[o+4]===''?null:Number(d[o+4])||0}}return{invoice:r[1],company:r[2],cups:r[3],period:r[4],tariff:r[5],kwh:Number(r[6])||0,energy:Number(r[7])||0,total:Number(r[17])||0,avg:Number(r[19])||0,reading:clean(r[21])||'No determinada',readingSource:clean(r[22]),periods}})
+ return sr.filter(validClientRow).map(r=>{const d=detail.get(clean(r[1]))||[],periods={};for(let p=1;p<=6;p++){const o=5+(p-1)*5;periods['P'+p]={kwh:Number(d[o])||0,cost:Number(d[o+1])||0,price:Number(d[o+2])||0,contracted:Number(d[o+3])||0,maximeter:d[o+4]===''?null:Number(d[o+4])||0}}return{invoice:r[1],company:r[2],cups:r[3],period:r[4],tariff:r[5],kwh:Number(r[6])||0,energy:Number(r[7])||0,total:Number(r[17])||0,avg:Number(r[19])||0,reading:clean(r[21])||'No determinada',readingSource:clean(r[22]),periods}})
 }
 function master(cups){try{return window.EnergyMaster?.find?.(cups)||{}}catch{return{}}}
 function group(rows){const g=new Map;for(const r of rows){const k=clean(r.company)||'SIN EMPRESA';if(!g.has(k))g.set(k,[]);g.get(k).push(r)}return g}
@@ -50,6 +51,6 @@ async function companyBook(company,rows){const wb=new ExcelJS.Workbook();wb.crea
 function rangeTag(rows){const keys=rows.map(r=>monthKey(r.period)).filter(Boolean).sort();if(!keys.length)return'PERIODO';return keys[0]===keys.at(-1)?keys[0]:`${keys[0]}_a_${keys.at(-1)}`}
 async function clientExport(wb){if(typeof ExcelJS==='undefined')throw new Error('No se ha cargado ExcelJS');const rows=parseBook(wb);if(!rows.length)throw new Error('No hay facturas procesadas');const files=[];for(const [company,list] of group(rows))files.push({name:safe(company)+'_ELECTRICIDAD_'+rangeTag(list)+'.xlsx',buf:await companyBook(company,list)});if(files.length===1)download(new Blob([files[0].buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),files[0].name);else{const zip=new JSZip();files.forEach(f=>zip.file(f.name,f.buf));download(await zip.generateAsync({type:'blob'}),'INFORMES_ELECTRICIDAD_POR_EMPRESA.zip')}}
 XLSX.writeFile=function(wb,name,opt){if(clientMode&&name==='Informe_Energetico_Instalacions_BT.xlsx'){clientMode=false;clientExport(wb).catch(e=>{console.error(e);alert('No se pudo generar el informe cliente: '+e.message)});return}return oldWrite(wb,name,opt)};
-window.IBTClientReportExport=Object.freeze({monthKey,monthly,chartCoverage,rangeTag});
+window.IBTClientReportExport=Object.freeze({monthKey,monthly,chartCoverage,rangeTag,validClientRow});
 window.addEventListener('DOMContentLoaded',()=>{const internal=document.querySelector('#exportExcel');if(!internal)return;internal.textContent='▤ Exportar informe interno';const btn=document.createElement('button');btn.className='primary export';btn.id='exportClientExcel';btn.disabled=internal.disabled;btn.textContent='▤ Exportar Excel cliente';btn.style.marginLeft='7px';internal.insertAdjacentElement('afterend',btn);new MutationObserver(()=>btn.disabled=internal.disabled).observe(internal,{attributes:true,attributeFilter:['disabled']});btn.onclick=()=>{if(internal.disabled)return;clientMode=true;internal.click()}});
 })();
