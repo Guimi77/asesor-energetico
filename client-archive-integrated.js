@@ -17,7 +17,8 @@
 
   function simplifyFooter() {
     const footer = $('footer');
-    if (!footer) return;
+    if (!footer || footer.dataset.simpleBranding === '1') return;
+    footer.dataset.simpleBranding = '1';
     footer.innerHTML = '<strong>Electrica BT Mallorca SL</strong>';
   }
 
