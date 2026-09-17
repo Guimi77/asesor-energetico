@@ -7,13 +7,20 @@ const source=fs.readFileSync('xtra-history.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
-vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,excessRows,reactiveRows,taxRows,rightsDetail};',ctx);
+vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,powerDetails,excessRows,reactiveRows,taxRows,rightsDetail};',ctx);
 const plain=v=>JSON.parse(JSON.stringify(v));
 test('Completeness states distinguish missing, not applicable and unreliable data',()=>{
  assert.equal(ctx.api.status('dato',false),'extracted');
  assert.equal(ctx.api.status('',false),'not_present');
  assert.equal(ctx.api.status('',true),'unreliable');
  for(const state of ['extracted','not_present','not_applicable','unreliable','needs_review'])assert(source.includes("'"+state+"'"));
+});
+test('Historical power parser ignores duplicate OCR period labels when all six billed amounts exist',()=>{
+ const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
+ const lines=amounts.flatMap((amount,i)=>[`P${i+1}: 70,000 kW x 13 dias = ${amount} €`,`P${i+1}:`]);
+ const detail=plain(ctx.api.powerDetails(lines));
+ assert.equal(detail.reliable,true);
+ assert.equal(detail.value,108);
 });
 test('Period excess detail keeps measured kW, unit price and exact amount',()=>{
  const rows=plain(ctx.api.excessRows(['P1: 2,50 x 3,20 = 8,00 €','P2: 0,00 x 3,20 = 0,00 €']));

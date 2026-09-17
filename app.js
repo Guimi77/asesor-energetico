@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
-const PARSER_VERSION='2026.09.17.2';window.IBT_PARSER_VERSION=PARSER_VERSION;
+const PARSER_VERSION='2026.09.17.3';window.IBT_PARSER_VERSION=PARSER_VERSION;
 const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),round2=n=>Math.round((Number(n)||0)*100)/100,cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const num=s=>{if(s==null)return 0;let x=String(s).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');return Number(x)||0},euros=s=>[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])),lastEuro=s=>{const a=euros(s);return a.length?a.at(-1):0},readingStatusLabel=s=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[s]||'No determinada';
 function lines(items){const p=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x),g=[];for(const q of p){let z=g.find(v=>Math.abs(v.y-q.y)<=2.2);if(!z)g.push(z={y:q.y,a:[]});z.a.push(q)}return g.sort((a,b)=>b.y-a.y).map(z=>z.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ').replace(/\s+/g,' ').trim())}
@@ -36,8 +36,8 @@ function powerSectionDetails(a){
  // can only be a printed section subtotal. Euro/kW-day prices are excluded.
  const remaining=text.replace(expression,'');
  const subtotals=[...remaining.matchAll(/(-?[\d.]+,\d{2})\s*€(?!\s*\/)/g)].map(m=>num(m[1]));
- const labels=[...text.matchAll(/\bP([1-6])\s*:/g)].map(m=>Number(m[1]));
- const complete=entries.length>0&&entries.length===labels.length;
+ const labels=[...text.matchAll(/\bP([1-6])\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];
+ const complete=entries.length>0&&entries.length===uniqueLabels.length;
  const printedTotal=subtotals.length===1?subtotals[0]:null;
  // Each printed line and subtotal is rounded to cents independently.
  // This is a check against an explicit source amount, not a balancing entry.
