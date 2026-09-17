@@ -1,0 +1,37 @@
+name: FENIE OCR integrator v2
+on:
+  push:
+    branches: [fix/fenie-image-first-page]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/fenie-image-first-page
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply narrow integration
+        run: python tools/integrate-fenie-ocr.py
+      - name: Check syntax and regression tests
+        run: |
+          node --check app.js
+          node --check fenie-ocr-fallback.js
+          node --check xtra-history.js
+          node --check auth-bootstrap.js
+          node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
+      - name: Commit tested integration
+        run: |
+          rm .github/workflows/fenie-ocr-integrator2.yml
+          rm tools/integrate-fenie-ocr.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrar fallback OCR FENIE sin alterar el flujo normal [skip ci]"
+          git push origin HEAD:fix/fenie-image-first-page
