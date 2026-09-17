@@ -14,6 +14,7 @@ function auditWorkbook(wb){
     const consumption=n(r[6]),energy=n(r[7]),power=n(r[8]),excess=n(r[9]),reactive=n(r[10]),comp=n(r[11]),other=n(r[12]),dist=n(r[13]),tax=n(r[14]),vat=n(r[15]),igic=n(r[16]),total=n(r[17]);
     const d=byInvoice.get(invoice)||[];
     const add=(type,msg,severity='REVISAR')=>issues.push([severity,invoice,company,cups,period,tariff,type,msg]);
+    const parserStatus=txt(r[0]);if(!/^CORRECTA$/i.test(parserStatus))add('ESTADO PARSER',`La fila está marcada como ${parserStatus||'SIN ESTADO'} por el parser principal.`, 'ERROR');
     const idGood=!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
     if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: empresa, CUPS, periodo, tarifa o total.','ERROR');
     let pkwh=0,pcost=0,periodsGood=true;

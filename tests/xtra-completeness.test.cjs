@@ -22,6 +22,16 @@ test('Historical power parser ignores duplicate OCR period labels when all six b
  assert.equal(detail.reliable,true);
  assert.equal(detail.value,108);
 });
+test('Historical FENIE 3.0TD accepts missing OCR labels only with all six billed formulas',()=>{
+ const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
+ const lines=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} €`);
+ const detail=plain(ctx.api.powerDetails(lines,6));
+ assert.equal(detail.reliable,true);assert.equal(detail.value,108);
+ const missing=plain(ctx.api.powerDetails(lines.slice(0,5),6));
+ assert.equal(missing.reliable,false);
+ assert(source.includes('powerDetails(ps,expectedPowerPeriods)'));
+ assert(source.includes('periodNo=expectedPowerPeriods?i+1'));
+});
 test('Period excess detail keeps measured kW, unit price and exact amount',()=>{
  const rows=plain(ctx.api.excessRows(['P1: 2,50 x 3,20 = 8,00 €','P2: 0,00 x 3,20 = 0,00 €']));
  assert.deepEqual(rows,[{period:1,excess_kw:2.5,unit_price:3.2,amount_eur:8},{period:2,excess_kw:0,unit_price:3.2,amount_eur:0}]);

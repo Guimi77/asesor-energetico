@@ -26,7 +26,7 @@ function dateIn(line){return ((String(line||'').match(/\d{2}\/\d{2}\/\d{4}/)||[]
 function isoDate(s){const m=norm(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:''}
 function parsePeriod(s){const m=norm(s).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}}
 function status(value,present=true){return value!==''&&value!=null?'extracted':present?'unreliable':'not_present'}
-function powerDetails(a){
+function powerDetails(a,expectedPeriods=0){
 const text=(a||[]).join('\n');
 const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
 const entries=[...text.matchAll(expression)].map(m=>({contractedKw:num(m[1]),days:Number(m[2]),amount:num(m[3])}));
@@ -36,7 +36,8 @@ const remaining=text.replace(expression,'');
 const subtotals=[...remaining.matchAll(/(-?[\d.]+,\d{2})\s*€(?!\s*\/)/g)].map(m=>num(m[1]));
 const printed=subtotals.length===1?subtotals[0]:null;
 const bound=(entries.length+1)*0.005+0.000001;
-const reliable=entries.length>0&&entries.length===uniqueLabels.length&&subtotals.length<=1&&(printed==null||Math.abs(printed-sum)<=bound);
+const expected=Number(expectedPeriods)||0;
+const reliable=entries.length>0&&(expected?entries.length===expected:entries.length===uniqueLabels.length)&&subtotals.length<=1&&(printed==null||Math.abs(printed-sum)<=bound);
 return {entries,labels,reliable,value:reliable&&printed!=null?printed:sum};
 }
 function maximeters(items){
@@ -150,10 +151,10 @@ const price=pr.at(-1)||0;periods[`P${p}`]={consumption,cost,price};
 energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,unit_price_eur_kwh:price||null,toll_price_eur_kwh:pr[0]??null,charges_price_eur_kwh:pr[1]??null,retailer_price_eur_kwh:pr[2]??null});kwh+=consumption;
 }
 const energy=round2(Object.values(periods).reduce((s,x)=>s+x.cost,0));
-const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),pd=powerDetails(ps),power=pd.value;
+const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),expectedPowerPeriods=/^2\.0TD$/i.test(tariff)?2:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0,pd=powerDetails(ps,expectedPowerPeriods),power=pd.value;
 let powerPricesReliable=pd.reliable;
 const powerPeriods=pd.reliable?pd.entries.map((e,i)=>{
-const periodNo=pd.labels[i],line=prow(ps,periodNo),pr=[...line.matchAll(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi)].map(m=>num(m[1]));if(pr.length<4)powerPricesReliable=false;
+const periodNo=expectedPowerPeriods?i+1:(pd.labels[i]||i+1),line=prow(ps,periodNo),pr=[...line.matchAll(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi)].map(m=>num(m[1]));if(pr.length<4)powerPricesReliable=false;
 return {period:periodNo,contracted_kw:e.contractedKw,billed_power_eur:e.amount,unit_price_eur_kw_day:pr.at(-1)??null,toll_price_eur_kw_day:pr[0]??null,charges_price_eur_kw_day:pr[1]??null,retailer_price_eur_kw_day:pr[2]??null};
 }):[];
 const excessSection=section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/Bono social/i,/Impuesto electricidad/i]),excess=sectionTotal(excessSection),excessPeriods=excessRows(excessSection);
