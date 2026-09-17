@@ -1,6 +1,13 @@
 'use strict';
 
 window.addEventListener('DOMContentLoaded',()=>{
+  if(!document.querySelector('script[data-ui-info-tidy]')){
+    const script=document.createElement('script');
+    script.src='ui-info-tidy.js?v=20260917-1';
+    script.dataset.uiInfoTidy='1';
+    document.body.appendChild(script);
+  }
+
   const signupCopy=document.querySelector('#signupPanel .auth-copy');
   if(signupCopy)signupCopy.textContent='Crea tu cuenta. El rol se asigna de forma segura desde Supabase según las reglas de acceso internas.';
 
