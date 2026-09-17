@@ -32,6 +32,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js xtra-history.js auth-bootstrap.js index.html .github/workflows/parser-regression.yml fenie-ocr-fallback.js tests/fenie-ocr-integration.test.cjs
+          git add app.js xtra-history.js auth-bootstrap.js index.html fenie-ocr-fallback.js tests/fenie-ocr-integration.test.cjs
           git commit -m "Integrar fallback OCR FENIE sin alterar el flujo normal [skip ci]"
           git push origin HEAD:fix/fenie-image-first-page
