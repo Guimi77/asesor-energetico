@@ -1,0 +1,44 @@
+name: FENIE power label gap integrator
+
+on:
+  push:
+    branches:
+      - fix/fenie-power-missing-labels-audit-20260917
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/fenie-power-missing-labels-audit-20260917
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply narrow parser fix
+        run: python tools/apply-fenie-power-label-gap-fix.py
+      - name: Syntax checks
+        run: |
+          node --check app.js
+          node --check xtra-history.js
+          node --check parser-audit.js
+          node --check fenie-ocr-fallback.js
+          node --check client-report-export.js
+      - name: Parser and history regressions
+        run: |
+          node --test tests/power-regression.test.cjs tests/fenie-ocr-fallback.test.cjs tests/client-report-export.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs
+          git diff --check
+      - name: Commit verified fix
+        run: |
+          rm .github/workflows/fenie-power-label-gap-integrator.yml
+          rm tools/apply-fenie-power-label-gap-fix.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Aceptar potencia FENIE completa aunque OCR pierda etiquetas Pn"
+          git push origin HEAD:fix/fenie-power-missing-labels-audit-20260917
