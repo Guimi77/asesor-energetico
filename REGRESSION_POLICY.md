@@ -20,6 +20,14 @@ La batería de referencia actual contiene **341 facturas reales** y la auditorí
 
 Un cambio del parser no se considera válido si mejora una casuística pero empeora cualquiera de las métricas que ya funcionaban.
 
+### Parsers por comercializadora
+
+Los parsers específicos deben permanecer desacoplados entre sí y devolver el mismo modelo energético normalizado. Añadir una nueva comercializadora no autoriza a ampliar de forma ambigua los detectores de formatos ya soportados ni a modificar sus cálculos sin una prueba específica.
+
+**Iberdrola** se incorpora mediante `iberdrola-parser.js` como parser independiente. Su detector no puede apropiarse de facturas Endesa, FENIE ni formatos desconocidos. La aplicación, el maestro de suministros y el histórico deben consumir ese mismo parser portable en lugar de duplicar sus reglas de lectura.
+
+La persistencia histórica de cualquier nuevo parser sigue siendo *fail closed*: una factura solo puede guardarse cuando la fila del parser principal está validada, cuadra económicamente y coincide con la extracción histórica en consumo, energía, potencia, excesos, reactiva y total.
+
 ## Procedimiento obligatorio antes de aceptar un cambio
 
 1. Identificar exactamente qué caso se quiere corregir.
