@@ -3,6 +3,7 @@ let auditMode=false;
 const n=v=>Number(v)||0,txt=v=>String(v??'').trim(),has=v=>v!==''&&v!=null;
 const close=(a,b,t=.05)=>Math.abs(a-b)<=t;
 const parserVersion=()=>String(window.IBT_PARSER_VERSION||'desconocida');
+const expectedEnergyPeriods=tariff=>/^2\.0TD$/i.test(tariff)?3:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0;
 function getRows(wb,name){const ws=wb?.Sheets?.[name];return ws?XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(3):[]}
 function auditWorkbook(wb){
   const summary=getRows(wb,'Resumen').filter(r=>txt(r[1]));
@@ -17,17 +18,30 @@ function auditWorkbook(wb){
     const parserStatus=txt(r[0]);if(!/^CORRECTA$/i.test(parserStatus))add('ESTADO PARSER',`La fila está marcada como ${parserStatus||'SIN ESTADO'} por el parser principal.`, 'ERROR');
     const idGood=!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
     if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: empresa, CUPS, periodo, tarifa o total.','ERROR');
-    let pkwh=0,pcost=0,periodsGood=true;
+    let pkwh=0,pcost=0,periodsGood=true,periodConsumptionCells=0,periodCostCells=0;
+    const expectedPeriods=expectedEnergyPeriods(tariff);
     const hasAnyPeriodPrice=[1,2,3,4,5,6].some(p=>has(d[5+(p-1)*5+2]));
     const hasAnyPeriodCost=[1,2,3,4,5,6].some(p=>has(d[5+(p-1)*5+1]));
     for(let p=1;p<=6;p++){
-      const o=5+(p-1)*5,rawK=d[o],rawCost=d[o+1],rawPrice=d[o+2],k=n(rawK),cost=n(rawCost),price=n(rawPrice);pkwh+=k;if(has(rawCost))pcost+=cost;
+      const o=5+(p-1)*5,rawK=d[o],rawCost=d[o+1],rawPrice=d[o+2],k=n(rawK),cost=n(rawCost),price=n(rawPrice);
+      if(has(rawK))periodConsumptionCells++;
+      if(has(rawCost))periodCostCells++;
+      pkwh+=k;if(has(rawCost))pcost+=cost;
       if(k>0&&hasAnyPeriodPrice&&(!has(rawPrice)||price<=0)){periodsGood=false;add('PRECIO PERIODO',`P${p} tiene ${k.toFixed(2)} kWh pero el precio €/kWh informado no es válido.`)}
       if(/^2\.0TD$/i.test(tariff)&&p>=4&&(Math.abs(k)>.001||(has(rawCost)&&Math.abs(cost)>.001)||(has(rawPrice)&&Math.abs(price)>.000001))){periodsGood=false;add('PERIODO IMPOSIBLE',`Tarifa 2.0TD con datos en P${p}.`,'ERROR')}
     }
     if(periodsGood)periodOk++;
-    if(close(pkwh,consumption,.1))consumptionOk++; else add('CONSUMO',`Suma P1-P6 = ${pkwh.toFixed(2)} kWh y consumo total = ${consumption.toFixed(2)} kWh.`,'ERROR');
-    if(!hasAnyPeriodCost)energyOk++; else if(close(pcost,energy,.1))energyOk++; else add('ENERGÍA €',`Suma del coste por periodos = ${pcost.toFixed(2)} € y término energía = ${energy.toFixed(2)} €.`,'ERROR');
+    const requiredConsumption=expectedPeriods||((consumption>0||energy>0)?1:0);
+    const consumptionComplete=requiredConsumption?periodConsumptionCells>=requiredConsumption:periodConsumptionCells>0||consumption===0;
+    if(!consumptionComplete){
+      add('CONSUMO',`Faltan consumos por periodo: ${periodConsumptionCells}/${requiredConsumption||'?'} informados. No se acepta 0 kWh por ausencia de datos.`,'ERROR');
+    }else if(close(pkwh,consumption,.1))consumptionOk++;
+    else add('CONSUMO',`Suma P1-P6 = ${pkwh.toFixed(2)} kWh y consumo total = ${consumption.toFixed(2)} kWh.`,'ERROR');
+    let energyGood=true;
+    if(consumption>0&&energy<=0){energyGood=false;add('ENERGÍA €',`Hay ${consumption.toFixed(2)} kWh pero el término de energía no está informado o vale 0 €.`,'ERROR')}
+    if(!/^2\.0TD$/i.test(tariff)&&expectedPeriods&&periodCostCells<expectedPeriods){energyGood=false;add('ENERGÍA €',`Faltan costes de energía por periodo: ${periodCostCells}/${expectedPeriods} informados.`,'ERROR')}
+    if(energyGood&&hasAnyPeriodCost&&!close(pcost,energy,.1)){energyGood=false;add('ENERGÍA €',`Suma del coste por periodos = ${pcost.toFixed(2)} € y término energía = ${energy.toFixed(2)} €.`,'ERROR')}
+    if(energyGood)energyOk++;
     const accounted=energy+power+excess+reactive+comp+other+dist+tax+vat+igic;
     if(Math.abs(Math.round((total-accounted)*100))<=5)economicOk++; else add('CUADRE ECONÓMICO',`Conceptos guardados = ${accounted.toFixed(2)} € y total factura = ${total.toFixed(2)} € (dif. ${(total-accounted).toFixed(2)} €).`,'ERROR');
     if(consumption===0&&energy!==0)add('COHERENCIA','Consumo 0 kWh con término de energía distinto de 0 €.');
@@ -45,7 +59,7 @@ function auditBook(a){
     ['Control','Correctas','Total','%'],
     ['Identidad esencial',a.identityOk,a.total,pct(a.identityOk)],
     ['Consumo P1-P6 = consumo total',a.consumptionOk,a.total,pct(a.consumptionOk)],
-    ['Detalle energético coherente o no informado',a.energyOk,a.total,pct(a.energyOk)],
+    ['Detalle energético coherente',a.energyOk,a.total,pct(a.energyOk)],
     ['Cuadre económico completo',a.economicOk,a.total,pct(a.economicOk)],
     ['Coherencia de periodos/tarifa',a.periodOk,a.total,pct(a.periodOk)],
     [],['Incidencias detectadas',a.issues.length]
