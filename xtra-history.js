@@ -220,7 +220,9 @@ el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
 if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
-const x=extractHistory(await readPdf(file),file);
+const source=await readPdf(file),fallback=window.IBTFenieOcrFallback,prepared=fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
+if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
+const x=extractHistory(prepared.data,file);
 if(!x?.cups||!x.invoiceNumber||!x.period.start||!x.powerReliable)return {skipped:true,reason:'source_incomplete'};
 const ui=await waitForMainRow(x.cups,x.periodText);if(!ui)return {skipped:true,reason:'main_parser_not_found'};
 const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'&&same(ui.kwh,x.kwh,.02)&&same(ui.energy,x.energy)&&same(ui.power,x.power)&&same(ui.excess,x.excess)&&same(ui.reactive,x.reactive)&&same(ui.total,x.total);
