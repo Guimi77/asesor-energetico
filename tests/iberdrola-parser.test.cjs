@@ -29,6 +29,19 @@ function realLayoutFixture(){
   return d(p1,p2,p3);
 }
 
+function browserGroupedDianaFixture(){
+  const p1=['FACTURA DE ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO jg PDF','DIANA MARIA CHRISTINA VINCES CABADA','Titular C/ CAN GAMUNDI, 17-., LC 18','PALMA','DIANA MARIA CHRISTINA VINCES','CABADA 07199 PALMA DE MALLORCA (ILLES BALEARS)','Dirección de suministro:','C/ CAN GAMUNDI, 17-., LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)','Nº DE CONTRATO: 957890618','RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: Nº FACTURA:','27/04/2026 - 31/05/2026 21260608010256253','DIAS FACTURADOS: FECHA DE EMISIÓN:','34 8 de junio de 2026','EMPRESA RESPONSABLE. Controla tu consumo energético con nuestro'];
+  const p2=['DETALLE DE FACTURA','ENERGÍA','Potencia facturada P1 16 kW x 34 días x 0,057502 €/kW día 31,28 €','P2 16 kW x 34 días x 0,029962 €/kW día 16,30 €','P3 16 kW x 34 días x 0,012647 €/kW día 6,88 €','P4 16 kW x 34 días x 0,010967 €/kW día 5,97 €','P5 16 kW x 34 días x 0,007094 €/kW día 3,86 €','P6 16 kW x 34 días x 0,00407 €/kW día 2,21 €','Total importe potencia hasta 31/05/2026 66,50 €','Energía consumida P2 28 kWh x 0,198752 €/kWh 5,57 €','P3 14 kWh x 0,172594 €/kWh 2,42 €','P4 6 kWh x 0,150296 €/kWh 0,90 €','P5 2 kWh x 0,131956 €/kWh 0,26 €','P6 15 kWh x 0,147973 €/kWh 2,22 €','Total 65 kWh hasta 31/05/2026 11,37 €','Descuento sobre consumo 15% 15 % s/11,37 € -1,71 €','CARGOS NORMATIVOS','Financiación bono social fijo 34 días x 0,019121 €/día 0,65 €','Impuesto sobre electricidad (*) 5,11269632 % s/76,81 € 3,93 €','Alquiler equipos medida 34 días x 0,35506849 €/día 12,07 €','IVA 21 % s/92,81 € 19,49 €','TOTAL IMPORTE FACTURA 112,30 €'];
+  const p3=['Última lectura: real','Peaje de acceso a la red (ATR): 3.0TD','Potencia contratada (kW): 16 / 16 / 16 / 16 / 16 / 16','Identificación punto de suministro (CUPS): ES 0031 5007 4475 7001 LB'];
+  return d(p1,p2,p3);
+}
+
+function browserGroupedCarlaFixture(){
+  const p1=['FACTURA DE ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO','Titular Potencia: C/ DE LA LLUM, 5','CARLA FERRERO MALOW Potencia punta: 5,75 kW','Potencia valle: 5,75 kW','Dirección de suministro:','C/ DE LA LLUM, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 633501753','RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN:','22/06/2026 - 19/07/2026','Nº FACTURA:','21260727010128461','DIAS FACTURADOS:','27','FECHA DE EMISIÓN:','27 de julio de 2026','Puede encontrar el desglose detallado de los conceptos facturados'];
+  const p2=['DETALLE DE FACTURA','ENERGÍA','Potencia facturada Punta 5,75 kW x 27 días x 0,108192 €/kW día 16,80 €','Valle 5,75 kW x 27 días x 0,050658 €/kW día 7,86 €','Total importe potencia hasta 19/07/2026 24,66 €','Energía consumida 485,91 kWh x 0,148729 €/kWh 72,27 €','Descuento sobre consumo 15% 15 % s/72,27 € -10,84 €','CARGOS NORMATIVOS','Financiación bono social fijo (22/06/2026-30/06/2026) 8 días x 0,019121 €/día 0,15 €','Financiación bono social fijo (30/06/2026-19/07/2026) 19 días x 0,024688 €/día 0,47 €','Impuesto sobre electricidad (*) 5,11269632 % s/86,71 € 4,43 €','Alquiler equipos medida 27 días x 0,02663014 €/día 0,72 €','IVA (*) 21 % s/91,86 € 19,29 €','TOTAL IMPORTE FACTURA 111,15 €','Peaje de acceso a la red (ATR): 2.0TD','Identificación punto de suministro (CUPS): ES 0031 5001 6491 5001 GV','Las lecturas desagregadas según la tarifa de acceso, tomadas el 19/07/2026 son: punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.'];
+  return d(p1,p2,[]);
+}
+
 test('Iberdrola detector is conservative and does not steal Endesa/FENIE/unknown invoices',()=>{
   assert.equal(api.detect(realLayoutFixture().text),true);
   assert.equal(api.detect('Endesa Energía, S.A. Unipersonal Nº factura P26CON0001'),false);
@@ -87,4 +100,38 @@ test('Iberdrola refuses to mark a row correct when the energy subtotal stops mat
   const r=api.parse(fixture,{name:'broken.pdf'});
   assert.equal(r.readOk,false);
   assert.match(r.readMessage,/coste de energía(?: por periodos)?/i);
+});
+
+test('browser grouped Diana cannot turn Spanish prose into CUPS or marketing into holder',()=>{
+  const r=api.parse(browserGroupedDianaFixture(),{name:'diana.pdf'});
+  assert.equal(r.company,'DIANA MARIA CHRISTINA VINCES CABADA');
+  assert.equal(r.cups,'ES0031500744757001LB');
+  assert.equal(r.power,66.50);
+  assert.equal(r.energy,11.37);
+  assert.equal(r.social,0.65);
+  assert.equal(r.other,11.01);
+  assert.equal(r.accounted,112.30);
+  assert.equal(r.diff,0);
+  assert.equal(r.readingStatus,'actual');
+  assert.equal(r.readOk,true);
+  assert.equal(r.periods.P1.consumption,0);
+  assert.equal(r.periods.P1.cost,0);
+});
+
+test('browser grouped Carla 2.0TD keeps single-rate energy, both powers and both social-bonus lines',()=>{
+  const r=api.parse(browserGroupedCarlaFixture(),{name:'carla.pdf'});
+  assert.equal(r.company,'CARLA FERRERO MALOW');
+  assert.equal(r.cups,'ES0031500164915001GV');
+  assert.equal(r.kwh,485.91);
+  assert.equal(r.energy,72.27);
+  assert.equal(r.power,24.66);
+  assert.equal(r.contracted.P1,5.75);
+  assert.equal(r.contracted.P2,5.75);
+  assert.equal(r.social,0.62);
+  assert.equal(r.other,-9.50);
+  assert.equal(r.accounted,111.15);
+  assert.equal(r.diff,0);
+  assert.equal(r.readingStatus,'actual');
+  assert.equal(r.readOk,true);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption],[175.87,137.31,172.73]);
 });
