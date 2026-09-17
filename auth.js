@@ -13,6 +13,12 @@ if(!document.querySelector('script[data-admin-data-management]')){
   script.dataset.adminDataManagement='1';
   document.head.appendChild(script);
 }
+if(!document.querySelector('script[data-client-archive-integrated]')){
+  const script=document.createElement('script');
+  script.src='client-archive-integrated.js?v=20260917-1';
+  script.dataset.clientArchiveIntegrated='1';
+  document.head.appendChild(script);
+}
 
 const $=s=>document.querySelector(s);
 let currentProfile=null;
@@ -41,8 +47,6 @@ function hideInternalLocalViewsForClient(){
   document.querySelectorAll('.sidebar [data-view]').forEach(link=>{
     if(restrictedLinks.includes(link.dataset.view))link.classList.add('hidden');
   });
-  // No reemplazamos el contenido del Histórico: history-ui.js lo carga con RLS
-  // y Supabase devuelve exclusivamente los clientes enlazados a esta cuenta.
   $('#historicoView')?.classList.remove('hidden');
   document.querySelectorAll('.sidebar [data-view]').forEach(link=>link.classList.toggle('active',link.dataset.view==='historico'));
   if($('#pageTitle'))$('#pageTitle').textContent='Portal de cliente';
