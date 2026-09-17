@@ -16,7 +16,7 @@ function readerCode(baseline){return specs.map(([key,file,name,end])=>{
  const prefix=all.slice(0,pos).replace(/^import[^\n]*\n/gm,'').replaceAll('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs','/pdfjs/pdf.worker.mjs');
  return key+':(()=>{'+prefix+'\nreturn '+name+';})()';
 }).join(',');}
-function html(baseline){return '<!doctype html><html><body><button id="probe">Probar respuesta</button><span id="heartbeat"></span><script type="module">import * as pdfjsLib from "/pdfjs/pdf.mjs";window.EnergyMaster={learnInvoice:()=>({ok:true,enriched:true})};window.ticks=0;window.clicks=0;document.querySelector("#probe").onclick=()=>window.clicks++;setInterval(()=>{window.ticks++;document.querySelector("#heartbeat").textContent=window.ticks;},25);window.readers={'+readerCode(baseline)+'};window.ready=true;</script></body></html>';}
+function html(baseline){return '<!doctype html><html><body><button id="probe">Probar respuesta</button><span id="heartbeat"></span><script type="module">import * as pdfjsLib from "/pdfjs/pdf.mjs";window.EnergyMaster={learnInvoice:()=>({ok:true,enriched:true})};window.IBTInvoiceFormats={detect:()=>"fenie"};window.ticks=0;window.clicks=0;document.querySelector("#probe").onclick=()=>window.clicks++;setInterval(()=>{window.ticks++;document.querySelector("#heartbeat").textContent=window.ticks;},25);window.readers={'+readerCode(baseline)+'};window.ready=true;</script></body></html>';}
 (async()=>{
  const pdf=await PDFDocument.create();const page=pdf.addPage([595,842]);const font=await pdf.embedFont(StandardFonts.Helvetica);
  page.drawText('Razon Social: CLIENTE SINTETICO',{x:30,y:780,size:12,font});
@@ -54,7 +54,7 @@ function html(baseline){return '<!doctype html><html><body><button id="probe">Pr
     const a=await window.readers.main(file);reads++;
     const b=await window.readers.history(file);reads++;
     const c=await window.readers.master(file);reads++;
-    if(a.text!==b.text||a.pages.length!==2||b.pages.length!==2||!c.read)throw Error('Reader output changed: '+JSON.stringify({sameText:a.text===b.text,mainPages:a.pages.length,historyPages:b.pages.length,masterRead:!!c.read,mainText:a.text,historyText:b.text}));
+    if(a.text!==b.text||a.pages.length!==2||b.pages.length!==2||!c.read)throw Error('Reader output changed: '+JSON.stringify({sameText:a.text===b.text,mainPages:a.pages.length,historyPages:b.pages.length,masterRead:!!c.read}));
     if(i%10===0)await new Promise(r=>setTimeout(r,0));
    }
    const broken=new File([new Uint8Array([1,2,3])],'invalid.pdf');let failed=0;
