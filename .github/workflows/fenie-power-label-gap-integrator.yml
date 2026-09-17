@@ -55,7 +55,7 @@ jobs:
               " assert(candidate.includes('contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw'));",
               " const normalized=candidate",
               "  .replace('function powerSectionDetails(a,expectedPeriods=0){','function powerSectionDetails(a){')",
-              "  .replace(\" const expected=Number(expectedPeriods)||0;\\\\n const complete=entries.length>0&&(expected?entries.length===expected:entries.length===uniqueLabels.length);\",\" const complete=entries.length>0&&entries.length===uniqueLabels.length;\")",
+              "  .replace(/ const expected=Number\\(expectedPeriods\\)\\|\\|0;\\s+const complete=entries\\.length>0&&\\(expected\\?entries\\.length===expected:entries\\.length===uniqueLabels\\.length\\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')",
               "  .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');",
               " assert.equal(normalized,parserExpected);",
           ])
