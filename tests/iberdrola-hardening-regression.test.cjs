@@ -61,7 +61,7 @@ function assertFixed(r,expected){
   assert.equal(r.tax,expected.tax);
   assert.equal(r.vat,expected.vat);
   assert.equal(r.total,expected.total);
-  assert.equal(r.hardeningRevision,'2026.09.17.1');
+  assert.equal(r.hardeningRevision,'2026.09.17.2');
 }
 
 test('Carla: the hardening adapter recovers a valid 2.0TD invoice when PDF.js fragments formulas with unrelated text',()=>{
