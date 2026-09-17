@@ -39,6 +39,28 @@ jobs:
           PY
       - name: Apply narrow parser fix
         run: python tools/apply-fenie-power-label-gap-fix.py
+      - name: Keep FENIE calculation lock narrow and explicit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tests/pdf-lifecycle.test.cjs')
+          s=p.read_text(encoding='utf-8')
+          old=" assert.equal(slice(current,'const find=','const reading='),parserExpected);"
+          new=""" const candidate=slice(current,'const find=','const reading=');
+ assert(candidate.includes('function powerSectionDetails(a,expectedPeriods=0){'));
+ assert(candidate.includes('const expected=Number(expectedPeriods)||0;'));
+ assert(candidate.includes('expected?entries.length===expected:entries.length===uniqueLabels.length'));
+ assert(candidate.includes('powerDetail.entries.length===expectedPowerPeriods'));
+ assert(candidate.includes('contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw'));
+ const normalized=candidate
+  .replace('function powerSectionDetails(a,expectedPeriods=0){','function powerSectionDetails(a){')
+  .replace(" const expected=Number(expectedPeriods)||0;\\n const complete=entries.length>0&&(expected?entries.length===expected:entries.length===uniqueLabels.length);"," const complete=entries.length>0&&entries.length===uniqueLabels.length;")
+  .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
+ assert.equal(normalized,parserExpected);"""
+          if s.count(old)!=1:
+              raise SystemExit(f'FENIE lock assertion mismatch: {s.count(old)}')
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          PY
       - name: Syntax checks
         run: |
           node --check app.js
