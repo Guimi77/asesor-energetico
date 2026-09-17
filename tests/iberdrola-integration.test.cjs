@@ -8,7 +8,7 @@ const source=file=>fs.readFileSync(file,'utf8');
 
 test('production loads the portable Iberdrola parser before every runtime consumer',()=>{
   const html=source('index.html');
-  const parser=html.indexOf('iberdrola-parser.js?v=20260917-1');
+  const parser=html.indexOf('iberdrola-parser.js?v=20260917-2');
   const app=html.indexOf('app.js?v=20260917-iberdrola1');
   const master=html.indexOf('supply-enricher-v2.js?v=20260917-iberdrola1');
   assert(parser>=0,'Iberdrola parser script missing');
