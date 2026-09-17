@@ -27,7 +27,7 @@ test('Coverage changes stay isolated from authentication, history data and FENIE
  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',base+':supply-enricher-v2.js'],{encoding:'utf8'});
  assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
- const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente o no informado'));
+ const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));assert(audit.includes('if(consumption>0&&energy<=0)'));
  const historyExport=fs.readFileSync('history-client-export.js','utf8'),clientExport=fs.readFileSync('client-report-export.js','utf8');
  for(const code of [historyExport,clientExport]){assert(!/getDocument\s*\(|arrayBuffer\s*\(/.test(code));}
  assert(historyExport.includes('reportCoverage'));assert(historyExport.includes('readingLabel'));
