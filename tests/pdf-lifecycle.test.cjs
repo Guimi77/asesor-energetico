@@ -6,6 +6,7 @@ const vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
 const BASE='1668d5ea2f8059d17e08502d83c6395db361c4bf';
 const PARSER_BASE='4cc8fe564bc0dd3921251b964c3cdde6d06cea14';
+const AUTH_BASE='2e0c8c67245efeb052c5ae727677e3ad779ee2ff';
 const source=file=>fs.readFileSync(file,'utf8');
 const at=(rev,file)=>execFileSync('git',['show',rev+':'+file],{encoding:'utf8'});
 const old=file=>at(BASE,file);
@@ -62,8 +63,9 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
  assert.equal(normalized,parserExpected);
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
- // Authentication now has a dedicated access-control regression suite.
- for(const path of ['auth.css','history-cost-chart.js'])assert.equal(source(path),old(path),path+' must not change');
+ // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
+ assert.equal(source('auth.css'),at(AUTH_BASE,'auth.css'),'auth.css must not change');
+ assert.equal(source('history-cost-chart.js'),old('history-cost-chart.js'),'history-cost-chart.js must not change');
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
