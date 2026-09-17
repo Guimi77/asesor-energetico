@@ -33,6 +33,27 @@ test('XTRA FENIE refacturation keeps only the later invoice active',()=>{
   assert.equal(result.active.reduce((s,r)=>s+r.total,0),1995.14);
 });
 
+test('zero-consumption periods omitted by one PDF are equivalent only when known periods still sum to invoice total',()=>{
+  const old=invoice('2026070411734','2026-07-04',2043.91);
+  const newer=invoice('2026073102923','2026-07-31',1995.14);
+  delete newer.periods.P5;
+  assert.deepEqual(api.canonicalProfile(newer),[[1,0],[2,0],[3,4420],[4,2931],[5,0],[6,3697]]);
+  assert.equal(api.samePhysicalPeriod(old,newer),true);
+  const result=api.reconcile([old,newer]);
+  assert.equal(result.active.length,1);
+  assert.equal(result.active[0].invoiceNumber,'2026073102923');
+  assert.equal(old.superseded,true);
+});
+
+test('a genuinely missing non-zero period is never guessed as zero',()=>{
+  const a=invoice('2026070411734','2026-07-04');
+  const b=invoice('2026073102923','2026-07-31');
+  delete b.periods.P6;
+  assert.equal(api.canonicalProfile(b),null);
+  assert.equal(api.samePhysicalPeriod(a,b),false);
+  assert.equal(api.reconcile([a,b]).active.length,2);
+});
+
 test('invoice date can be recovered from a FENIE numeric invoice number',()=>{
   const row=invoice('2026073102923','');
   assert.equal(api.invoiceDate(row),'2026-07-31');
