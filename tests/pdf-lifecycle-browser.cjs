@@ -54,7 +54,7 @@ function html(baseline){return '<!doctype html><html><body><button id="probe">Pr
     const a=await window.readers.main(file);reads++;
     const b=await window.readers.history(file);reads++;
     const c=await window.readers.master(file);reads++;
-    if(a.text!==b.text||a.pages.length!==2||b.pages.length!==2||!c.read)throw Error('Reader output changed');
+    if(a.text!==b.text||a.pages.length!==2||b.pages.length!==2||!c.read)throw Error('Reader output changed: '+JSON.stringify({sameText:a.text===b.text,mainPages:a.pages.length,historyPages:b.pages.length,masterRead:!!c.read,mainText:a.text,historyText:b.text}));
     if(i%10===0)await new Promise(r=>setTimeout(r,0));
    }
    const broken=new File([new Uint8Array([1,2,3])],'invalid.pdf');let failed=0;
