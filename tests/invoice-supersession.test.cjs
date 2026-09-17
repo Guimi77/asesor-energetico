@@ -81,3 +81,13 @@ test('ambiguous recency warns but never silently discards either invoice',()=>{
   assert.equal(b.possibleSupersession,true);
   assert.equal(result.ambiguous,2);
 });
+
+test('one known issue date and one unknown date is still ambiguous',()=>{
+  const dated=invoice('A-100','2026-07-31');
+  const unknown=invoice('B-100','');
+  const result=api.reconcile([dated,unknown]);
+  assert.equal(result.active.length,2);
+  assert.equal(dated.possibleSupersession,true);
+  assert.equal(unknown.possibleSupersession,true);
+  assert.equal(result.ambiguous,2);
+});
