@@ -20,55 +20,28 @@ def append_once(path, marker, block):
     p.write_text(text + '\n' + block.strip() + '\n', encoding='utf-8')
 
 
-# Parser version: this change is deliberately narrow and makes the production
-# output traceable when comparing exported audit files.
+# Trace the production parser version without changing the locked FENIE
+# calculation block itself.
 replace_once(
     'app.js',
     "const PARSER_VERSION='2026.09.17.1';",
     "const PARSER_VERSION='2026.09.17.2';",
 )
 
-# For image-first FENIE invoices, page 1 may be OCR while later pages still
-# contain native PDF text. Identity fields should prefer that native text over
-# OCR, so a typical OCR confusion such as 0/O cannot create a second CUPS.
+# For image-first FENIE invoices, page 1 comes from OCR but later pages may
+# still contain native PDF text. Canonicalise identity tokens in the OCR text
+# from those later native pages before the existing parser sees page 1. This
+# avoids OCR confusions such as O/0 creating a duplicate CUPS while leaving the
+# existing, regression-locked FENIE calculations untouched.
 replace_once(
-    'app.js',
-    "function parseFenie(d,file){const a=d.pages[0]||[],text=d.text,companyLine=",
-    "function parseFenie(d,file){const a=d.pages[0]||[],text=d.text,laterText=(d.pages||[]).slice(1).flat().join('\\n'),companyLine=",
-)
-replace_once(
-    'app.js',
-    "cups=((find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||''",
-    "cups=((laterText.match(/ES[A-Z0-9]{16,24}/i)||find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||''",
-)
-replace_once(
-    'app.js',
-    "tariff=((find(a,/Tarifa:/i).match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||text.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||[])[1])||'—'",
-    "tariff=((laterText.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||find(a,/Tarifa:/i).match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||text.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||[])[1])||'—'",
+    'fenie-ocr-fallback.js',
+    "  function mergeOcrText(data,ocrText){\n    const lines=String(ocrText||'').split(/\\r?\\n/).map(v=>text(v)).filter(Boolean);\n",
+    "  function mergeOcrText(data,ocrText){\n    const later=laterText(data);\n    const nativeCups=(later.match(/\\bES[A-Z0-9]{16,24}\\b/i)||[])[0]||'';\n    const nativeTariff=(later.match(/\\b(?:2\\.0TD|3\\.0TD|6\\.[1-4]TD)\\b/i)||[])[0]||'';\n    let normalized=String(ocrText||'');\n    if(nativeCups&&/\\bES[A-Z0-9]{16,24}\\b/i.test(normalized))normalized=normalized.replace(/\\bES[A-Z0-9]{16,24}\\b/i,nativeCups);\n    if(nativeTariff&&/\\b(?:2\\.0TD|3\\.0TD|6\\.[1-4]TD)\\b/i.test(normalized))normalized=normalized.replace(/\\b(?:2\\.0TD|3\\.0TD|6\\.[1-4]TD)\\b/i,nativeTariff);\n    const lines=normalized.split(/\\r?\\n/).map(v=>text(v)).filter(Boolean);\n",
 )
 
-# Historical persistence must derive the same canonical CUPS/tariff as the
-# visible parser. It already refuses non-CORRECTA / non-OK rows; this keeps the
-# cross-check deterministic too.
-replace_once(
-    'xtra-history.js',
-    "const a=d.pages[0]||[],text=d.text;\nconst reading=",
-    "const a=d.pages[0]||[],text=d.text,laterText=(d.pages||[]).slice(1).flat().join('\\n');\nconst reading=",
-)
-replace_once(
-    'xtra-history.js',
-    "const cups=((find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||'';",
-    "const cups=((laterText.match(/ES[A-Z0-9]{16,24}/i)||find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||'';",
-)
-replace_once(
-    'xtra-history.js',
-    "const tariff=((find(a,/Tarifa:/i).match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||text.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||[])[1])||'';",
-    "const tariff=((laterText.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||find(a,/Tarifa:/i).match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||text.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||[])[1])||'';",
-)
-
-# The client workbook is a presentation layer and must never reintroduce rows
-# the parser explicitly marked ERROR / REVISAR. The internal report keeps them
-# for diagnosis, but client totals, supplies and charts use validated rows only.
+# A client workbook is a presentation layer. It must not reintroduce a row
+# already marked ERROR / REVISAR by the parser. The internal report deliberately
+# retains those rows for diagnosis.
 replace_once(
     'client-report-export.js',
     "const clean=v=>String(v??'').trim(),safe=v=>clean(v).replace(/[\\\\/:*?\"<>|]/g,'_').slice(0,80)||'EMPRESA';\n",
@@ -101,16 +74,16 @@ test('Client report excludes parser ERROR and REVISAR rows',()=>{
 )
 
 append_once(
-    'tests/fenie-ocr-integration.test.cjs',
-    "OCR identity prefers native later-page CUPS",
+    'tests/fenie-ocr-fallback.test.cjs',
+    "OCR identity uses native later-page CUPS",
     r"""
-test('OCR identity prefers native later-page CUPS and tariff',()=>{
-  const app=read('app.js'),history=read('xtra-history.js');
-  assert.match(app,/laterText=\(d\.pages\|\|\[\]\)\.slice\(1\)\.flat\(\)\.join\('\\n'\)/);
-  assert.ok(app.includes("cups=((laterText.match(/ES[A-Z0-9]{16,24}/i)||find(a,/CUPS:/i)"));
-  assert.ok(app.includes("tariff=((laterText.match(/(2\\.0TD|3\\.0TD|6\\.1TD|6\\.2TD|6\\.3TD|6\\.4TD)/i)||find(a,/Tarifa:/i)"));
-  assert.ok(history.includes("const a=d.pages[0]||[],text=d.text,laterText=(d.pages||[]).slice(1).flat().join('\\n');"));
-  assert.ok(history.includes("const cups=((laterText.match(/ES[A-Z0-9]{16,24}/i)||find(a,/CUPS:/i)"));
+test('OCR identity uses native later-page CUPS and tariff before parsing',()=>{
+  const d=special();
+  const out=api.mergeOcrText(d,'FENIE ENERGIA\nCUPS: ES0031500123456789ABOF\nTarifa: 2.0TD\nTOTAL FACTURA 120,00 €');
+  const first=out.pages[0].join(' ');
+  assert.match(first,/ES0031500123456789AB0F/);
+  assert.doesNotMatch(first,/ES0031500123456789ABOF/);
+  assert.match(first,/Tarifa: 3\.0TD/);
 });
 """,
 )

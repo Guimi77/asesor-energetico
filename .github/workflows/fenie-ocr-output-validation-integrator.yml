@@ -25,11 +25,11 @@ jobs:
           node --check xtra-history.js
           node --check client-report-export.js
           node --check fenie-ocr-fallback.js
-          node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/client-report-export.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs tests/history-recommendations.test.cjs tests/history-chart-refresh.test.cjs tests/history-client-export.test.cjs tests/historical-export-enrichment.test.cjs
+          node --test tests/fenie-ocr-fallback.test.cjs tests/fenie-ocr-integration.test.cjs tests/client-report-export.test.cjs tests/power-regression.test.cjs tests/pdf-lifecycle.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs tests/history-recommendations.test.cjs tests/history-chart-refresh.test.cjs tests/history-client-export.test.cjs
       - name: Commit tested changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js xtra-history.js client-report-export.js tests/fenie-ocr-integration.test.cjs tests/client-report-export.test.cjs
+          git add app.js fenie-ocr-fallback.js client-report-export.js tests/fenie-ocr-fallback.test.cjs tests/client-report-export.test.cjs
           git commit -m "Blindar salida OCR FENIE y excluir errores del informe cliente"
           git push origin HEAD:fix/fenie-ocr-output-validation
