@@ -51,6 +51,12 @@ replace_once(
 )
 
 replace_once(
+    'tests/pdf-lifecycle.test.cjs',
+    " const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');\n assert.equal(slice(current,'const find=','const reading='),slice(parserSnapshot,'const find=','const reading='));",
+    " const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');\n const parserExpected=slice(parserSnapshot,'const find=','const reading=').replace(\n  \" const labels=[...text.matchAll(/\\\\bP([1-6])\\\\s*:/g)].map(m=>Number(m[1]));\\n const complete=entries.length>0&&entries.length===labels.length;\",\n  \" const labels=[...text.matchAll(/\\\\bP([1-6])\\\\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];\\n const complete=entries.length>0&&entries.length===uniqueLabels.length;\"\n );\n assert.equal(slice(current,'const find=','const reading='),parserExpected);",
+)
+
+replace_once(
     'client-report-export.js',
     "if(!rows.length)throw new Error('No hay facturas procesadas');",
     "if(!rows.length)throw new Error('No hay facturas validadas (CORRECTA + Cuadre OK)');",
