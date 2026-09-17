@@ -83,3 +83,31 @@ test('OCR identity uses native later-page CUPS and tariff before parsing',()=>{
   assert.doesNotMatch(first,/ES0031500123456789ABOF/);
   assert.match(first,/Tarifa: 3\.0TD/);
 });
+
+test('OCR excess repair restores one split period amount from the printed subtotal',()=>{
+  const lines=[
+    'Excesos de Potencia Exceso Precio Total 35,13 €',
+    'P1: 0,00 €',
+    'P2: 0,00 €',
+    'P3: 20,96 €',
+    'P4: 13,94 €',
+    'P5: 0,00 €',
+    'P6:',
+    '0,23 €',
+    'Energía reactiva'
+  ];
+  const repaired=api.repairExcessRows(lines);
+  assert.match(repaired[6],/0,23 €/);
+  assert.deepEqual(lines[6],'P6:','source OCR lines stay untouched');
+});
+
+test('OCR invoice number can be recovered from the supplier filename when OCR truncates it',()=>{
+  const d=special();
+  const out=api.mergeOcrText(
+    d,
+    'FENIE ENERGIA\nFactura Nº: 9\nCUPS: ES0031500123456789AB0F\nTarifa: 3.0TD\nTOTAL FACTURA 120,00 €',
+    'FENIE ENERGIA SA FRA 2026073102923_ES0031500123456789AB.pdf'
+  );
+  assert.match(out.pages[0].join(' '),/Factura Nº: 2026073102923/);
+  assert.doesNotMatch(out.pages[0].join(' '),/Factura Nº: 9\b/);
+});
