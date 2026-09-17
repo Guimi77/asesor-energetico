@@ -34,6 +34,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app.js xtra-history.js client-report-export.js auth-bootstrap.js index.html tests/power-regression.test.cjs tests/xtra-completeness.test.cjs .github/workflows/fenie-power-label-integrator.yml tools/fix-fenie-ocr-power-labels.py
+          git add app.js xtra-history.js client-report-export.js auth-bootstrap.js index.html tests/power-regression.test.cjs tests/xtra-completeness.test.cjs tests/pdf-lifecycle.test.cjs .github/workflows/fenie-power-label-integrator.yml tools/fix-fenie-ocr-power-labels.py
           git commit -m 'Corregir falso error de potencia OCR FENIE y desbloquear informe cliente [skip ci]'
           git push origin HEAD:fix/fenie-ocr-power-labels-client-report-20260917
