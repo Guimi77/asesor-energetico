@@ -78,22 +78,10 @@
   }
 
   function integrateSupplyArchiveButtons() {
-    const sourceRows = $$('#centralSuppliesList .db-admin-row');
-    if (!sourceRows.length) return;
-
-    const sourceByCups = new Map();
-    for (const sourceRow of sourceRows) {
-      const sourceButton = sourceRow.querySelector('[data-db-action="archive_supply"]');
-      if (!sourceButton) continue;
-      const cups = norm(sourceButton.dataset.name || $('strong', sourceRow)?.textContent);
-      if (cups) sourceByCups.set(cups, sourceButton);
-    }
-
     $$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
       if (row.querySelector('.integrated-supply-archive')) return;
-      const cups = norm(row.dataset.cups);
-      const sourceButton = sourceByCups.get(cups);
-      if (!sourceButton) return;
+      const cups = row.dataset.cups;
+      if (!cups) return;
 
       let actions = $('.holder-supply-actions', row);
       if (!actions) {
@@ -108,10 +96,27 @@
         }
       }
 
-      sourceButton.classList.add('integrated-supply-archive');
-      sourceButton.textContent = 'Archivar';
-      sourceButton.title = 'Archivar este suministro conservando su histórico';
-      actions.appendChild(sourceButton);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'secondary integrated-supply-archive';
+      button.textContent = 'Archivar';
+      button.title = 'Archivar este suministro conservando todo su histórico';
+      button.dataset.cups = cups;
+      button.addEventListener('click', async () => {
+        if (typeof window.ibtArchiveSupplyByCups !== 'function') {
+          alert('La gestión central todavía se está cargando. Inténtalo de nuevo en un instante.');
+          return;
+        }
+        button.disabled = true;
+        try {
+          await window.ibtArchiveSupplyByCups(cups);
+        } catch (error) {
+          alert(error?.message || String(error));
+        } finally {
+          button.disabled = false;
+        }
+      });
+      actions.appendChild(button);
     });
   }
 
@@ -207,6 +212,7 @@
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('ibt-role-changed', schedule);
     window.addEventListener('ibt-central-data-changed', schedule);
+    window.addEventListener('ibt-central-data-ready', schedule);
     window.addEventListener('energy-master-ready', schedule);
     schedule();
   }

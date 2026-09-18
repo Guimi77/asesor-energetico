@@ -183,6 +183,7 @@
       renderClients();
       renderSupplies();
       pruneArchivedUserOptions();
+      window.dispatchEvent(new CustomEvent('ibt-central-data-ready', { detail: { supplies: state.supplies.length } }));
     } catch (error) {
       console.error('Gestión central', error);
       setMessage('#centralClientsMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
@@ -273,6 +274,25 @@
       button.disabled = false;
     }
   }
+
+  async function archiveSupplyByCups(cups) {
+    if (!isAdmin()) throw new Error('Solo un administrador puede archivar suministros.');
+    const wanted = String(cups || '').replace(/\s/g, '').toUpperCase();
+    const supply = state.supplies.find((item) => String(item.cups || '').replace(/\s/g, '').toUpperCase() === wanted);
+    if (!supply) throw new Error('No se ha encontrado este CUPS en la base central.');
+    const buttonLike = {
+      dataset: { dbAction: 'archive_supply', id: supply.id, name: supply.cups },
+      disabled: false,
+    };
+    await runLifecycle(buttonLike);
+    return true;
+  }
+
+  window.ibtArchiveSupplyByCups = archiveSupplyByCups;
+  window.ibtCentralSupplyExists = (cups) => {
+    const wanted = String(cups || '').replace(/\s/g, '').toUpperCase();
+    return state.supplies.some((item) => String(item.cups || '').replace(/\s/g, '').toUpperCase() === wanted && item.status === 'active');
+  };
 
   function bindLifecycleButtons(root) {
     $('[data-db-action]', root).forEach((button) => {
