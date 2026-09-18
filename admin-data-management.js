@@ -214,6 +214,10 @@
   }
 
   function localMasterRemoveCups(cupsList) {
+    if (window.EnergyMaster?.removeLocal) {
+      window.EnergyMaster.removeLocal(cupsList);
+      return;
+    }
     const keys = new Set((cupsList || []).map((cups) => String(cups || '').replace(/\s/g, '').toUpperCase()));
     if (!keys.size) return;
     try {
@@ -271,8 +275,10 @@
   }
 
   function bindLifecycleButtons(root) {
-    $$('[data-db-action]', root).forEach((button) => {
-      button.addEventListener('click', () => runLifecycle(button), { once: true });
+    $('[data-db-action]', root).forEach((button) => {
+      if (button.dataset.dbLifecycleBound === '1') return;
+      button.dataset.dbLifecycleBound = '1';
+      button.addEventListener('click', () => runLifecycle(button));
     });
   }
 

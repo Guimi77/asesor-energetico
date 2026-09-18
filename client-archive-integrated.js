@@ -3,16 +3,26 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const norm = (value) => String(value ?? '').trim().toLocaleUpperCase('es-ES');
+  const norm = (value) => String(value ?? '').trim().toLocaleUpperCase('es-ES').replace(/\s/g, '');
   let syncing = false;
 
   function isAdmin() {
     return window.ibtCurrentProfile?.role === 'admin';
   }
 
-  function hideDuplicatePanel() {
-    const panel = $('#centralClientsAdmin');
-    if (panel) panel.style.setProperty('display', 'none', 'important');
+  function hideCupsMenu() {
+    const link = $('.sidebar [data-view="cups"]');
+    if (!link) return;
+    link.style.setProperty('display', 'none', 'important');
+    link.setAttribute('aria-hidden', 'true');
+    link.tabIndex = -1;
+  }
+
+  function hideDuplicatePanels() {
+    const clientPanel = $('#centralClientsAdmin');
+    if (clientPanel) clientPanel.style.setProperty('display', 'none', 'important');
+    const supplyPanel = $('#centralSuppliesAdmin');
+    if (supplyPanel) supplyPanel.style.setProperty('display', 'none', 'important');
   }
 
   function simplifyFooter() {
@@ -25,7 +35,7 @@
   function simplifyClientHierarchy(card) {
     const title = $('.client-tree-title h3', card)?.textContent || '';
     const clientKey = norm(title);
-    if (!clientKey || clientKey === 'GRUPO XTRA') return;
+    if (!clientKey || clientKey === 'GRUPOXTRA') return;
 
     const folders = $$('.holder-folder', card);
     if (folders.length !== 1) return;
@@ -38,39 +48,84 @@
     folder.classList.add('simple-client-folder');
   }
 
+  function integrateClientArchiveButtons() {
+    const rows = $$('#centralClientsList .db-admin-row');
+    const cards = $$('#companyGrid .company-card-tree');
+    if (!cards.length) return;
+
+    const rowsByName = new Map();
+    for (const row of rows) {
+      const name = norm($('strong', row)?.textContent);
+      if (name) rowsByName.set(name, row);
+    }
+
+    for (const card of cards) {
+      simplifyClientHierarchy(card);
+      const title = $('.client-tree-title h3', card)?.textContent;
+      const key = norm(title);
+      if (!key || card.querySelector('.integrated-client-archive')) continue;
+
+      const sourceRow = rowsByName.get(key);
+      const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
+      const actions = $('.client-tree-title', card);
+      if (!sourceButton || !actions) continue;
+
+      sourceButton.classList.add('integrated-client-archive');
+      sourceButton.textContent = 'Archivar';
+      sourceButton.title = 'Archivar cliente conservando todo su histórico';
+      actions.appendChild(sourceButton);
+    }
+  }
+
+  function integrateSupplyArchiveButtons() {
+    const sourceRows = $$('#centralSuppliesList .db-admin-row');
+    if (!sourceRows.length) return;
+
+    const sourceByCups = new Map();
+    for (const sourceRow of sourceRows) {
+      const sourceButton = sourceRow.querySelector('[data-db-action="archive_supply"]');
+      if (!sourceButton) continue;
+      const cups = norm(sourceButton.dataset.name || $('strong', sourceRow)?.textContent);
+      if (cups) sourceByCups.set(cups, sourceButton);
+    }
+
+    $$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
+      if (row.querySelector('.integrated-supply-archive')) return;
+      const cups = norm(row.dataset.cups);
+      const sourceButton = sourceByCups.get(cups);
+      if (!sourceButton) return;
+
+      let actions = $('.holder-supply-actions', row);
+      if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'holder-supply-actions';
+        const edit = $('.edit-supply-tree', row);
+        if (edit) {
+          row.insertBefore(actions, edit);
+          actions.appendChild(edit);
+        } else {
+          row.appendChild(actions);
+        }
+      }
+
+      sourceButton.classList.add('integrated-supply-archive');
+      sourceButton.textContent = 'Archivar';
+      sourceButton.title = 'Archivar este suministro conservando su histórico';
+      actions.appendChild(sourceButton);
+    });
+  }
+
   function integrateArchiveButtons() {
-    if (syncing || !isAdmin()) return;
+    if (syncing) return;
+    hideCupsMenu();
+    hideDuplicatePanels();
+    simplifyFooter();
+    if (!isAdmin()) return;
+
     syncing = true;
     try {
-      hideDuplicatePanel();
-      simplifyFooter();
-      const rows = $$('#centralClientsList .db-admin-row');
-      const cards = $$('#companyGrid .company-card-tree');
-      if (!cards.length) return;
-
-      const rowsByName = new Map();
-      for (const row of rows) {
-        const name = norm($('strong', row)?.textContent);
-        if (name) rowsByName.set(name, row);
-      }
-
-      for (const card of cards) {
-        simplifyClientHierarchy(card);
-        const title = $('.client-tree-title h3', card)?.textContent;
-        const key = norm(title);
-        if (!key || card.querySelector('.integrated-client-archive')) continue;
-        const sourceRow = rowsByName.get(key);
-        const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
-        if (!sourceButton) continue;
-
-        const actions = $('.client-tree-title', card);
-        if (!actions) continue;
-        const button = sourceButton;
-        button.classList.add('integrated-client-archive');
-        button.textContent = 'Archivar';
-        button.title = 'Archivar cliente conservando todo su histórico';
-        actions.appendChild(button);
-      }
+      integrateClientArchiveButtons();
+      integrateSupplyArchiveButtons();
     } finally {
       syncing = false;
     }
@@ -81,7 +136,8 @@
     const style = document.createElement('style');
     style.id = 'integratedClientArchiveStyles';
     style.textContent = `
-      #centralClientsAdmin{display:none!important}
+      .sidebar [data-view="cups"]{display:none!important}
+      #centralClientsAdmin,#centralSuppliesAdmin{display:none!important}
       footer{justify-content:flex-start!important}
       footer span{display:none!important}
       .client-tree-title{gap:8px;align-items:center;flex-wrap:wrap}
@@ -94,6 +150,26 @@
         line-height:1.2!important;
         border-radius:8px!important;
       }
+      .holder-supply-actions{
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        gap:6px;
+        flex:none;
+      }
+      .holder-supply-actions .secondary{
+        margin:0!important;
+        min-height:0!important;
+        padding:5px 8px!important;
+        font-size:.66rem!important;
+        line-height:1.2!important;
+        white-space:nowrap;
+      }
+      .holder-supply-actions .integrated-supply-archive{
+        border-color:#d6a14a!important;
+        color:#8a5a00!important;
+        background:#fffaf0!important;
+      }
       .add-supply-holder{display:none!important}
       .simple-client-folder>summary{display:none!important}
       .simple-client-folder{border-top:1px solid #e7ebf1}
@@ -104,6 +180,14 @@
           width:auto!important;
           padding:6px 9px!important;
           font-size:12px!important;
+        }
+        .holder-supply-row{
+          align-items:flex-start!important;
+        }
+        .holder-supply-actions{
+          flex-direction:column;
+          align-items:stretch;
+          gap:4px;
         }
       }
     `;
@@ -116,12 +200,14 @@
 
   function init() {
     installStyles();
-    hideDuplicatePanel();
+    hideCupsMenu();
+    hideDuplicatePanels();
     simplifyFooter();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('ibt-role-changed', schedule);
     window.addEventListener('ibt-central-data-changed', schedule);
+    window.addEventListener('energy-master-ready', schedule);
     schedule();
   }
 

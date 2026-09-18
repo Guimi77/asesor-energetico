@@ -274,6 +274,17 @@
     status(source, message);
   }
 
+  function removeLocal(cupsList = []) {
+    const list = Array.isArray(cupsList) ? cupsList : [cupsList];
+    const keys = new Set(list.map((cups) => cupsKey(cups)).filter(Boolean));
+    if (!keys.size) return 0;
+    const before = supplies.length;
+    supplies = supplies.filter((supply) => !keys.has(cupsKey(supply.cups)));
+    const removed = before - supplies.length;
+    if (removed > 0) refresh();
+    return removed;
+  }
+
   function learnInvoice(data, cupsArg = '', tariffArg = '') {
     const d = typeof data === 'object' && data
       ? data
@@ -343,6 +354,7 @@
         return result;
       },
       learnInvoice,
+      removeLocal,
       refresh: () => refresh(),
       __v2: true,
     };
