@@ -272,7 +272,9 @@
 
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
-            const title = (internal && supply.alias) || supply.name || supply.address || 'Suministro';
+            const title = internal && supply.alias
+              ? [supply.alias, supply.address || supply.name].filter(Boolean).join(' - ')
+              : supply.name || supply.address || 'Suministro';
             const city = supply.city || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
