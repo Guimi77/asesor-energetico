@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='2026.09.18.2';
+  const REVISION='2026.09.18.3';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -113,6 +113,13 @@
     }
     return'';
   }
+  function parseRecipientHolder(text){
+    const s=String(text||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ');
+    const re=/([A-ZÁÉÍÓÚÜÑÇÀÈÒÏ][A-ZÁÉÍÓÚÜÑÇÀÈÒÏ'&/-]*(?:\s+[A-ZÁÉÍÓÚÜÑÇÀÈÒÏ][A-ZÁÉÍÓÚÜÑÇÀÈÒÏ'&/-]*){1,9})\s+(?=(?:C\/|CL\b|CALLE\b|CARRER\b|AV\b|AVDA\b|PASEO\b|PLAZA\b|CTRA\b))/g;
+    const banned=/(?:IBERDROLA|CLIENTES|ELECTRICIDAD|EMPRESA|RESPONSABLE|SOSTENIBLE|SMART|SOLUTIONS|NEGOCIO|FACTURA|CONTRATO)/i;
+    const candidates=[...s.matchAll(re)].map(m=>clean(m[1])).filter(v=>v&&!banned.test(v)&&!/^PALMA\b/i.test(v));
+    return candidates.length?candidates[0]:'';
+  }
   function parseAddress(lines){
     const i=firstIndex(lines,/Direcci[oó]n\s+de\s+suministro\s*:/i);if(i<0)return'';const out=[];
     for(let n=i;n<Math.min(lines.length,i+10);n++){
@@ -145,6 +152,17 @@
     }
     return out;
   }
+  function parseReadingRowsText(text,label,unit){
+    const out={},joined=String(text||''),markerRe=new RegExp(`${label}\\s*P([1-6])\\b`,'ig'),markers=[...joined.matchAll(markerRe)];
+    for(let i=0;i<markers.length;i++){
+      const m=markers[i],p=m[1],start=(m.index||0)+m[0].length,end=i+1<markers.length?(markers[i+1].index||start+900):Math.min(joined.length,start+900),seg=joined.slice(start,end),um=[...seg.matchAll(new RegExp(`(-?[\\d.]+(?:,\\d+)?)\\s*${unit}\\b`,'ig'))];
+      if(um.length)out[`P${p}`]=num(um.at(-1)[1]);
+    }
+    return out;
+  }
+  function mergePeriodMaps(...maps){
+    const out={};for(const map of maps)for(const [k,v] of Object.entries(map||{}))if(v!=null&&out[k]==null)out[k]=v;return out;
+  }
   function bestPeriodMap(variants,label,unit){
     let best={};for(const lines of variants){const p=parseReadingRows(lines,label,unit);if(Object.keys(p).length>Object.keys(best).length)best=p;}return best;
   }
@@ -173,6 +191,33 @@
 
   function parseTwoZeroBreakdown(text){
     const s=String(text||'').replace(/\s+/g,' '),m=s.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.,]+)\s*kWh\s*;?\s*llano\s*:\s*([\d.,]+)\s*kWh\s*;?\s*valle\s*:?\s*([\d.,]+)\s*kWh/i);return m?{P1:num(m[1]),P2:num(m[2]),P3:num(m[3])}:{};
+  }
+  function energyScore(e){
+    if(!e)return-1;const informed=Object.values(e.periods||{}).filter(q=>q?.consumption!=null).length,costs=Object.values(e.periods||{}).filter(q=>q?.cost!=null).length;
+    return(e.consumptionReliable?1000:0)+(e.costReliable?500:0)+informed*10+costs+(e.kwh!=null?3:0)+(e.energy!=null?2:0);
+  }
+  function parseEnergyText(text,tariff,activeReadings){
+    const source=String(text||'').replace(/\u00a0/g,' '),start=source.search(/Energ[ií]a\s+consumida\b/i);if(start<0)return null;
+    const tail=source.slice(start),stop=tail.search(/Descuento\s+sobre\s+consumo\b/i),scope=(stop>0?tail.slice(0,stop):tail.slice(0,2200)).replace(/\s+/g,' ');
+    if(/^2\.0TD$/i.test(tariff)){
+      const km=(scope.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(scope.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],amount=lastEuro(scope),breakdown=parseTwoZeroBreakdown(source),periods={};
+      for(let p=1;p<=3;p++)periods[`P${p}`]={consumption:breakdown[`P${p}`]??activeReadings?.[`P${p}`]??null,cost:null,price:rate?num(rate):null};
+      const kwh=km?num(km):(Object.keys(breakdown).length===3?round2(Object.values(breakdown).reduce((s,v)=>s+Number(v||0),0)):null),sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),calc=kwh!=null&&rate?round2(kwh*num(rate)):null;
+      return{kwh,energy:amount,periods,sumKwh,sumCost:amount??0,consumptionReliable:kwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-kwh)<=.1,costReliable:amount!=null&&calc!=null&&Math.abs(calc-amount)<=.02,pricingMode:'single_rate'};
+    }
+    const expected=expectedEnergyPeriods(tariff)||6,periods={};for(let p=1;p<=expected;p++)periods[`P${p}`]={consumption:activeReadings?.[`P${p}`]??null,cost:null,price:null};
+    const markers=[...scope.matchAll(/\bP([1-6])\b/gi)];
+    for(let i=0;i<markers.length;i++){
+      const m=markers[i],p=Number(m[1]);if(!p||p>expected)continue;
+      const a=(m.index||0)+m[0].length,b=i+1<markers.length?(markers[i+1].index||a+500):Math.min(scope.length,a+500),seg=scope.slice(a,b),km=(seg.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(seg.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],cost=lastEuro(seg),key=`P${p}`;
+      if(km!=null||cost!=null)periods[key]={consumption:km?num(km):periods[key].consumption,price:rate?num(rate):null,cost};
+    }
+    const total=scope.match(/Total\s+([\d.,]+)\s*kWh\b[\s\S]{0,180}?(-?[\d.]+,\d{2})\s*€/i),printedKwh=total?num(total[1]):null,printedCost=total?num(total[2]):null;
+    const knownConsumption=round2(Object.values(periods).filter(q=>q.consumption!=null).reduce((s,q)=>s+Number(q.consumption),0)),knownCosts=round2(Object.values(periods).filter(q=>q.cost!=null).reduce((s,q)=>s+Number(q.cost),0));
+    if(printedKwh!=null&&Math.abs(knownConsumption-printedKwh)<=.1)for(const q of Object.values(periods))if(q.consumption==null)q.consumption=0;
+    if(printedCost!=null&&Math.abs(knownCosts-printedCost)<=.05)for(const q of Object.values(periods))if(q.cost==null&&q.consumption===0)q.cost=0;
+    const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),sumCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0));
+    return{kwh:printedKwh??sumKwh,energy:printedCost??sumCost,periods,sumKwh,sumCost,consumptionReliable:printedKwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-printedKwh)<=.1,costReliable:printedCost!=null&&Object.values(periods).every(q=>q.cost!=null)&&Math.abs(sumCost-printedCost)<=.05,pricingMode:'periods'};
   }
   function parseEnergy(lines,tariff,activeReadings,allText){
     if(/^2\.0TD$/i.test(tariff)){
@@ -218,12 +263,13 @@
     const combos=allVariants(d),primary=combos[0]||[],pageCount=primary.length,p1Variants=pageVariants(d,0),detailVariants=pageVariants(d,1),p3Variants=pageVariants(d,2),allTextVariants=combos.map(pages=>pages.flat().join('\n'));
     const rawText=(d?.rawPages||[]).flat().map(x=>x?.str||'').join(' ');
     const baseAll=[String(d?.text||''),...(d?.pages||[]).flat(),rawText].join('\n');
-    const tariff=normalizeTariff(baseAll)||'—';
-    const p1=p1Variants.slice().sort((a,b)=>b.length-a.length)[0]||[],holderCandidates=p1Variants.map(parseHolder).filter(Boolean).sort((a,b)=>b.length-a.length),holder=holderCandidates[0]||'',addressCandidates=p1Variants.map(parseAddress).filter(Boolean).sort((a,b)=>b.length-a.length),supplyAddress=addressCandidates[0]||'',place=splitPlace(supplyAddress),periodCandidates=p1Variants.map(parsePeriod).filter(p=>p.label!=='Por identificar'),periodInfo=periodCandidates[0]||{label:'Por identificar',start:'',end:'',days:null},p1All=p1Variants.map(textOf).join('\n');
+    const tariff=normalizeTariff(baseAll)||'—',rawPageTexts=(d?.rawPages||[]).map(items=>(items||[]).map(x=>clean(x?.str)).filter(Boolean).join(' ')),pageLooseTexts=pageVariants(d,1).map(lines=>lines.join(' ')),looseAll=[...(d?.pages||[]).map(p=>(p||[]).join(' ')),...rawPageTexts].join('\n');
+    const p1=p1Variants.slice().sort((a,b)=>b.length-a.length)[0]||[],holderCandidates=p1Variants.map(parseHolder).filter(Boolean).sort((a,b)=>b.length-a.length),recipientHolder=parseRecipientHolder([...(d?.pages?.[0]||[]),rawPageTexts[0]||''].join(' ')),holder=recipientHolder||holderCandidates[0]||'',addressCandidates=p1Variants.map(parseAddress).filter(Boolean).sort((a,b)=>b.length-a.length),supplyAddress=addressCandidates[0]||'',place=splitPlace(supplyAddress),periodCandidates=p1Variants.map(parsePeriod).filter(p=>p.label!=='Por identificar'),periodInfo=periodCandidates[0]||{label:'Por identificar',start:'',end:'',days:null},p1All=p1Variants.map(textOf).join('\n');
     const invoiceNumber=nextLongNumber(p1All,/N[º°o.]?\s*FACTURA\s*:/i,10,22,520)||'Por identificar',contract=nextLongNumber(p1All,/N[º°o.]?\s*DE\s*CONTRATO\s*:/i,6,20,220),cups=findStrictCups(baseAll),issueDate=parseIssueDate(p1);
 
-    const activeVariants=detailVariants.map((lines,i)=>{const p3=p3Variants[Math.min(i,p3Variants.length-1)]||[];return parseReadingRows([...lines,...p3],'Energ[ií]a\s+activa','kWh');});
-    const powerDetail=bestPower(detailVariants,tariff),energyDetail=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n')))||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'};
+    const rawActive=parseReadingRowsText(looseAll,'Energ[ií]a\\s+activa','kWh');
+    const activeVariants=detailVariants.map((lines,i)=>{const p3=p3Variants[Math.min(i,p3Variants.length-1)]||[];return mergePeriodMaps(parseReadingRows([...lines,...p3],'Energ[ií]a\\s+activa','kWh'),rawActive);});
+    const powerDetail=bestPower(detailVariants,tariff),lineEnergy=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n'))),textEnergyCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parseEnergyText(t,tariff,rawActive)).filter(Boolean),textEnergy=textEnergyCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null,energyDetail=energyScore(textEnergy)>energyScore(lineEnergy)?textEnergy:(lineEnergy||textEnergy||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'});
     const selectedDetail=detailVariants.reduce((best,lines)=>{const p=parsePower(lines,tariff),e=parseEnergy(lines,tariff,activeVariants[detailVariants.indexOf(lines)]||{},[...lines,...(p3Variants[Math.min(detailVariants.indexOf(lines),p3Variants.length-1)]||[])].join('\n')),score=(p.reliable?100:0)+(e?.consumptionReliable?50:0)+(e?.costReliable?25:0);return !best||score>best.score?{lines,score}:best;},null)?.lines||detailVariants[0]||[];
     const concepts=parseConcepts(p1,selectedDetail,powerDetail?.value,energyDetail.energy),contracted=parseContracted(baseAll,tariff,powerDetail?.contracted||{}),reactivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+reactiva','kVArh'),capacitivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+capacitiva','kVArh'),maximeters=bestPeriodMap(combos.map(p=>p.flat()),'Max[ií]metro','kW');
     if(Object.keys(maximeters).length===(expectedPowerPeriods(tariff)||0))maximeters._reliable=true;
