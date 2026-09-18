@@ -325,7 +325,7 @@
       const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
-    const scaleNote = scale.mode === 'sqrt' ? `<text x="${W-padR}" y="12" text-anchor="end" font-size="10" fill="#65758a">Escala visual √ · valores reales en etiquetas</text>` : '';
+    const scaleNote = '';
     return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}${scaleNote}</svg>`;
   }
 
