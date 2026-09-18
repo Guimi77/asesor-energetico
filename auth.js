@@ -23,31 +23,24 @@ if(!document.querySelector('script[data-client-archive-integrated]')){
 const $=s=>document.querySelector(s);
 let currentProfile=null;
 let lastAccessKey='';
-let pendingSignupEmail='';
 
-function setPendingSignupEmail(email=''){
-  pendingSignupEmail=String(email||'').trim();
-  try{
-    if(pendingSignupEmail)sessionStorage.setItem('ibtPendingSignupEmail',pendingSignupEmail);
-    else sessionStorage.removeItem('ibtPendingSignupEmail');
-  }catch{}
-  const btn=$('#resendSignup');
-  if(btn)btn.classList.toggle('hidden',!pendingSignupEmail);
+function showAuthPanel(id){
+  ['loginPanel','signupPanel','signupSentPanel','recoveryPanel'].forEach(panelId=>{
+    document.getElementById(panelId)?.classList.toggle('hidden',panelId!==id);
+  });
+  setAuthMessage('');
 }
 
-function friendlySignupEmailError(error){
-  const raw=String(error?.message||'');
-  const lower=raw.toLowerCase();
-  if(lower.includes('email address not authorized')){
-    return 'La cuenta se ha registrado, pero el servicio de correo todavía no puede enviar confirmaciones a esta dirección. Puedes reintentarlo con «Reenviar correo de confirmación».';
+async function notifyRegistration(userId){
+  if(!userId)return false;
+  try{
+    const {data,error}=await supabase.functions.invoke('notify-new-registration',{body:{user_id:userId}});
+    if(error){console.warn('No se pudo enviar el aviso de registro',error);return false;}
+    return data?.ok===true;
+  }catch(error){
+    console.warn('No se pudo enviar el aviso de registro',error);
+    return false;
   }
-  if(lower.includes('confirmation')&&lower.includes('email')){
-    return 'No se ha podido enviar el correo de confirmación. Puedes reintentarlo con «Reenviar correo de confirmación».';
-  }
-  if(lower.includes('sending')&&lower.includes('email')){
-    return 'No se ha podido enviar el correo de confirmación. Puedes reintentarlo con «Reenviar correo de confirmación».';
-  }
-  return raw||'No se ha podido completar el registro.';
 }
 
 function setAuthMessage(text,type='info'){
@@ -108,7 +101,7 @@ function applySession(session,profile){
   if(usersLink)usersLink.classList.toggle('hidden',profile?.role!=='admin');
   enforceRoleAccess(profile);
   if(profile?.active===false){
-    setAuthMessage('Tu cuenta está desactivada. Contacta con el administrador.','error');
+    setAuthMessage(profile?.role==='client'?'Tu solicitud está pendiente de activación. Instal·lacions BT te avisará cuando puedas entrar.':'Tu cuenta está desactivada. Contacta con el administrador.','error');
     supabase.auth.signOut();
   }
 }
@@ -132,7 +125,7 @@ function clientAccessHtml(profile,clients,assigned){
     : '<span class="status review">Sin cliente asignado</span>';
   const available=clients.filter(c=>!current.includes(c.id));
   const selector=available.length
-    ? `<select class="user-client-assign" data-user="${profile.id}" style="display:block;margin-top:6px;max-width:320px"><option value="">+ Asignar cliente…</option>${available.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>`
+    ? `<select class="user-client-assign" data-user="${profile.id}" data-pending="${profile.active===false?'true':'false'}" style="display:block;margin-top:6px;max-width:320px"><option value="">+ Asignar cliente…</option>${available.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>`
     : '';
   return `<div>${chips}${selector}</div>`;
 }
@@ -156,7 +149,8 @@ async function renderUsers(){
   for(const p of profiles||[]){
     const tr=document.createElement('tr');
     const own=p.id===currentProfile.id;
-    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}<small style="display:block;color:#65758a;margin-top:3px">${escapeHtml(p.email||'Sin correo')}</small></td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${clientAccessHtml(p,clients||[],assigned)}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own?'disabled':''}>${p.active?'Activo':'Desactivado'}</button></td>`;
+    const pending=p.role==='client'&&p.active===false;
+    tr.innerHTML=`<td><strong>${escapeHtml(p.display_name||'Usuario')}</strong>${own?' <span class="status ok">Tú</span>':''}<small style="display:block;color:#65758a;margin-top:3px">${escapeHtml(p.email||'Sin correo')}</small></td><td><select class="role-select" data-id="${p.id}" ${own?'disabled':''}><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option><option value="staff" ${p.role==='staff'?'selected':''}>Personal interno</option><option value="client" ${p.role==='client'?'selected':''}>Cliente</option></select></td><td>${clientAccessHtml(p,clients||[],assigned)}</td><td><button class="secondary user-active" data-id="${p.id}" data-active="${p.active}" ${own||pending?'disabled':''}>${pending?'Pendiente':(p.active?'Activo':'Desactivado')}</button>${pending?'<span class="status pending" style="display:inline-flex;margin-left:6px">Asignar cliente para aprobar</span>':''}<button class="secondary user-reset-password" type="button" data-email="${escapeHtml(p.email||'')}" ${!p.email?'disabled':''}>Restablecer acceso</button></td>`;
     body.appendChild(tr);
   }
   body.querySelectorAll('.role-select').forEach(el=>el.addEventListener('change',async e=>{
@@ -168,8 +162,10 @@ async function renderUsers(){
     const clientId=e.target.value,userId=e.target.dataset.user;
     if(!clientId||!userId)return;
     e.target.disabled=true;
-    const {error}=await supabase.from('client_users').insert({user_id:userId,client_id:clientId});
-    if(error)alert('No se pudo asignar el cliente: '+error.message);
+    const {data,error}=await supabase.functions.invoke('admin-data-lifecycle',{body:{action:'approve_user',id:userId,client_id:clientId}});
+    if(error||data?.error){
+      alert('No se pudo asignar y aprobar el usuario: '+(data?.error||error?.message||'error desconocido'));
+    }
     await renderUsers();
   }));
   body.querySelectorAll('.user-client-remove').forEach(el=>el.addEventListener('click',async e=>{
@@ -179,6 +175,15 @@ async function renderUsers(){
     const {error}=await supabase.from('client_users').delete().eq('user_id',userId).eq('client_id',clientId);
     if(error)alert('No se pudo quitar el acceso: '+error.message);
     await renderUsers();
+  }));
+  body.querySelectorAll('.user-reset-password').forEach(el=>el.addEventListener('click',async e=>{
+    const btn=e.currentTarget,email=btn.dataset.email;
+    if(!email)return;
+    btn.disabled=true;
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:APP_ROOT.href});
+    if(error)alert('No se pudo enviar el restablecimiento: '+error.message);
+    else alert('Se ha enviado un enlace de restablecimiento a '+email+'.');
+    btn.disabled=false;
   }));
   body.querySelectorAll('.user-active').forEach(el=>el.addEventListener('click',async e=>{
     const active=e.currentTarget.dataset.active==='true';
@@ -193,18 +198,22 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 window.addEventListener('DOMContentLoaded',()=>{
   const loginForm=$('#loginForm');
   const signupForm=$('#signupForm');
-  try{setPendingSignupEmail(sessionStorage.getItem('ibtPendingSignupEmail')||'');}catch{setPendingSignupEmail('');}
+  const recoveryForm=$('#recoveryForm');
 
-  $('#showSignup')?.addEventListener('click',()=>{
-    $('#loginPanel')?.classList.add('hidden');
-    $('#signupPanel')?.classList.remove('hidden');
-    setAuthMessage('');
-  });
+  $('#showSignup')?.addEventListener('click',()=>showAuthPanel('signupPanel'));
+  $('#showLogin')?.addEventListener('click',()=>showAuthPanel('loginPanel'));
+  $('#signupSentBack')?.addEventListener('click',()=>showAuthPanel('loginPanel'));
 
-  $('#showLogin')?.addEventListener('click',()=>{
-    $('#signupPanel')?.classList.add('hidden');
-    $('#loginPanel')?.classList.remove('hidden');
-    setAuthMessage('');
+  $('#forgotPassword')?.addEventListener('click',async()=>{
+    const email=$('#loginEmail')?.value.trim();
+    if(!email){
+      setAuthMessage('Introduce tu correo y vuelve a pulsar «He olvidado mi contraseña».','error');
+      return;
+    }
+    setAuthMessage('Enviando enlace de restablecimiento…');
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:APP_ROOT.href});
+    if(error){setAuthMessage(error.message,'error');return;}
+    setAuthMessage('Te hemos enviado un enlace para crear una nueva contraseña. Revisa también la carpeta de spam.','ok');
   });
 
   loginForm?.addEventListener('submit',async e=>{
@@ -215,21 +224,19 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(error){
       const msg=String(error.message||'');
       if(msg.toLowerCase().includes('email not confirmed')){
-        setPendingSignupEmail(email);
-        setAuthMessage('Tu cuenta existe, pero falta confirmar el correo. Revisa tu bandeja de entrada o usa «Reenviar correo de confirmación».','error');
+        setAuthMessage('Tu solicitud todavía está pendiente de aprobación por Instal·lacions BT.','error');
       }else{
         setAuthMessage(msg,'error');
       }
       return;
     }
-    setPendingSignupEmail('');
     setAuthMessage('');
     await refreshAuth();
   });
 
   signupForm?.addEventListener('submit',async e=>{
     e.preventDefault();
-    setAuthMessage('Creando cuenta…');
+    setAuthMessage('Enviando solicitud…');
     const email=$('#signupEmail').value.trim(),password=$('#signupPassword').value,display_name=$('#signupName').value.trim();
     const submit=signupForm.querySelector('button[type="submit"]');
     if(submit)submit.disabled=true;
@@ -237,64 +244,45 @@ window.addEventListener('DOMContentLoaded',()=>{
       const {data,error}=await supabase.auth.signUp({
         email,
         password,
-        options:{data:{display_name},emailRedirectTo:SIGNUP_CONFIRM_URL}
+        options:{data:{display_name,registration_source:'public_request'}}
       });
-
-      if(error){
-        setPendingSignupEmail(email);
-        setAuthMessage(friendlySignupEmailError(error),'error');
-        return;
-      }
-
-      if(data.session){
-        setPendingSignupEmail('');
-        setAuthMessage('Cuenta creada. Si eres cliente, un administrador debe asignarte tu ficha antes de que puedas ver datos.','ok');
-        await refreshAuth();
-      }else{
-        setPendingSignupEmail(email);
-        setAuthMessage('Cuenta registrada. Falta confirmar el correo. Revisa tu bandeja de entrada y spam. Si no llega, pulsa «Reenviar correo de confirmación».','ok');
-      }
+      if(error){setAuthMessage(error.message,'error');return;}
+      await notifyRegistration(data?.user?.id);
+      if(data?.session)await supabase.auth.signOut({scope:'local'}).catch(()=>{});
+      showAuthPanel('signupSentPanel');
     }finally{
       if(submit)submit.disabled=false;
     }
   });
 
-  $('#resendSignup')?.addEventListener('click',async e=>{
-    const btn=e.currentTarget;
-    const email=pendingSignupEmail||$('#signupEmail')?.value.trim()||$('#loginEmail')?.value.trim();
-    if(!email){
-      setAuthMessage('Introduce primero el correo de la cuenta.','error');
-      return;
-    }
-
-    btn.disabled=true;
-    setAuthMessage('Reenviando confirmación…');
-    try{
-      const {error}=await supabase.auth.resend({
-        type:'signup',
-        email,
-        options:{emailRedirectTo:SIGNUP_CONFIRM_URL}
-      });
-      if(error){
-        setPendingSignupEmail(email);
-        setAuthMessage(friendlySignupEmailError(error),'error');
-        return;
-      }
-      setPendingSignupEmail(email);
-      setAuthMessage('Correo de confirmación reenviado. Revisa también la carpeta de spam.','ok');
-    }finally{
-      btn.disabled=false;
-    }
+  recoveryForm?.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const password=$('#recoveryPassword')?.value||'';
+    const repeat=$('#recoveryPassword2')?.value||'';
+    if(password!==repeat){setAuthMessage('Las contraseñas no coinciden.','error');return;}
+    setAuthMessage('Guardando nueva contraseña…');
+    const {error}=await supabase.auth.updateUser({password});
+    if(error){setAuthMessage(error.message,'error');return;}
+    await supabase.auth.signOut({scope:'local'}).catch(()=>{});
+    showAuthPanel('loginPanel');
+    setAuthMessage('Contraseña actualizada. Ya puedes iniciar sesión.','ok');
   });
 
   $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();location.reload();});
   $('#usersNav')?.addEventListener('click',async()=>{
     $('#pageTitle').textContent='Usuarios';
-    $('#pageSubtitle').textContent='Gestiona roles y asigna a cada cuenta de cliente únicamente las fichas que puede consultar.';
+    $('#pageSubtitle').textContent='Aprueba solicitudes vinculando cada cuenta con su cliente y gestiona los accesos.';
     $('#pageEyebrow').textContent='Administración';
     await renderUsers();
   });
+
   supabase.auth.onAuthStateChange((event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      document.body.classList.add('auth-signed-out');
+      document.body.classList.remove('auth-signed-in','auth-pending');
+      showAuthPanel('recoveryPanel');
+      return;
+    }
     const incomingId=session?.user?.id||null;
     const appliedId=window.ibtCurrentProfile?.id||null;
     if(event==='TOKEN_REFRESHED')return;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Instal·lacions BT · Confirmación de registro</title>
+  <title>Instal·lacions BT · Confirmación de correo</title>
   <style>
     :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0b2447;background:#f4f7fb}
     *{box-sizing:border-box}
@@ -26,7 +26,7 @@
 <body>
   <main class="card" aria-live="polite">
     <img class="logo" src="assets/capcalera-documents.png" alt="Instal·lacions BT"/>
-    <p class="eyebrow">Confirmación de cuenta</p>
+    <p class="eyebrow">Confirmación de correo</p>
     <div id="stateIcon" class="state">…</div>
     <h1 id="title">Comprobando el registro…</h1>
     <p id="message" class="copy">Estamos verificando que el correo haya quedado confirmado correctamente.</p>
@@ -100,9 +100,9 @@
       cleanAddress();
       await supabase.auth.signOut({scope:'local'}).catch(()=>{});
       const notice=notified
-        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido un aviso de tu registro. Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Hasta entonces no podrás ver datos de ningún suministro.'
-        : '<strong>Siguiente paso:</strong> tu registro está confirmado, pero no hemos podido enviar el aviso automático. Contacta con Instal·lacions BT para que un administrador vincule tu cuenta con tu ficha y tus CUPS.';
-      render('ok','Registro completado','El correo '+email+' ha quedado confirmado correctamente.',notice);
+        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido tu solicitud. Un administrador vinculará tu cuenta con el cliente correspondiente. Te avisaremos cuando puedas entrar.'
+        : '<strong>Siguiente paso:</strong> tu correo está confirmado, pero tu solicitud sigue pendiente. Contacta con Instal·lacions BT si necesitas comprobar su estado.';
+      render('ok','Correo confirmado','El correo '+email+' ha quedado confirmado correctamente. Tu solicitud de acceso sigue pendiente de aprobación.',notice);
     }
     verifyConfirmation().catch(err=>{
       console.error(err);
