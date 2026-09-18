@@ -289,20 +289,35 @@
     return '';
   }
 
+  function adaptiveChartScale(values) {
+    const valid = values.filter(v => Number.isFinite(v));
+    if (!valid.length) return { mode:'linear', min:0, max:1, forward:v=>v, inverse:v=>v };
+    const low = Math.min(0, ...valid), high = Math.max(0, ...valid);
+    const positives = valid.filter(v => v > 0);
+    const minPositive = positives.length ? Math.min(...positives) : 0;
+    const compressed = low >= 0 && minPositive > 0 && high / minPositive >= 12;
+    if (compressed) {
+      const maxT = Math.sqrt(high || 1);
+      return { mode:'sqrt', min:0, max:maxT, forward:v=>Math.sqrt(Math.max(0,v)), inverse:v=>v*v };
+    }
+    const span = high - low || 1;
+    return { mode:'linear', min:low, max:high || 1, forward:v=>v, inverse:v=>v };
+  }
+
   function svgChart(points, field, formatter) {
-    if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
+    if (!points.length) return '<div class="history-empty">No hay meses con datos para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? p[field] : null);
-    const valid = vals.filter(v => v !== null);
-    const min = Math.min(0, ...valid), max = Math.max(0, ...valid);
-    const span = max - min || 1;
-    const ticks = [0,.5,1].map(f => min + span * f);
+    const scale = adaptiveChartScale(vals.filter(v => v !== null));
+    const span = scale.max - scale.min || 1;
+    const tickFractions = [0,.25,.5,.75,1];
+    const ticks = tickFractions.map(f => scale.inverse(scale.min + span * f));
     const padL = Math.max(102, ...ticks.map(v => formatter(v).length * 7 + 18));
     const W = Math.max(680, padL + 300), H = 180, padR = 40, padT = 12, padB = 28;
     const innerW = W - padL - padR, innerH = H - padT - padB;
-    const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (vals[i] - min) / span * innerH }));
+    const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (scale.forward(vals[i]) - scale.min) / span * innerH }));
     let connected = false;
     const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
-    const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / 2; return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
+    const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
     const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
@@ -310,7 +325,8 @@
       const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
-    return `<svg class="history-svg" data-field="${esc(field)}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}</svg>`;
+    const scaleNote = scale.mode === 'sqrt' ? `<text x="${W-padR}" y="12" text-anchor="end" font-size="10" fill="#65758a">Escala visual √ · valores reales en etiquetas</text>` : '';
+    return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}${scaleNote}</svg>`;
   }
 
   // Rendered with the other charts, from the same filtered numeric records.
