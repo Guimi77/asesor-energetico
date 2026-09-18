@@ -90,10 +90,12 @@
       client,
       type,
       clientTaxId: norm(raw.clientTaxId),
+      clientAlias: norm(raw.clientAlias),
       company,
       holder: norm(raw.holder) || company,
       status: norm(raw.status) || 'ACTIVO',
       cups: norm(raw.cups).replace(/\s/g, ''),
+      alias: norm(raw.alias || raw.supplyAlias),
     };
   }
 
@@ -215,18 +217,18 @@
     const groups = new Map();
     for (const supply of supplies) {
       const groupKey = key(supply.clientTaxId) || key(supply.client);
-      if (!groups.has(groupKey)) groups.set(groupKey, { name: supply.client, list: [] });
+      if (!groups.has(groupKey)) groups.set(groupKey, { name: supply.client, alias: supply.clientAlias || '', list: [] });
       groups.get(groupKey).list.push(supply);
     }
 
     grid.innerHTML = [...groups.values()]
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ name, list }) => {
+      .map(({ name, alias, list }) => {
         const holders = holderTree(list);
         const type = list[0]?.type || 'CLIENTE';
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
-            const title = supply.name || supply.address || 'Suministro';
+            const title = supply.alias || supply.name || supply.address || 'Suministro';
             const city = supply.city || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
@@ -236,7 +238,7 @@
           return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong><span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(name)}" data-holder="${esc(holder.name)}">+ Añadir suministro a este titular</button></div></details>`;
         }).join('');
 
-        return `<article class="card company-card company-card-tree"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3><small>${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}</small></div><button class="company-link add-supply" data-client="${esc(name)}">+ Nuevo suministro</button></div><div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(alias || name)}</h3>${alias ? `<small class="client-legal-name">${esc(name)}</small>` : ''}<small>${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}</small></div><button class="company-link add-supply" data-client="${esc(name)}">+ Nuevo suministro</button></div><div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
@@ -424,9 +426,11 @@
   function fillForm(supply) {
     $('#clientType').value = supply.type || 'PENDIENTE';
     $('#clientName').value = supply.client || '';
+    if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
     $('#clientTaxId').value = supply.clientTaxId || supply.holderTaxId || '';
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
+    if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
     $('#supplyName').value = supply.name || '';
     $('#supplyAddress').value = supply.address || '';
     $('#supplyCity').value = supply.city || '';
@@ -448,6 +452,7 @@
       $('#clientName').value = client;
       $('#clientType').value = existing.type || 'PENDIENTE';
       $('#clientTaxId').value = existing.clientTaxId || '';
+      if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
       $('#holderName').value = holder || existing.holder || existing.company || client;
     } else {
       $('#clientName').value = client;
@@ -477,11 +482,75 @@
     $('#clientFormMsg').textContent = '';
   }
 
+  async function persistAliases({ cups, client, clientTaxId, clientAlias, supplyAlias }) {
+    const supabase = window.ibtSupabase;
+    const role = window.ibtCurrentProfile?.role;
+    if (!supabase || !['admin', 'staff'].includes(role)) return { ok: false, skipped: true };
+
+    const cleanClientAlias = norm(clientAlias) || null;
+    const cleanSupplyAlias = norm(supplyAlias) || null;
+    const wantedCups = cupsKey(cups);
+
+    try {
+      const { data: supplyRows, error: supplyError } = await supabase
+        .from('supplies')
+        .select('id,holder_id,cups,cups_key')
+        .or(`cups.eq.${cups},cups_key.eq.${wantedCups}`)
+        .limit(1);
+      if (supplyError) throw supplyError;
+
+      const centralSupply = supplyRows?.[0] || null;
+      if (centralSupply) {
+        const { error: supplyAliasError } = await supabase
+          .from('supplies')
+          .update({ alias: cleanSupplyAlias })
+          .eq('id', centralSupply.id);
+        if (supplyAliasError) throw supplyAliasError;
+
+        const { data: holder, error: holderError } = await supabase
+          .from('holders')
+          .select('client_id')
+          .eq('id', centralSupply.holder_id)
+          .maybeSingle();
+        if (holderError) throw holderError;
+
+        if (holder?.client_id) {
+          const { error: clientAliasError } = await supabase
+            .from('clients')
+            .update({ alias: cleanClientAlias })
+            .eq('id', holder.client_id);
+          if (clientAliasError) throw clientAliasError;
+        }
+
+        window.dispatchEvent(new CustomEvent('ibt-aliases-changed', {
+          detail: { cups, clientAlias: cleanClientAlias, supplyAlias: cleanSupplyAlias },
+        }));
+        return { ok: true };
+      }
+
+      let query = supabase.from('clients').select('id').limit(1);
+      query = norm(clientTaxId) ? query.eq('tax_id', norm(clientTaxId)) : query.eq('name', client);
+      const { data: clients, error: clientLookupError } = await query;
+      if (clientLookupError) throw clientLookupError;
+      if (clients?.[0]?.id) {
+        const { error: clientAliasError } = await supabase
+          .from('clients')
+          .update({ alias: cleanClientAlias })
+          .eq('id', clients[0].id);
+        if (clientAliasError) throw clientAliasError;
+      }
+      return { ok: true, supplyPending: true };
+    } catch (error) {
+      console.warn('No se pudieron guardar los alias en la base central', error);
+      return { ok: false, error };
+    }
+  }
+
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
 
-    $('#clientForm').onsubmit = (event) => {
+    $('#clientForm').onsubmit = async (event) => {
       event.preventDefault();
       const client = norm($('#clientName').value);
       const cups = norm($('#clientCups').value).replace(/\s/g, '');
@@ -499,10 +568,12 @@
       const data = {
         client,
         clientTaxId: $('#clientTaxId').value,
+        clientAlias: $('#clientAlias')?.value || '',
         clientType: $('#clientType').value,
         company: $('#holderName').value || client,
         holder: $('#holderName').value || client,
         cups,
+        alias: $('#supplyAlias')?.value || '',
         name: $('#supplyName').value,
         address: $('#supplyAddress').value,
         city: $('#supplyCity').value,
@@ -530,8 +601,15 @@
       }
 
       const wasEditing = Boolean(editingCups);
+      const aliasSave = await persistAliases({
+        cups,
+        client,
+        clientTaxId: data.clientTaxId,
+        clientAlias: data.clientAlias,
+        supplyAlias: data.alias,
+      });
       closeForm();
-      refresh({ message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'}.</strong> Cambios guardados localmente y sin duplicados.` });
+      refresh({ message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'}.</strong> ${aliasSave.ok ? 'Alias guardados en la base central.' : 'Cambios guardados localmente; los alias centrales quedan pendientes.'}` });
     };
 
     const masterInput = $('#masterInput');
