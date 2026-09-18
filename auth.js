@@ -244,7 +244,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       const {data,error}=await supabase.auth.signUp({
         email,
         password,
-        options:{data:{display_name,registration_source:'public_request'}}
+        options:{emailRedirectTo:SIGNUP_CONFIRM_URL,data:{display_name,registration_source:'public_request'}}
       });
       if(error){setAuthMessage(error.message,'error');return;}
       await notifyRegistration(data?.user?.id);
