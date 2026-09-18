@@ -420,59 +420,83 @@ td{padding:10px 8px}
 }
 
 
-/* Historical periods: page owns vertical scroll 2026-09-18 */
-#historyContent .history-table-wrap:has(> .history-table){
+/* Historical periods: fixed scroll viewport 2026-09-18 */
+#historyPeriodsTableWrap{
+  position:relative;
   width:100%!important;
   max-width:100%!important;
-  max-height:none!important;
-  overflow-x:auto!important;
-  overflow-y:visible!important;
-  overscroll-behavior-x:contain!important;
-  overscroll-behavior-y:auto!important;
+  height:clamp(300px,48vh,480px);
+  max-height:480px!important;
+  overflow-x:scroll!important;
+  overflow-y:scroll!important;
+  overscroll-behavior:contain!important;
   -webkit-overflow-scrolling:touch;
   touch-action:pan-x pan-y;
-  scrollbar-gutter:auto!important;
+  scrollbar-gutter:stable!important;
   scrollbar-width:auto;
-  scrollbar-color:#9aa9bd #eef2f6;
+  scrollbar-color:#8d9db2 #edf2f7;
+  border-top:1px solid #dce4ed;
+  background:#fff;
 }
-#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar{
-  height:11px;
-}
-#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-track{
-  background:#eef2f6;
-  border-radius:999px;
-}
-#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-thumb{
-  background:#9aa9bd;
-  border:2px solid #eef2f6;
-  border-radius:999px;
-}
-#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-thumb:hover{
-  background:#72839b;
-}
-#historyContent .history-table-wrap:has(> .history-table) .history-table{
+#historyPeriodsTableWrap .history-table{
   width:max-content!important;
   min-width:100%!important;
   max-width:none!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
 }
-#historyContent .history-table-wrap:has(> .history-table) .history-table th,
-#historyContent .history-table-wrap:has(> .history-table) .history-table td{
+#historyPeriodsTableWrap .history-table thead th{
+  position:sticky!important;
+  top:0!important;
+  z-index:12!important;
+  background:#10233f!important;
+  color:#fff!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.16),0 2px 5px rgba(6,27,56,.16)!important;
+}
+#historyPeriodsTableWrap .history-table th,
+#historyPeriodsTableWrap .history-table td{
   white-space:nowrap!important;
 }
+#historyPeriodsTableWrap::-webkit-scrollbar{
+  width:12px;
+  height:12px;
+}
+#historyPeriodsTableWrap::-webkit-scrollbar-track{
+  background:#edf2f7;
+}
+#historyPeriodsTableWrap::-webkit-scrollbar-thumb{
+  background:#8d9db2;
+  border:2px solid #edf2f7;
+  border-radius:999px;
+}
+#historyPeriodsTableWrap::-webkit-scrollbar-thumb:hover{
+  background:#687b94;
+}
+#historyPeriodsTableWrap::-webkit-scrollbar-corner{
+  background:#edf2f7;
+}
 @media(max-width:900px){
-  #historyContent .history-table-wrap:has(> .history-table){
+  #historyPeriodsTableWrap{
+    height:clamp(300px,55vh,460px);
+    max-height:460px!important;
     overflow-x:scroll!important;
-    overflow-y:visible!important;
-    overscroll-behavior-x:contain!important;
-    overscroll-behavior-y:auto!important;
+    overflow-y:scroll!important;
+    overscroll-behavior:contain!important;
     touch-action:pan-x pan-y!important;
     -webkit-overflow-scrolling:touch!important;
-    padding-bottom:2px;
+    scrollbar-gutter:stable!important;
   }
-  #historyContent .history-table-wrap:has(> .history-table) .history-table{
+  #historyPeriodsTableWrap .history-table{
     min-width:1320px!important;
   }
-  #historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar{
+  #historyPeriodsTableWrap .history-table thead th{
+    position:sticky!important;
+    top:0!important;
+    z-index:12!important;
+  }
+  #historyPeriodsTableWrap::-webkit-scrollbar{
+    width:12px;
     height:12px;
   }
 }
+

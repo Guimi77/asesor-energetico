@@ -32,20 +32,20 @@ window.addEventListener('DOMContentLoaded',()=>{
       .history-badge{display:none!important}
       #historicoView,#historyApp,#historyContent{min-width:0;max-width:100%}
       #historicoView{overflow-x:hidden}
-      #historicoView .history-table-wrap:has(> .history-table){
-        max-height:none;
-        overflow-x:auto;
-        overflow-y:visible;
-        overscroll-behavior-x:contain;
-        overscroll-behavior-y:auto;
-        scrollbar-gutter:auto;
+      #historyPeriodsTableWrap{
+        height:clamp(300px,48vh,480px);
+        max-height:480px;
+        overflow-x:scroll;
+        overflow-y:scroll;
+        overscroll-behavior:contain;
+        scrollbar-gutter:stable;
         -webkit-overflow-scrolling:touch;
         touch-action:pan-x pan-y;
       }
-      #historicoView .history-table thead th{
+      #historyPeriodsTableWrap .history-table thead th{
         position:sticky!important;
-        top:0;
-        z-index:8;
+        top:0!important;
+        z-index:12;
         background:#10233f;
         box-shadow:0 1px 0 rgba(255,255,255,.18),0 2px 5px rgba(6,27,56,.16);
       }
@@ -61,17 +61,22 @@ window.addEventListener('DOMContentLoaded',()=>{
         }
       }
       @media(max-width:1100px){
-        #historicoView .history-table-wrap:has(> .history-table){
-          max-height:none;
-          overflow-x:auto;
-          overflow-y:visible;
-          overscroll-behavior-x:contain;
-          overscroll-behavior-y:auto;
-          scrollbar-gutter:auto;
+        #historyPeriodsTableWrap{
+          height:clamp(300px,55vh,460px);
+          max-height:460px;
+          overflow-x:scroll;
+          overflow-y:scroll;
+          overscroll-behavior:contain;
+          scrollbar-gutter:stable;
           -webkit-overflow-scrolling:touch;
           touch-action:pan-x pan-y;
         }
-        #historicoView .history-table thead th{position:static!important;box-shadow:none!important}
+        #historyPeriodsTableWrap .history-table thead th{
+          position:sticky!important;
+          top:0!important;
+          z-index:12!important;
+          box-shadow:0 1px 0 rgba(255,255,255,.18),0 2px 5px rgba(6,27,56,.16)!important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -180,7 +185,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260918-noscalenote1';
+    script.src='history-ui.js?v=20260918-periodscroll1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       loadAnalysisUi();
