@@ -41,5 +41,5 @@ test('Core recommendation dependencies remain locked while Endesa input adapters
  assert.equal(part(currentEnricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
  assert(currentEnricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('const expectedEnergyPeriods='));assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(consumption>0&&energy<=0)'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));
- const ui=fs.readFileSync('history-ui.js','utf8');assert(ui.includes('${renderRecommendations(records)}'));assert(ui.includes('Hechos del histórico · no recomendaciones'));const html=fs.readFileSync('index.html','utf8');assert(html.indexOf('history-recommendations.js')<html.indexOf('auth-bootstrap.js'));
+ const ui=fs.readFileSync('history-ui.js','utf8');assert(ui.includes('${renderRecommendations(records)}'));assert(ui.includes('window.IBTHistoryRecommendations?.render'));const html=fs.readFileSync('index.html','utf8');assert(html.indexOf('history-recommendations.js')<html.indexOf('auth-bootstrap.js'));
 });
