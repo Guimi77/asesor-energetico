@@ -133,3 +133,35 @@ test('v2 holder fallback takes the recipient name before the postal address, not
   const text='IBERDROLA CLIENTES, S.A.U. CLIENTE PRUEBA APELLIDO C/ EJEMPLO, 17 CONTRATO Titular EMPRESA RESPONSABLE Consigue un negocio más eficiente con la ayuda Dirección de suministro: C/ EJEMPLO, 17';
   assert.equal(api._test.parseRecipientHolder(text),'CLIENTE PRUEBA APELLIDO');
 });
+
+
+test('v2 rescue reads energy from the exact Iberdrola document text when visual line reconstruction is unusable',()=>{
+  const carlaText=[
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','Peaje de acceso a la red (ATR): 2.0TD',
+    'Energía consumida 485,91 kWh x 0,148729 €/kWh 72,27 €',
+    'Las lecturas desagregadas según la tarifa de acceso, tomadas el 19/07/2026 son: punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.'
+  ].join('\n');
+  const ce=api._test.rescueEnergyFromDocumentText(carlaText,'2.0TD');
+  assert.equal(ce.kwh,485.91);assert.equal(ce.energy,72.27);assert.equal(ce.consumptionReliable,true);assert.equal(ce.costReliable,true);
+  assert.deepEqual([ce.periods.P1.consumption,ce.periods.P2.consumption,ce.periods.P3.consumption],[175.87,137.31,172.73]);
+
+  const dianaText=[
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','Peaje de acceso a la red (ATR): 3.0TD',
+    'Energía consumida P2 28 kWh x 0,198752 €/kWh 5,57 €',
+    'P3 14 kWh x 0,172594 €/kWh 2,42 €',
+    'P4 6 kWh x 0,150296 €/kWh 0,90 €',
+    'P5 2 kWh x 0,131956 €/kWh 0,26 €',
+    'P6 15 kWh x 0,147973 €/kWh 2,22 €',
+    'Total 65 kWh hasta 31/05/2026 11,37 €',
+    '300209449 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
+    '300209449 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
+    '300209449 Energía activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
+    '300209449 Energía activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
+    '300209449 Energía activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
+    '300209449 Energía activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
+  ].join('\n');
+  const de=api._test.rescueEnergyFromDocumentText(dianaText,'3.0TD');
+  assert.equal(de.kwh,65);assert.equal(de.energy,11.37);assert.equal(de.consumptionReliable,true);assert.equal(de.costReliable,true);
+  assert.deepEqual([de.periods.P1.consumption,de.periods.P2.consumption,de.periods.P3.consumption,de.periods.P4.consumption,de.periods.P5.consumption,de.periods.P6.consumption],[0,28,14,6,2,15]);
+  assert.deepEqual([de.periods.P1.cost,de.periods.P2.cost,de.periods.P3.cost,de.periods.P4.cost,de.periods.P5.cost,de.periods.P6.cost],[0,5.57,2.42,0.9,0.26,2.22]);
+});
