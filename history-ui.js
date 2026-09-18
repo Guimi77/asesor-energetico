@@ -81,13 +81,7 @@
     if (!$('#historyApp', view)) {
       view.innerHTML = `
         <div id="historyApp" class="history-app">
-          <section class="card">
-            <div class="history-topline">
-              <div><p class="eyebrow">Memoria energética</p><h2>Histórico energético</h2><p>Consulta la evolución técnica y económica conservada por cliente, titular y CUPS. Solo se almacenan datos estructurados validados.</p></div>
-              <span class="history-badge">PDF no almacenados</span>
-            </div>
-          </section>
-          <section class="card">
+          <section class="card history-controls-card">
             <div class="history-toolbar">
               <label id="historyClientLabel">Cliente<div id="historyClientControl"></div></label>
               <label>Titular<select id="historyHolder"><option value="">Todos los titulares</option></select></label>
@@ -96,8 +90,8 @@
               <label>Hasta<input id="historyTo" type="date"></label>
             </div>
             <div class="history-mode-note" id="historyModeNote"></div>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
-              <button id="historyExportClient" class="primary export" type="button" disabled>▤ Descargar Excel cliente</button>
+            <div class="history-actions">
+              <button id="historyExportClient" class="primary export" type="button" disabled>▤ Excel cliente</button>
               <span id="historyExportStatus" class="history-scope" role="status" aria-live="polite"></span>
             </div>
           </section>
@@ -154,11 +148,11 @@
         } finally { if (state.currentClient === clientId) { state.scopeLoading = false; updateExportButton(); } }
         if (state.currentClient === clientId) await refreshRecords();
       });
-      if (note) note.textContent = 'Acceso interno: puedes cambiar de cliente. La base de datos aplica los permisos de acceso.';
+      if (note) note.textContent = '';
     } else {
       const c = state.clients.find(x => x.id === state.currentClient) || state.clients[0];
       host.innerHTML = `<div class="history-client-fixed">${esc(c?.name || 'Cliente')}</div>`;
-      if (note) note.textContent = 'Acceso cliente: solo puedes consultar la información asignada a tu cuenta.';
+      if (note) note.textContent = 'Solo datos asignados a tu cuenta.';
     }
   }
 
@@ -484,11 +478,10 @@
         </div>
         <div id="historyDetailHost"></div>
       </section>
-      <section class="card">
-        <div class="history-section-head"><div><p class="eyebrow">Hechos del histórico · no recomendaciones</p><h2 style="margin:0">Cambios observados en el suministro</h2></div><span class="history-scope">Tarifa y potencia contratada</span></div>
-        <p class="history-scope">Comparamos los datos de dos periodos guardados. Estos cambios no son recomendaciones de ahorro. La fecha corresponde al inicio del periodo posterior; no confirma el día exacto del cambio contractual.</p>
-        <div class="history-events">${events.length ? events.map(renderContractEvent).join('') : '<div class="history-empty">No se observan cambios comparables en esta selección. Los datos ausentes no se interpretan como un cambio.</div>'}</div>
-      </section>
+      ${events.length ? `<section class="card history-change-section">
+        <div class="history-section-head"><div><h2 style="margin:0">Cambios detectados</h2></div><span class="history-scope">Tarifa y potencia</span></div>
+        <div class="history-events">${events.map(renderContractEvent).join('')}</div>
+      </section>` : ''}
       ${renderRecommendations(records)}`;
 
     $$('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {

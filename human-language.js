@@ -107,26 +107,27 @@
     const consumption=items.filter(x=>x.type==='consumption-up'||x.type==='consumption-down');
     const reading=byType('reading-quality');
     const confirmedCost=cost('excess')+cost('reactive');
-    if(confirmedCost>0)blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>Costes adicionales detectados</small><strong>${fmt(confirmedCost)} €</strong><span>Excesos de potencia y energía reactiva registrados en las facturas analizadas</span></div>`);
-    if(power.length)blocks.push(`<div class="history-human-kpi"><small>Potencia posiblemente alta</small><strong>${power.length}</strong><span>suministro${power.length===1?'':'s'} para estudiar</span></div>`);
+    if(confirmedCost>0)blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>Costes detectados</small><strong>${fmt(confirmedCost)} €</strong><span>Excesos y reactiva registrados</span></div>`);
+    if(power.length)blocks.push(`<div class="history-human-kpi"><small>Potencia a revisar</small><strong>${power.length}</strong><span>suministro${power.length===1?'':'s'}</span></div>`);
     if(consumption.length){
       const main=[...consumption].sort((a,b)=>Math.abs(Number(b.changeRatio)||0)-Math.abs(Number(a.changeRatio)||0))[0];
       const up=main.type==='consumption-up',pct=Math.abs(Number(main.changeRatio)||0)*100;
       const baseline=Number(main.baselineKwhDay),recent=Number(main.recentKwhDay);
-      const values=Number.isFinite(baseline)&&Number.isFinite(recent)?`De ${fmt(baseline,2)} a ${fmt(recent,2)} kWh/día.`:'Cambio calculado sobre el consumo diario.';
-      const extra=consumption.length>1?` Mostramos el de mayor magnitud de ${consumption.length} cambios detectados.`:'';
-      blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>${up?'Aumento':'Descenso'} del consumo diario</small><strong>${up?'+':'-'}${fmt(pct,1)} %</strong><span>${values} Últimas 2 facturas frente a la mediana de los 3 periodos anteriores.${extra}</span></div>`);
+      const values=Number.isFinite(baseline)&&Number.isFinite(recent)?`${fmt(baseline,2)} → ${fmt(recent,2)} kWh/día`:'Cambio sobre consumo diario';
+      const extra=consumption.length>1?` · ${consumption.length} cambios`:'';
+      blocks.push(`<div class="history-human-kpi history-human-kpi-main"><small>Consumo diario</small><strong>${up?'+':'-'}${fmt(pct,1)} %</strong><span>${values} · últimas 2 vs 3 anteriores${extra}</span></div>`);
     }
-    if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Datos de consumo a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'} sin lectura suficientemente clara</span></div>`);
+    if(reading.length)blocks.push(`<div class="history-human-kpi"><small>Lecturas a comprobar</small><strong>${reading.length}</strong><span>suministro${reading.length===1?'':'s'}</span></div>`);
     if(!blocks.length)return'';
-    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen rápido</h2></div></div><p class="history-scope history-human-intro">Lo importante primero. Los euros son costes que ya aparecen en el histórico.</p><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
+    return`<section class="card history-human-overview"><div class="history-section-head"><div><h2>Resumen</h2></div></div><div class="history-human-overview-grid">${blocks.join('')}</div></section>`;
   }
 
-  function section({id,title,intro,items,supplyMap,holderMap,limit=999,empty=''}){
+  function section({id,title,items,supplyMap,holderMap,limit=999}){
+    if(!items.length)return'';
     const visible=items.slice(0,limit),rest=items.slice(limit);
     const cards=visible.map(x=>card(x,supplyMap,holderMap)).join('');
     const more=rest.length?`<details class="history-more-signals"><summary>Ver otros ${rest.length} avisos</summary><div class="history-rec-list">${rest.map(x=>card(x,supplyMap,holderMap)).join('')}</div></details>`:'';
-    return`<section class="card history-recommendations" id="${esc(id)}"><div class="history-section-head"><div><h2>${esc(title)}</h2></div><span class="history-pill">${items.length} ${items.length===1?'aviso':'avisos'}</span></div><p class="history-scope history-human-intro">${esc(intro)}</p><div class="history-rec-list">${cards||`<div class="history-empty">${esc(empty)}</div>`}</div>${more}</section>`;
+    return`<section class="card history-recommendations" id="${esc(id)}"><div class="history-section-head"><div><h2>${esc(title)}</h2></div><span class="history-pill">${items.length} ${items.length===1?'aviso':'avisos'}</span></div><div class="history-rec-list">${cards}</div>${more}</section>`;
   }
 
   function render(options={}){
@@ -139,19 +140,13 @@
     const study=items.filter(x=>!['excess','reactive','consumption-up','consumption-down'].includes(x.type));
 
     const costSection=costs.length?section({
-      id:'historyConfirmedCosts',title:'Costes que ya aparecen en las facturas',items:costs,supplyMap,holderMap,limit:5,
-      intro:'Los mostramos primero porque son cargos reales y ayudan a decidir qué merece revisar antes.',
-      empty:''
+      id:'historyConfirmedCosts',title:'Costes detectados',items:costs,supplyMap,holderMap,limit:5
     }):'';
-    const studySection=section({
-      id:'historyRecommendations',title:'Otras cosas que conviene estudiar',items:study,supplyMap,holderMap,limit:5,
-      intro:'Aquí hay señales que merecen estudio técnico. Antes de actuar necesitamos contexto o más comprobaciones.',
-      empty:'No hemos encontrado otros avisos claros con los datos disponibles. Esto no confirma que el suministro esté optimizado: puede faltar histórico o detalle fiable.'
-    });
+    const studySection=study.length?section({
+      id:'historyRecommendations',title:'Avisos',items:study,supplyMap,holderMap,limit:5
+    }):'';
     const consumptionSection=consumption.length?section({
-      id:'historyConsumptionChanges',title:'Cambios importantes en el consumo',items:consumption,supplyMap,holderMap,limit:5,
-      intro:'Te mostramos exactamente qué periodos se comparan y con qué datos. La señal usa kWh/día para no confundir una factura más larga con un aumento real de consumo.',
-      empty:''
+      id:'historyConsumptionChanges',title:'Cambios de consumo',items:consumption,supplyMap,holderMap,limit:5
     }):'';
     return overview(items)+costSection+studySection+consumptionSection;
   }

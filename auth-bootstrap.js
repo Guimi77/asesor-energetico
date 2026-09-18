@@ -166,7 +166,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260914-quickview1';
+    script.src='history-ui.js?v=20260918-clean1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       loadAnalysisUi();
@@ -187,7 +187,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       existing.addEventListener('error',loadHistoryUi,{once:true});
     }else{
       const script=document.createElement('script');
-      script.src='human-language.js?v=20260915-summary2';
+      script.src='human-language.js?v=20260918-clean1';
       script.dataset.humanLanguage='1';
       script.onload=loadHistoryUi;
       script.onerror=()=>{console.warn('No se pudo cargar la capa de lenguaje sencillo');loadHistoryUi();};
