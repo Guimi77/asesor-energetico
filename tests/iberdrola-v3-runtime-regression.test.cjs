@@ -4,6 +4,20 @@ const assert=require('node:assert/strict');
 const parser=require('../iberdrola-parser-v3.js');
 
 const doc=(...pages)=>({pages,text:pages.flat().join('\n')});
+function rawFromPages(pages){
+  return pages.map(page=>{
+    const items=[];
+    page.forEach((line,row)=>{
+      let x=30;
+      for(const token of String(line).split(/\s+/).filter(Boolean)){
+        items.push({str:token,transform:[1,0,0,1,x,800-row*12],height:10});
+        x+=Math.max(8,token.length*5.2);
+      }
+    });
+    return items;
+  });
+}
+
 
 function twoZero(){
   return doc([
@@ -108,4 +122,33 @@ test('Iberdrola v3 fails closed if billed period cost no longer matches the prin
   const r=parser.parse(d,{name:'broken.pdf'});
   assert.equal(r.readOk,false);
   assert.match(r.readMessage,/coste de energía/i);
+});
+
+
+test('Iberdrola v3 recovers the Carla/Diana fields from raw PDF items when the browser visual rows are broken',()=>{
+  const carlaSource=twoZero();
+  const carlaBrokenPages=[
+    ['FACTURA DE ELECTRICIDAD IBERDROLA CLIENTES, S.A.U.'],
+    ['Total importe potencia hasta 19/07/2026 24,66 €','Las lecturas desagregadas según la tarifa de acceso, tomadas el 19/07/2026 son: punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.','Peaje de acceso a la red (ATR): 2.0TD','Identificación punto de suministro (CUPS): ES 0000 0000 0000 0000 AA']
+  ];
+  const carla={pages:carlaBrokenPages,rawPages:rawFromPages(carlaSource.pages),text:carlaBrokenPages.flat().join('\n')};
+  const c=parser.parse(carla,{name:'carla-browser.pdf'});
+  assert.equal(c.readOk,true,JSON.stringify(c));
+  assert.equal(c.company,'CLIENTE PRUEBA DOS CERO');
+  assert.equal(c.period,'22/06/2026 - 19/07/2026 (27 días)');
+  assert.equal(c.kwh,485.91);assert.equal(c.energy,72.27);assert.equal(c.power,24.66);assert.equal(c.tax,4.43);assert.equal(c.diff,0);
+
+  const dianaSource=threeZero();
+  const dianaBrokenPages=[
+    ['FACTURA DE ELECTRICIDAD IBERDROLA CLIENTES, S.A.U.','CLIENTE PRUEBA TRES'],
+    ['Total importe potencia hasta 31/05/2026 66,50 €','Energía consumida P2 28 kWh x 0,198752 €/kWh 5,57 €','P3 14 kWh x 0,172594 €/kWh 2,42 €','P4 6 kWh x 0,150296 €/kWh 0,90 €','P5 2 kWh x 0,131956 €/kWh 0,26 €','P6 15 kWh x 0,147973 €/kWh 2,22 €','Total 65 kWh hasta 31/05/2026 11,37 €'],
+    ['Peaje de acceso a la red (ATR): 3.0TD','Potencia contratada (kW): 16 / 16 / 16 / 16 / 16 / 16','Identificación punto de suministro (CUPS): ES 0000 0000 0000 0001 AA']
+  ];
+  const diana={pages:dianaBrokenPages,rawPages:rawFromPages(dianaSource.pages),text:dianaBrokenPages.flat().join('\n')};
+  const d=parser.parse(diana,{name:'diana-browser.pdf'});
+  assert.equal(d.readOk,true,JSON.stringify(d));
+  assert.equal(d.company,'CLIENTE PRUEBA TRES CERO');
+  assert.equal(d.period,'27/04/2026 - 31/05/2026 (34 días)');
+  assert.equal(d.kwh,65);assert.equal(d.energy,11.37);assert.equal(d.power,66.5);assert.equal(d.tax,3.93);assert.equal(d.diff,0);
+  assert.deepEqual([d.periods.P1.consumption,d.periods.P2.consumption,d.periods.P3.consumption,d.periods.P4.consumption,d.periods.P5.consumption,d.periods.P6.consumption],[0,28,14,6,2,15]);
 });
