@@ -28,7 +28,7 @@
     if (!holderIds.length) return [];
     const { data, error } = await supabase
       .from('supplies')
-      .select('id,holder_id,cups,alias,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status')
+      .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status')
       .in('holder_id', holderIds)
       .eq('status', 'active')
       .order('cups');
@@ -202,12 +202,16 @@
 
       const { data: clients, error: clientError } = await supabase
         .from('clients')
-        .select('id,name,alias,tax_id,status')
+        .select('id,name,tax_id,status')
         .eq('status', 'active')
         .order('name');
       if (clientError) throw clientError;
 
       const activeClients = clients || [];
+      const { data: aliasPayload, error: aliasError } = await supabase.rpc('get_internal_aliases');
+      if (aliasError) throw aliasError;
+      const clientAliases = aliasPayload?.clients || {};
+      const supplyAliases = aliasPayload?.supplies || {};
       const clientIds = activeClients.map((client) => client.id);
 
       let holders = [];
@@ -254,7 +258,7 @@
         const type = clientType(client, holderCountByClient.get(client.id) || 0);
         const result = master.add({
           client: client.name,
-          clientAlias: client.alias || '',
+          clientAlias: clientAliases[client.id] || '',
           clientTaxId: client.tax_id || '',
           clientType: type,
           type,
@@ -262,7 +266,7 @@
           holder: holder.legal_name,
           holderTaxId: holder.tax_id || '',
           cups: supply.cups,
-          alias: supply.alias || '',
+          alias: supplyAliases[supply.id] || '',
           name: supply.supply_name || '',
           address: supply.address || '',
           city: supply.city || '',
@@ -323,6 +327,7 @@
   window.addEventListener('ibt-role-changed', scheduleSync);
   window.addEventListener('energy-master-ready', scheduleSync);
   window.addEventListener('ibt-central-data-changed', () => { lastSyncKey = ''; scheduleSync(); });
+  window.addEventListener('ibt-aliases-changed', () => { lastSyncKey = ''; scheduleSync(); });
   window.addEventListener('DOMContentLoaded', scheduleSync);
   if (document.readyState !== 'loading') scheduleSync();
 
