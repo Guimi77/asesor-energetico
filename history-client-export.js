@@ -88,25 +88,16 @@
   function dataRow(ws,values){const row=ws.addRow(values);row.height=24;row.eachCell({includeEmpty:true},c=>{c.font={name:'Calibri',size:10,color:{argb:argb(colors().text)}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:row.number%2?'FFFFFFFF':argb(colors().light)}};c.alignment={vertical:'middle',wrapText:true};});return row;}
   function totalRow(ws,values){const row=dataRow(ws,values);row.eachCell(c=>{c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:argb(colors().red)}};});return row;}
   function sourceNote(r){return 'Origen: hist\u00f3rico Supabase \u00b7 '+text(r.invoice_number)+' \u00b7 '+dateES(r.billing_start)+' - '+dateES(r.billing_end)+' \u00b7 ID '+r.id;}
-  function chartScale(values){
-    const valid=values.filter(v=>v!=null&&Number.isFinite(v));
-    if(!valid.length)return{mode:'linear',min:0,max:1,forward:v=>v,inverse:v=>v};
-    const low=Math.min(0,...valid),high=Math.max(0,...valid),positive=valid.filter(v=>v>0),minPositive=positive.length?Math.min(...positive):0;
-    const compressed=low>=0&&minPositive>0&&high/minPositive>=12;
-    if(compressed){const maxT=Math.sqrt(high||1);return{mode:'sqrt',min:0,max:maxT,forward:v=>Math.sqrt(Math.max(0,v)),inverse:v=>v*v};}
-    return{mode:'linear',min:low,max:high||1,forward:v=>v,inverse:v=>v};
-  }
   function chartPng(points,key,title,unit){
     const c=root.document.createElement('canvas');c.width=900;c.height=300;const x=c.getContext('2d');if(!x)throw Error('No se han podido generar las gr\u00e1ficas.');
-    const p=colors(),valid=points.map(a=>number(a[key])).filter(v=>v!=null),scale=chartScale(valid),span=scale.max-scale.min||1;
-    const L=110,T=48,W=766,H=204,step=W/Math.max(points.length,1),price=key==='energyPrice'||key==='totalUnit';
+    const p=colors(),valid=points.map(a=>number(a[key])).filter(v=>v!=null),low=Math.min(0,...valid),high=Math.max(0,...valid),span=high-low||1,min=low<0?low-span*.1:0,max=high+span*.1||1;
+    const L=94,T=48,W=782,H=204,step=W/Math.max(points.length,1),price=key==='energyPrice'||key==='totalUnit';
     x.fillStyle='#FFFFFF';x.fillRect(0,0,900,300);x.fillStyle=p.text;x.font='bold 17px sans-serif';x.fillText(title,18,25);x.font='11px sans-serif';x.fillStyle=p.muted;x.fillText(unit,18,41);
-    if(scale.mode==='sqrt'){x.textAlign='right';x.fillText('Escala visual √ · valores reales',882,25);}
-    for(let i=0;i<=4;i++){const t=scale.min+span*i/4,val=scale.inverse(t),y=T+H-H*i/4;x.strokeStyle='#DCE4ED';x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(L+W,y);x.stroke();x.textAlign='right';x.fillStyle=p.muted;x.fillText(fmt(val,price?3:0),L-8,y+4);}
-    const y=v=>T+H-(scale.forward(v)-scale.min)/span*H;
+    for(let i=0;i<=4;i++){const val=min+(max-min)*i/4,y=T+H-H*i/4;x.strokeStyle='#DCE4ED';x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(L+W,y);x.stroke();x.textAlign='right';x.fillStyle=p.muted;x.fillText(fmt(val,price?3:0),L-8,y+4);}
+    const y=v=>T+H-(v-min)/(max-min)*H;
     x.strokeStyle=price?p.red:p.blue;x.lineWidth=2.5;let started=false;x.beginPath();
     if(price){points.forEach((a,i)=>{const v=number(a[key]);if(v==null){started=false;return;}const px=L+(i+.5)*step;if(!started)x.moveTo(px,y(v));else x.lineTo(px,y(v));started=true;});x.stroke();}
-    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'?p.blue:p.red;if(price||scale.mode==='sqrt'){if(!price&&scale.mode==='sqrt'){x.strokeStyle=key==='kwh'?p.blue:p.red;x.lineWidth=2;const base=y(0);x.beginPath();x.moveTo(px,base);x.lineTo(px,y(v));x.stroke();}x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){x.fillStyle=p.muted;x.textAlign='center';x.font='10px sans-serif';x.fillText(MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4),px,276);}});
+    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){x.fillStyle=p.muted;x.textAlign='center';x.font='10px sans-serif';x.fillText(MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4),px,276);}});
     return c.toDataURL('image/png');
   }
   function addCharts(wb,ws,mo,lastRow){
