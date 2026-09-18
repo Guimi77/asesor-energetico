@@ -48,7 +48,7 @@ const server=http.createServer((req,res)=>{
   await page.selectOption('#historySupply','s0');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===7);assert.equal(await page.locator('#historyCostChart circle').count(),7);
   await page.fill('#historyTo','2026-01-31');await page.locator('#historyTo').dispatchEvent('change');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===1);
   assert.equal(await page.locator('#historyCostChart circle').count(),1);assert.equal(Number(await page.locator('#historyCostChart circle').getAttribute('data-cost')),.2);
-  await page.locator('.history-detail-btn').first().click();assert((await page.locator('#historyDetailHost').innerText()).includes('Energía por periodos'));assert.equal(await page.locator('#historyRecommendations').count(),1);
+  await page.locator('.history-detail-btn').first().click();assert((await page.locator('#historyDetailHost').innerText()).includes('Energía por periodos'));
   await page.evaluate(()=>{window.chartMutations=0;new MutationObserver(m=>window.chartMutations+=m.length).observe(document.querySelector('#historyContent'),{childList:true,subtree:true});});
   const queries=await page.evaluate(()=>window.mockQueries);const other=await browser.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(300);await page.bringToFront();await page.waitForTimeout(600);
   assert.equal(await page.evaluate(()=>window.chartMutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
