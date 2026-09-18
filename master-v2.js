@@ -175,7 +175,8 @@
 
   function save() {
     try {
-      localStorage.setItem(STORAGE, JSON.stringify(supplies));
+      const safeSupplies = supplies.map(({ clientAlias, alias, ...supply }) => supply);
+      localStorage.setItem(STORAGE, JSON.stringify(safeSupplies));
       return true;
     } catch (error) {
       console.warn('No se pudo guardar el maestro localmente', error);
@@ -232,7 +233,8 @@
         const type = list[0]?.type || 'CLIENTE';
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
-            const title = supply.alias || supply.name || supply.address || 'Suministro';
+            const internalAlias = ['admin','staff'].includes(window.ibtCurrentProfile?.role);
+            const title = (internalAlias && supply.alias) || supply.name || supply.address || 'Suministro';
             const city = supply.city || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
@@ -242,7 +244,7 @@
           return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong><span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(name)}" data-holder="${esc(holder.name)}">+ Añadir suministro a este titular</button></div></details>`;
         }).join('');
 
-        return `<article class="card company-card company-card-tree"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(alias || name)}</h3>${alias ? `<small class="client-legal-name">${esc(name)}</small>` : ''}<small>${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}</small></div><button class="company-link add-supply" data-client="${esc(name)}">+ Nuevo suministro</button></div><div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc((['admin','staff'].includes(window.ibtCurrentProfile?.role) && alias) || name)}</h3>${(['admin','staff'].includes(window.ibtCurrentProfile?.role) && alias) ? `<small class="client-legal-name">${esc(name)}</small>` : ''}<small>${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}</small></div><button class="company-link add-supply" data-client="${esc(name)}">+ Nuevo suministro</button></div><div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
@@ -490,62 +492,19 @@
     const supabase = window.ibtSupabase;
     const role = window.ibtCurrentProfile?.role;
     if (!supabase || !['admin', 'staff'].includes(role)) return { ok: false, skipped: true };
-
-    const cleanClientAlias = norm(clientAlias) || null;
-    const cleanSupplyAlias = norm(supplyAlias) || null;
-    const wantedCups = cupsKey(cups);
-
     try {
-      const { data: supplyRows, error: supplyError } = await supabase
-        .from('supplies')
-        .select('id,holder_id,cups,cups_key')
-        .or(`cups.eq.${cups},cups_key.eq.${wantedCups}`)
-        .limit(1);
-      if (supplyError) throw supplyError;
-
-      const centralSupply = supplyRows?.[0] || null;
-      if (centralSupply) {
-        const { error: supplyAliasError } = await supabase
-          .from('supplies')
-          .update({ alias: cleanSupplyAlias })
-          .eq('id', centralSupply.id);
-        if (supplyAliasError) throw supplyAliasError;
-
-        const { data: holder, error: holderError } = await supabase
-          .from('holders')
-          .select('client_id')
-          .eq('id', centralSupply.holder_id)
-          .maybeSingle();
-        if (holderError) throw holderError;
-
-        if (holder?.client_id) {
-          const { error: clientAliasError } = await supabase
-            .from('clients')
-            .update({ alias: cleanClientAlias })
-            .eq('id', holder.client_id);
-          if (clientAliasError) throw clientAliasError;
-        }
-
-        window.dispatchEvent(new CustomEvent('ibt-aliases-changed', {
-          detail: { cups, clientAlias: cleanClientAlias, supplyAlias: cleanSupplyAlias },
-        }));
-        return { ok: true };
-      }
-
-      let query = supabase.from('clients').select('id').limit(1);
-      query = norm(clientTaxId) ? query.eq('tax_id', norm(clientTaxId)) : query.eq('name', client);
-      const { data: clients, error: clientLookupError } = await query;
-      if (clientLookupError) throw clientLookupError;
-      if (clients?.[0]?.id) {
-        const { error: clientAliasError } = await supabase
-          .from('clients')
-          .update({ alias: cleanClientAlias })
-          .eq('id', clients[0].id);
-        if (clientAliasError) throw clientAliasError;
-      }
-      return { ok: true, supplyPending: true };
+      const { data, error } = await supabase.rpc('set_internal_aliases', {
+        p_cups: cups || null,
+        p_client_name: client || null,
+        p_client_tax_id: clientTaxId || null,
+        p_client_alias: norm(clientAlias) || null,
+        p_supply_alias: norm(supplyAlias) || null,
+      });
+      if (error) throw error;
+      window.dispatchEvent(new CustomEvent('ibt-aliases-changed', { detail: data || {} }));
+      return { ok: data?.ok !== false, data };
     } catch (error) {
-      console.warn('No se pudieron guardar los alias en la base central', error);
+      console.warn('No se pudieron guardar los alias internos', error);
       return { ok: false, error };
     }
   }
