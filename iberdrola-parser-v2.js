@@ -220,10 +220,10 @@
       return{kwh,energy:amount,periods,sumKwh,sumCost:amount??0,consumptionReliable:kwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-kwh)<=.1,costReliable:amount!=null&&calc!=null&&Math.abs(calc-amount)<=.02,pricingMode:'single_rate'};
     }
     const expected=expectedEnergyPeriods(tariff)||6,periods={};for(let p=1;p<=expected;p++)periods[`P${p}`]={consumption:activeReadings?.[`P${p}`]??null,cost:null,price:null};
-    const markers=[...scope.matchAll(/\bP([1-6])\b/gi)];
+    const markers=[...scope.matchAll(/\bP([1-6])\b/gi)],totalIndex=scope.search(/\bTotal\s+[\d.,]+\s*kWh\b/i);
     for(let i=0;i<markers.length;i++){
       const m=markers[i],p=Number(m[1]);if(!p||p>expected)continue;
-      const a=(m.index||0)+m[0].length,b=i+1<markers.length?(markers[i+1].index||a+500):Math.min(scope.length,a+500),seg=scope.slice(a,b),km=(seg.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(seg.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],cost=lastEuro(seg),key=`P${p}`;
+      const a=(m.index||0)+m[0].length,nextMarker=i+1<markers.length?(markers[i+1].index||scope.length):scope.length,b=totalIndex>a?Math.min(nextMarker,totalIndex):nextMarker,seg=scope.slice(a,b),km=(seg.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(seg.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],cost=lastEuro(seg),key=`P${p}`;
       if(km!=null||cost!=null)periods[key]={consumption:km?num(km):periods[key].consumption,price:rate?num(rate):null,cost};
     }
     const total=scope.match(/Total\s+([\d.,]+)\s*kWh\b[\s\S]{0,180}?(-?[\d.]+,\d{2})\s*€/i),printedKwh=total?num(total[1]):null,printedCost=total?num(total[2]):null;
