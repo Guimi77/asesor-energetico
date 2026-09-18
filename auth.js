@@ -23,6 +23,32 @@ if(!document.querySelector('script[data-client-archive-integrated]')){
 const $=s=>document.querySelector(s);
 let currentProfile=null;
 let lastAccessKey='';
+let pendingSignupEmail='';
+
+function setPendingSignupEmail(email=''){
+  pendingSignupEmail=String(email||'').trim();
+  try{
+    if(pendingSignupEmail)sessionStorage.setItem('ibtPendingSignupEmail',pendingSignupEmail);
+    else sessionStorage.removeItem('ibtPendingSignupEmail');
+  }catch{}
+  const btn=$('#resendSignup');
+  if(btn)btn.classList.toggle('hidden',!pendingSignupEmail);
+}
+
+function friendlySignupEmailError(error){
+  const raw=String(error?.message||'');
+  const lower=raw.toLowerCase();
+  if(lower.includes('email address not authorized')){
+    return 'La cuenta se ha registrado, pero el servicio de correo todavía no puede enviar confirmaciones a esta dirección. Puedes reintentarlo con «Reenviar correo de confirmación».';
+  }
+  if(lower.includes('confirmation')&&lower.includes('email')){
+    return 'No se ha podido enviar el correo de confirmación. Puedes reintentarlo con «Reenviar correo de confirmación».';
+  }
+  if(lower.includes('sending')&&lower.includes('email')){
+    return 'No se ha podido enviar el correo de confirmación. Puedes reintentarlo con «Reenviar correo de confirmación».';
+  }
+  return raw||'No se ha podido completar el registro.';
+}
 
 function setAuthMessage(text,type='info'){
   const el=$('#authMessage');
@@ -167,27 +193,100 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 window.addEventListener('DOMContentLoaded',()=>{
   const loginForm=$('#loginForm');
   const signupForm=$('#signupForm');
-  $('#showSignup')?.addEventListener('click',()=>{$('#loginPanel')?.classList.add('hidden');$('#signupPanel')?.classList.remove('hidden');setAuthMessage('');});
-  $('#showLogin')?.addEventListener('click',()=>{$('#signupPanel')?.classList.add('hidden');$('#loginPanel')?.classList.remove('hidden');setAuthMessage('');});
+  try{setPendingSignupEmail(sessionStorage.getItem('ibtPendingSignupEmail')||'');}catch{setPendingSignupEmail('');}
+
+  $('#showSignup')?.addEventListener('click',()=>{
+    $('#loginPanel')?.classList.add('hidden');
+    $('#signupPanel')?.classList.remove('hidden');
+    setAuthMessage('');
+  });
+
+  $('#showLogin')?.addEventListener('click',()=>{
+    $('#signupPanel')?.classList.add('hidden');
+    $('#loginPanel')?.classList.remove('hidden');
+    setAuthMessage('');
+  });
+
   loginForm?.addEventListener('submit',async e=>{
-    e.preventDefault();setAuthMessage('Entrando…');
+    e.preventDefault();
+    setAuthMessage('Entrando…');
     const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;
     const {error}=await supabase.auth.signInWithPassword({email,password});
-    if(error){setAuthMessage(error.message,'error');return;}
-    setAuthMessage('');await refreshAuth();
+    if(error){
+      const msg=String(error.message||'');
+      if(msg.toLowerCase().includes('email not confirmed')){
+        setPendingSignupEmail(email);
+        setAuthMessage('Tu cuenta existe, pero falta confirmar el correo. Revisa tu bandeja de entrada o usa «Reenviar correo de confirmación».','error');
+      }else{
+        setAuthMessage(msg,'error');
+      }
+      return;
+    }
+    setPendingSignupEmail('');
+    setAuthMessage('');
+    await refreshAuth();
   });
+
   signupForm?.addEventListener('submit',async e=>{
-    e.preventDefault();setAuthMessage('Creando cuenta…');
+    e.preventDefault();
+    setAuthMessage('Creando cuenta…');
     const email=$('#signupEmail').value.trim(),password=$('#signupPassword').value,display_name=$('#signupName').value.trim();
-    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name},emailRedirectTo:SIGNUP_CONFIRM_URL}});
-    if(error){setAuthMessage(error.message,'error');return;}
-    if(data.session){
-      setAuthMessage('Cuenta creada. Si eres cliente, un administrador debe asignarte tu ficha antes de que puedas ver datos.','ok');
-      await refreshAuth();
-    }else{
-      setAuthMessage('Cuenta creada. Revisa tu correo y pulsa el enlace de confirmación. Te llevaremos a una página que verificará que el registro se ha completado correctamente.','ok');
+    const submit=signupForm.querySelector('button[type="submit"]');
+    if(submit)submit.disabled=true;
+    try{
+      const {data,error}=await supabase.auth.signUp({
+        email,
+        password,
+        options:{data:{display_name},emailRedirectTo:SIGNUP_CONFIRM_URL}
+      });
+
+      if(error){
+        setPendingSignupEmail(email);
+        setAuthMessage(friendlySignupEmailError(error),'error');
+        return;
+      }
+
+      if(data.session){
+        setPendingSignupEmail('');
+        setAuthMessage('Cuenta creada. Si eres cliente, un administrador debe asignarte tu ficha antes de que puedas ver datos.','ok');
+        await refreshAuth();
+      }else{
+        setPendingSignupEmail(email);
+        setAuthMessage('Cuenta registrada. Falta confirmar el correo. Revisa tu bandeja de entrada y spam. Si no llega, pulsa «Reenviar correo de confirmación».','ok');
+      }
+    }finally{
+      if(submit)submit.disabled=false;
     }
   });
+
+  $('#resendSignup')?.addEventListener('click',async e=>{
+    const btn=e.currentTarget;
+    const email=pendingSignupEmail||$('#signupEmail')?.value.trim()||$('#loginEmail')?.value.trim();
+    if(!email){
+      setAuthMessage('Introduce primero el correo de la cuenta.','error');
+      return;
+    }
+
+    btn.disabled=true;
+    setAuthMessage('Reenviando confirmación…');
+    try{
+      const {error}=await supabase.auth.resend({
+        type:'signup',
+        email,
+        options:{emailRedirectTo:SIGNUP_CONFIRM_URL}
+      });
+      if(error){
+        setPendingSignupEmail(email);
+        setAuthMessage(friendlySignupEmailError(error),'error');
+        return;
+      }
+      setPendingSignupEmail(email);
+      setAuthMessage('Correo de confirmación reenviado. Revisa también la carpeta de spam.','ok');
+    }finally{
+      btn.disabled=false;
+    }
+  });
+
   $('#logoutBtn')?.addEventListener('click',async()=>{await supabase.auth.signOut();location.reload();});
   $('#usersNav')?.addEventListener('click',async()=>{
     $('#pageTitle').textContent='Usuarios';
