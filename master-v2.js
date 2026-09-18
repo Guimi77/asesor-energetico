@@ -103,8 +103,12 @@
     const merged = { ...existing };
     const identityFields = new Set(['client', 'clientTaxId', 'type', 'company', 'holder']);
 
+    const clearableFields = new Set(['clientAlias', 'alias']);
     for (const [field, value] of Object.entries(incoming)) {
-      if (empty(value)) continue;
+      if (empty(value)) {
+        if (!fillOnly && clearableFields.has(field)) merged[field] = '';
+        continue;
+      }
       if (preserveIdentity && identityFields.has(field) && !empty(merged[field])) continue;
       if (fillOnly) {
         if (empty(merged[field]) || (field === 'type' && merged[field] === 'PENDIENTE')) {
@@ -599,6 +603,12 @@
         $('#clientFormMsg').textContent = result.reason;
         return;
       }
+
+      const clientIdentity = key(data.clientTaxId) || key(data.client);
+      supplies.forEach((item) => {
+        const itemIdentity = key(item.clientTaxId) || key(item.client);
+        if (itemIdentity === clientIdentity) item.clientAlias = norm(data.clientAlias);
+      });
 
       const wasEditing = Boolean(editingCups);
       const aliasSave = await persistAliases({
