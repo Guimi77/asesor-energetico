@@ -204,11 +204,22 @@
     const groups = new Map();
     for (const supply of list) {
       const holderName = supply.holder || supply.company || 'Sin titular';
+      const clientIdentity = key(supply.clientTaxId) || key(supply.client) || 'SINCLIENTE';
       const holderKey = key(holderName) || 'SINTITULAR';
-      if (!groups.has(holderKey)) groups.set(holderKey, { name: holderName, list: [] });
-      groups.get(holderKey).list.push(supply);
+      const compositeKey = clientIdentity + '|' + holderKey;
+      if (!groups.has(compositeKey)) {
+        groups.set(compositeKey, {
+          name: holderName,
+          client: supply.client || 'Cliente',
+          clientTaxId: supply.clientTaxId || '',
+          list: [],
+        });
+      }
+      groups.get(compositeKey).list.push(supply);
     }
-    return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return [...groups.values()].sort((a, b) =>
+      a.client.localeCompare(b.client, 'es') || a.name.localeCompare(b.name, 'es')
+    );
   }
 
   function renderClients() {
@@ -219,32 +230,74 @@
       return;
     }
 
+    const internal = ['admin', 'staff'].includes(window.ibtCurrentProfile?.role);
     const groups = new Map();
+
     for (const supply of supplies) {
-      const groupKey = key(supply.clientTaxId) || key(supply.client);
-      if (!groups.has(groupKey)) groups.set(groupKey, { name: supply.client, alias: supply.clientAlias || '', list: [] });
-      groups.get(groupKey).list.push(supply);
+      const legalKey = key(supply.clientTaxId) || key(supply.client);
+      const alias = internal ? norm(supply.clientAlias) : '';
+      const groupKey = alias ? 'ALIAS|' + key(alias) : 'CLIENT|' + legalKey;
+
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          name: alias || supply.client,
+          alias,
+          list: [],
+          members: new Map(),
+        });
+      }
+
+      const group = groups.get(groupKey);
+      group.list.push(supply);
+
+      if (!group.members.has(legalKey)) {
+        group.members.set(legalKey, {
+          name: supply.client || 'Cliente',
+          taxId: supply.clientTaxId || '',
+          type: supply.type || 'CLIENTE',
+        });
+      }
     }
 
     grid.innerHTML = [...groups.values()]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ name, alias, list }) => {
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .map((group) => {
+        const { name, alias, list, members } = group;
+        const memberList = [...members.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        const multiClient = internal && memberList.length > 1;
         const holders = holderTree(list);
-        const type = list[0]?.type || 'CLIENTE';
+        const type = multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
+        const primaryClient = memberList[0]?.name || list[0]?.client || name;
+
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
-            const internalAlias = ['admin','staff'].includes(window.ibtCurrentProfile?.role);
-            const title = (internalAlias && supply.alias) || supply.name || supply.address || 'Suministro';
+            const title = (internal && supply.alias) || supply.name || supply.address || 'Suministro';
             const city = supply.city || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
             return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
           }).join('');
 
-          return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong><span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(name)}" data-holder="${esc(holder.name)}">+ Añadir suministro a este titular</button></div></details>`;
+          return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
         }).join('');
 
-        return `<article class="card company-card company-card-tree"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc((['admin','staff'].includes(window.ibtCurrentProfile?.role) && alias) || name)}</h3>${(['admin','staff'].includes(window.ibtCurrentProfile?.role) && alias) ? `<small class="client-legal-name">${esc(name)}</small>` : ''}<small>${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}</small></div><button class="company-link add-supply" data-client="${esc(name)}">+ Nuevo suministro</button></div><div class="holder-tree">${folders}</div></article>`;
+        const memberRows = multiClient
+          ? `<div class="client-group-members">${memberList.map((member) => `<div class="client-group-member" data-client-name="${esc(member.name)}"><div><strong>${esc(member.name)}</strong><small>${esc(member.taxId || 'Sin NIF/CIF')}</small></div><div class="client-group-member-actions"></div></div>`).join('')}</div>`
+          : '';
+
+        const legalLine = internal && alias && !multiClient
+          ? `<small class="client-legal-name">${esc(primaryClient)}</small>`
+          : '';
+
+        const summary = multiClient
+          ? `${memberList.length} clientes legales · ${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}`
+          : `${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}`;
+
+        const addTop = multiClient
+          ? ''
+          : `<button class="company-link add-supply" data-client="${esc(primaryClient)}">+ Nuevo suministro</button>`;
+
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''}" data-client-primary="${esc(primaryClient)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
