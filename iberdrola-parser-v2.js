@@ -237,13 +237,14 @@
         const am=source.match(new RegExp(`Energ[ií]a\\s+activa\\s+P${p}[\\s\\S]{0,220}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh\\b`,'i'));
         if(am)active[`P${p}`]=num(am[1]);
       }
-      const periods={};
+      const energyStart=source.search(/Energ[ií]a\s+consumida\b/i);if(energyStart<0)return null;
+      const energyTail=source.slice(energyStart),tm=energyTail.match(/Total\s+([\d.]+(?:,\d+)?)\s*kWh[\s\S]{0,220}?([\d.]+,\d{2})\s*€/i);
+      if(!tm)return null;
+      const energyScope=energyTail.slice(0,(tm.index||0)+tm[0].length),periods={};
       for(let p=1;p<=6;p++){
-        const pm=source.match(new RegExp(`(?:Energ[ií]a\\s+consumida[\\s\\S]{0,100}?)?\\bP${p}\\b[\\s\\S]{0,180}?([\\d.]+(?:,\\d+)?)\\s*kWh[\\s\\S]{0,180}?([\\d.,]+)\\s*€\\s*\\/\\s*kWh[\\s\\S]{0,160}?([\\d.]+,\\d{2})\\s*€`,'i'));
+        const pm=energyScope.match(new RegExp(`(?:Energ[ií]a\\s+consumida[\\s\\S]{0,100}?)?\\bP${p}\\b[\\s\\S]{0,180}?([\\d.]+(?:,\\d+)?)\\s*kWh[\\s\\S]{0,180}?([\\d.,]+)\\s*€\\s*\\/\\s*kWh[\\s\\S]{0,160}?([\\d.]+,\\d{2})\\s*€`,'i'));
         if(pm)periods[`P${p}`]={consumption:num(pm[1]),price:num(pm[2]),cost:num(pm[3])};
       }
-      const tm=source.match(/Total\s+([\d.]+(?:,\d+)?)\s*kWh[\s\S]{0,220}?([\d.]+,\d{2})\s*€/i);
-      if(!tm)return null;
       const kwh=num(tm[1]),energy=num(tm[2]);
       for(let p=1;p<=6;p++){const k=`P${p}`;if(!periods[k]&&active[k]===0)periods[k]={consumption:0,cost:0,price:null};}
       let knownConsumption=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),knownCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0));
