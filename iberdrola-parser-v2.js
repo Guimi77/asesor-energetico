@@ -161,3 +161,34 @@
         const next=idx+1<markers.length?markers[idx+1].i:body.length,seg=body.slice(mark.i,next).join(' '),period=powerPeriod(mark.label,idx,expected),kw=(seg.match(/([\d.,]+)\s*kW\b/i)||[])[1],days=(seg.match(/(\d+)\s*d[ií]as?\b/i)||[])[1],price=(seg.match(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/i)||[])[1],amount=lastEuro(seg);
         if(period&&kw!=null&&amount!=null&&!entries.some(e=>e.period===period)){const e={period,contractedKw:num(kw),days:days?Number(days):null,price:price?num(price):null,amount};entries.push(e);contracted[`P${period}`]=e.contractedKw;}
       });
+    }
+    if(!entries.length){
+      const rows=body.map(x=>String(x)).filter(x=>/\bkW\b/i.test(x)&&lastEuro(x)!=null);
+      rows.slice(0,expected||rows.length).forEach((seg,idx)=>{const kw=(seg.match(/([\d.,]+)\s*kW\b/i)||[])[1],days=(seg.match(/(\d+)\s*d[ií]as?\b/i)||[])[1],price=(seg.match(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/i)||[])[1],amount=lastEuro(seg),period=idx+1;if(kw!=null&&amount!=null){const e={period,contractedKw:num(kw),days:days?Number(days):null,price:price?num(price):null,amount};entries.push(e);contracted[`P${period}`]=e.contractedKw;}});
+    }
+    entries.sort((a,b)=>a.period-b.period);const sum=round2(entries.reduce((s,e)=>s+Number(e.amount||0),0)),printed=lastEuro(totalLine),complete=expected?entries.length===expected:entries.length>0,reliable=complete&&printed!=null&&Math.abs(sum-printed)<=Math.max(.05,(entries.length+1)*.005+.000001);
+    return{value:printed!=null?printed:sum,sum,printedTotal:printed,entries,reliable,contracted,message:reliable?'':!complete?'Potencia: faltan periodos facturados':'Potencia: subtotal no cuadra con el detalle'};
+  }
+  function bestPower(pageVariantsList,tariff){let best=null,score=-1;for(const lines of pageVariantsList){const p=parsePower(lines,tariff),s=(p.reliable?1000:0)+p.entries.length*10+(p.printedTotal!=null?1:0);if(s>score){best=p;score=s;}}return best;}
+
+  function parseTwoZeroBreakdown(text){
+    const s=String(text||'').replace(/\s+/g,' '),m=s.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.,]+)\s*kWh\s*;?\s*llano\s*:\s*([\d.,]+)\s*kWh\s*;?\s*valle\s*:?\s*([\d.,]+)\s*kWh/i);return m?{P1:num(m[1]),P2:num(m[2]),P3:num(m[3])}:{};
+  }
+  function parseEnergy(lines,tariff,activeReadings,allText){
+    if(/^2\.0TD$/i.test(tariff)){
+      const start=firstIndex(lines,/Energ[ií]a\s+consumida\b/i);if(start<0)return null;let end=firstIndex(lines,/Descuento\s+sobre\s+consumo\b/i,start+1);if(end<0)end=Math.min(lines.length,start+10);const seg=lines.slice(start,end).join(' '),km=(seg.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(seg.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],amount=lastEuro(seg),breakdown=parseTwoZeroBreakdown(allText),periods={};
+      for(let p=1;p<=3;p++)periods[`P${p}`]={consumption:breakdown[`P${p}`]??activeReadings[`P${p}`]??null,cost:null,price:rate?num(rate):null};
+      const kwh=km?num(km):(Object.keys(breakdown).length===3?round2(Object.values(breakdown).reduce((s,v)=>s+Number(v||0),0)):null),sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),calc=kwh!=null&&rate?round2(kwh*num(rate)):null;
+      return{kwh,energy:amount,periods,sumKwh,sumCost:amount??0,consumptionReliable:kwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-kwh)<=.1,costReliable:amount!=null&&calc!=null&&Math.abs(calc-amount)<=.02,pricingMode:'single_rate'};
+    }
+    const expected=expectedEnergyPeriods(tariff)||6,periods={};for(let p=1;p<=expected;p++)periods[`P${p}`]={consumption:activeReadings[`P${p}`]??null,cost:null,price:null};
+    const start=firstIndex(lines,/Energ[ií]a\s+consumida\b/i);if(start<0)return null;let end=firstIndex(lines,/^\s*Total\s+[\d.,]+\s*kWh\b/i,start+1);if(end<0)end=Math.min(lines.length,start+24);const body=lines.slice(start,end),totalLine=end<lines.length?lines[end]:'',markers=[];
+    body.forEach((line,i)=>{const m=String(line).match(/(?:Energ[ií]a\s+consumida\s+)?\bP([1-6])\b/i);if(m)markers.push({i,p:Number(m[1])});});
+    markers.forEach((mark,idx)=>{const next=idx+1<markers.length?markers[idx+1].i:body.length,seg=body.slice(mark.i,next).join(' '),km=(seg.match(/([\d.,]+)\s*kWh\b/i)||[])[1],rate=(seg.match(/([\d.,]+)\s*€\s*\/\s*kWh/i)||[])[1],cost=lastEuro(seg),key=`P${mark.p}`;periods[key]={consumption:km?num(km):periods[key].consumption,price:rate?num(rate):null,cost};});
+    const tm=String(totalLine).match(/Total\s+([\d.,]+)\s*kWh\b/i),printedKwh=tm?num(tm[1]):null,printedCost=lastEuro(totalLine);
+    const knownConsumption=round2(Object.values(periods).filter(q=>q.consumption!=null).reduce((s,q)=>s+Number(q.consumption),0)),knownCosts=round2(Object.values(periods).filter(q=>q.cost!=null).reduce((s,q)=>s+Number(q.cost),0));
+    if(printedKwh!=null&&Math.abs(knownConsumption-printedKwh)<=.1)for(const q of Object.values(periods))if(q.consumption==null)q.consumption=0;
+    if(printedCost!=null&&Math.abs(knownCosts-printedCost)<=.05)for(const q of Object.values(periods))if(q.cost==null&&q.consumption===0)q.cost=0;
+    const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),sumCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0)),consumptionReliable=printedKwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-printedKwh)<=.1,costReliable=printedCost!=null&&Object.values(periods).every(q=>q.cost!=null)&&Math.abs(sumCost-printedCost)<=.05;
+    return{kwh:printedKwh??(consumptionReliable?sumKwh:null),energy:printedCost??(costReliable?sumCost:null),periods,sumKwh,sumCost,consumptionReliable,costReliable,pricingMode:'periods'};
+  }
