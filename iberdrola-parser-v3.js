@@ -104,7 +104,7 @@
     const s=String(text||''),m=s.match(/\bCONTRATO\b\s+([A-ZÁÉÍÓÚÜÑÇÀÈÒÏ][A-ZÁÉÍÓÚÜÑÇÀÈÒÏ'&/.-]*(?:\s+[A-ZÁÉÍÓÚÜÑÇÀÈÒÏ][A-ZÁÉÍÓÚÜÑÇÀÈÒÏ'&/.-]*){1,9})\s+Titular\b/i);
     const v=clean(m?.[1]||'');return /IBERDROLA|CLIENTES|FACTURA|ELECTRICIDAD/i.test(v)?'':v;
   }
-  function companyFromSources(sources){return firstFrom(sources,s=>recipientFromText(s)||contractLeadName(s)||holderFromContract(String(s).split(/\r?\n/)))||'Por identificar';}
+  function companyFromSources(sources){return firstFrom(sources,s=>recipientFromText(s)||contractLeadName(s)||contractHolder(String(s).split(/\r?\n/)))||'Por identificar';}
 
   function supplyAddress(p1){
     const text=p1.join('\n'),m=text.match(/Direcci[oó]n\s+de\s+suministro\s*:\s*\n?([\s\S]{1,260}?)(?=\nN[º°o.]?\s*DE\s*CONTRATO|\nRESUMEN\s+DE\s+FACTURA)/i);
