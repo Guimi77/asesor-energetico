@@ -74,7 +74,7 @@ test('Iberdrola v3 accepts text or structured PDF detection without stealing oth
 
 test('Iberdrola v3 closes a 2.0TD invoice exactly and preserves the three consumption periods',()=>{
   const r=parser.parse(twoZero(),{name:'2.0TD.pdf'});
-  assert.equal(r.readOk,true);
+  assert.equal(r.readOk,true,JSON.stringify({message:r.readMessage,company:r.company,cups:r.cups,period:r.period,tariff:r.tariff,kwh:r.kwh,energy:r.energy,power:r.power,other:r.other,tax:r.tax,vat:r.vat,total:r.total,diff:r.diff,periods:r.periods,powerDetail:r.powerDetail}));
   assert.equal(r.kwh,485.91);
   assert.equal(r.energy,72.27);
   assert.equal(r.power,24.66);
@@ -88,7 +88,7 @@ test('Iberdrola v3 closes a 2.0TD invoice exactly and preserves the three consum
 
 test('Iberdrola v3 closes a 3.0TD invoice and derives P1 zero only from an explicit active reading',()=>{
   const r=parser.parse(threeZero(),{name:'3.0TD.pdf'});
-  assert.equal(r.readOk,true);
+  assert.equal(r.readOk,true,JSON.stringify({message:r.readMessage,company:r.company,cups:r.cups,period:r.period,tariff:r.tariff,kwh:r.kwh,energy:r.energy,power:r.power,other:r.other,tax:r.tax,vat:r.vat,total:r.total,diff:r.diff,periods:r.periods,powerDetail:r.powerDetail}));
   assert.equal(r.kwh,65);
   assert.equal(r.energy,11.37);
   assert.equal(r.power,66.5);
