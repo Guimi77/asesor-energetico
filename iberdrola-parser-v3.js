@@ -19,6 +19,7 @@
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
   const amountPattern='(-?[\\d.]+,\\d{2})\\s*€';
   const linesOf=d=>{
+    if(typeof d==='string')return [String(d).split(/\r?\n/).map(clean).filter(Boolean)];
     const pages=(d?.pages||[]).map(p=>(p||[]).map(clean).filter(Boolean));
     if(pages.length)return pages;
     const text=String(d?.text||'');
