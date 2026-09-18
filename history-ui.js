@@ -305,7 +305,7 @@
   }
 
   function svgChart(points, field, formatter) {
-    if (!points.length) return '<div class="history-empty">No hay meses con datos para comparar.</div>';
+    if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? p[field] : null);
     const scale = adaptiveChartScale(vals.filter(v => v !== null));
     const span = scale.max - scale.min || 1;
