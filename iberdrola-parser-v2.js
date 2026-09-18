@@ -189,6 +189,20 @@
   }
   function bestPower(pageVariantsList,tariff){let best=null,score=-1;for(const lines of pageVariantsList){const p=parsePower(lines,tariff),s=(p.reliable?1000:0)+p.entries.length*10+(p.printedTotal!=null?1:0);if(s>score){best=p;score=s;}}return best;}
 
+  function powerScore(p){return p?(p.reliable?1000:0)+(p.entries?.length||0)*10+(p.printedTotal!=null?1:0):-1;}
+  function parsePowerText(text,tariff){
+    const expected=expectedPowerPeriods(tariff),source=String(text||'').replace(/\u00a0/g,' '),start=source.search(/Potencia\s+facturada\b/i);if(start<0)return null;
+    const tail=source.slice(start),totalPos=tail.search(/Total\s+importe\s+potencia\b/i),scope=(totalPos>0?tail.slice(0,totalPos):tail.slice(0,2200)).replace(/\s+/g,' '),totalScope=totalPos>=0?tail.slice(totalPos,totalPos+300):'';
+    const markerRe=/\b(P[1-6]|Punta|Valle)\b/gi,markers=[...scope.matchAll(markerRe)],entries=[],contracted={};
+    for(let i=0;i<markers.length;i++){
+      const m=markers[i],period=powerPeriod(m[1],i,expected);if(!period||entries.some(e=>e.period===period))continue;
+      const a=(m.index||0)+m[0].length,b=i+1<markers.length?(markers[i+1].index||a+500):Math.min(scope.length,a+500),seg=scope.slice(a,b),kw=(seg.match(/([\d.,]+)\s*kW\b/i)||[])[1],days=(seg.match(/(\d+)\s*d[ií]as?\b/i)||[])[1],price=(seg.match(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/i)||[])[1],amount=lastEuro(seg);
+      if(kw!=null&&amount!=null){const e={period,contractedKw:num(kw),days:days?Number(days):null,price:price?num(price):null,amount};entries.push(e);contracted[`P${period}`]=e.contractedKw;}
+    }
+    entries.sort((a,b)=>a.period-b.period);const sum=round2(entries.reduce((s,e)=>s+Number(e.amount||0),0)),printed=lastEuro(totalScope),complete=expected?entries.length===expected:entries.length>0,reliable=complete&&printed!=null&&Math.abs(sum-printed)<=Math.max(.05,(entries.length+1)*.005+.000001);
+    return{value:printed!=null?printed:sum,sum,printedTotal:printed,entries,reliable,contracted,message:reliable?'':!complete?'Potencia: faltan periodos facturados':'Potencia: subtotal no cuadra con el detalle'};
+  }
+
   function parseTwoZeroBreakdown(text){
     const s=String(text||'').replace(/\s+/g,' '),m=s.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.,]+)\s*kWh\s*;?\s*llano\s*:\s*([\d.,]+)\s*kWh\s*;?\s*valle\s*:?\s*([\d.,]+)\s*kWh/i);return m?{P1:num(m[1]),P2:num(m[2]),P3:num(m[3])}:{};
   }
@@ -269,7 +283,8 @@
 
     const rawActive=parseReadingRowsText(looseAll,'Energ[ií]a\\s+activa','kWh');
     const activeVariants=detailVariants.map((lines,i)=>{const p3=p3Variants[Math.min(i,p3Variants.length-1)]||[];return mergePeriodMaps(parseReadingRows([...lines,...p3],'Energ[ií]a\\s+activa','kWh'),rawActive);});
-    const powerDetail=bestPower(detailVariants,tariff),lineEnergy=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n'))),textEnergyCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parseEnergyText(t,tariff,rawActive)).filter(Boolean),textEnergy=textEnergyCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null,energyDetail=energyScore(textEnergy)>energyScore(lineEnergy)?textEnergy:(lineEnergy||textEnergy||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'});
+    const linePower=bestPower(detailVariants,tariff),textPowerCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parsePowerText(t,tariff)).filter(Boolean),textPower=textPowerCandidates.sort((a,b)=>powerScore(b)-powerScore(a))[0]||null,powerDetail=powerScore(textPower)>powerScore(linePower)?textPower:(linePower||textPower);
+    const lineEnergy=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n'))),textEnergyCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parseEnergyText(t,tariff,rawActive)).filter(Boolean),textEnergy=textEnergyCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null,energyDetail=energyScore(textEnergy)>energyScore(lineEnergy)?textEnergy:(lineEnergy||textEnergy||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'});
     const selectedDetail=detailVariants.reduce((best,lines)=>{const p=parsePower(lines,tariff),e=parseEnergy(lines,tariff,activeVariants[detailVariants.indexOf(lines)]||{},[...lines,...(p3Variants[Math.min(detailVariants.indexOf(lines),p3Variants.length-1)]||[])].join('\n')),score=(p.reliable?100:0)+(e?.consumptionReliable?50:0)+(e?.costReliable?25:0);return !best||score>best.score?{lines,score}:best;},null)?.lines||detailVariants[0]||[];
     const concepts=parseConcepts(p1,selectedDetail,powerDetail?.value,energyDetail.energy),contracted=parseContracted(baseAll,tariff,powerDetail?.contracted||{}),reactivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+reactiva','kVArh'),capacitivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+capacitiva','kVArh'),maximeters=bestPeriodMap(combos.map(p=>p.flat()),'Max[ií]metro','kW');
     if(Object.keys(maximeters).length===(expectedPowerPeriods(tariff)||0))maximeters._reliable=true;
@@ -282,5 +297,5 @@
     return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',taxId,cups,period:periodInfo.label,tariff,kwh:energyDetail.kwh,energy,power,excess,reactive,compensation,social,rental,integratorAdjustment,regularizationReactive,other,tax,vat,igic,distributorCharges,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:energyDetail.kwh&&total!=null?total/energyDetail.kwh:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods:energyDetail.periods,contracted,maximeters,maxDemandAnnual,parserVersion:options.parserVersion||'',powerDetail,energyPricingMode:energyDetail.pricingMode,sourceFormat:'iberdrola',supplier:'IBERDROLA CLIENTES, S.A.U.',retailer:'IBERDROLA CLIENTES, S.A.U.',commercializer:'IBERDROLA CLIENTES, S.A.U.',supplyAddress,supplyCity:place.city,supplyProvince:place.province,contract,contractNumber:contract,accessContract,distributor,contractType:'',renewalDate,permanence,meterNumber,issueDate,billingStart:periodInfo.start,billingEnd:periodInfo.end,billingDays:periodInfo.days,discounts,reactivePeriods,capacitivePeriods,activeReadings:activeVariants.sort((a,b)=>Object.keys(b).length-Object.keys(a).length)[0]||{},parserRevision:REVISION};
   }
 
-  return Object.freeze({detect,parse,revision:REVISION,_test:{rawLines,parsePower,parseEnergy,parseReadingRows}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{rawLines,parsePower,parsePowerText,parseEnergy,parseEnergyText,parseReadingRows,parseReadingRowsText,parseRecipientHolder}});
 });
