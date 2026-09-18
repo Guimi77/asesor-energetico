@@ -9,10 +9,12 @@ const source=file=>fs.readFileSync(file,'utf8');
 test('production loads the portable Iberdrola parser before every runtime consumer',()=>{
   const html=source('index.html');
   const parser=html.indexOf('iberdrola-parser.js?v=');
+  const parserV2=html.indexOf('iberdrola-parser-v2.js?v=');
   const app=html.indexOf('app.js?v=');
   const master=html.indexOf('supply-enricher-v2.js?v=');
   assert(parser>=0,'Iberdrola parser script missing');
-  assert(app>parser,'main parser must load after Iberdrola parser');
+  assert(parserV2>parser,'Iberdrola v2 must load after the legacy compatibility layer');
+  assert(app>parserV2,'main parser must load after Iberdrola v2');
   assert(master>parser,'master enricher must load after Iberdrola parser');
   assert(html.includes('auth-bootstrap.js?v='));
   assert(source('auth-bootstrap.js').includes('xtra-history.js?v='));
@@ -23,7 +25,7 @@ test('main parser routes Iberdrola before legacy formats and before FENIE OCR fa
   const route=app.indexOf('const iberdrola=window.IBTIberdrolaParser');
   const legacy=app.indexOf('const formats=window.IBTInvoiceFormats',route);
   assert(route>=0&&legacy>route);
-  const fileRoute=app.indexOf('if(window.IBTIberdrolaParser?.detect?.(original.text))return parseInvoice(original,file)');
+  const fileRoute=app.indexOf('if(window.IBTIberdrolaParser?.detect?.(original))return parseInvoice(original,file)');
   const ocr=app.indexOf('const fallback=window.IBTFenieOcrFallback',fileRoute);
   assert(fileRoute>=0&&ocr>fileRoute,'Iberdrola must never enter the FENIE OCR fallback');
   assert(app.includes("if(format==='fenie')return parseFenie(d,file)"));
