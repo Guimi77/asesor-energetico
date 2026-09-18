@@ -500,3 +500,55 @@ td{padding:10px 8px}
   }
 }
 
+
+
+/* Desktop search fields: clearer and wider 2026-09-18 */
+@media (min-width:901px){
+  .search-box,
+  .db-admin-search,
+  input[type="search"],
+  input[id$="Search"],
+  input[id*="Search"]{
+    width:clamp(520px,38vw,820px)!important;
+    min-width:520px!important;
+    max-width:820px!important;
+    min-height:40px!important;
+    padding:9px 13px!important;
+    border:2px solid #aebed0!important;
+    border-radius:9px!important;
+    background:#fff!important;
+    color:#10233f!important;
+    box-shadow:0 1px 3px rgba(16,35,63,.05),inset 0 0 0 1px rgba(255,255,255,.7)!important;
+    outline:none!important;
+    font:inherit;
+  }
+  .search-box::placeholder,
+  .db-admin-search::placeholder,
+  input[type="search"]::placeholder,
+  input[id$="Search"]::placeholder,
+  input[id*="Search"]::placeholder{
+    color:#718096!important;
+    opacity:1!important;
+  }
+  .search-box:hover,
+  .db-admin-search:hover,
+  input[type="search"]:hover,
+  input[id$="Search"]:hover,
+  input[id*="Search"]:hover{
+    border-color:#8fa5bd!important;
+  }
+  .search-box:focus,
+  .db-admin-search:focus,
+  input[type="search"]:focus,
+  input[id$="Search"]:focus,
+  input[id*="Search"]:focus{
+    border-color:#1834b8!important;
+    box-shadow:0 0 0 3px rgba(24,52,184,.10)!important;
+  }
+  .section-head > .search-box{
+    flex:0 1 820px!important;
+  }
+  .db-admin-tools .db-admin-search{
+    flex:1 1 520px!important;
+  }
+}
