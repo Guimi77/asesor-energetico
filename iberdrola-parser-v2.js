@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='2026.09.18.4';
+  const REVISION='2026.09.18.5';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -204,40 +204,55 @@
   }
 
   function parseTwoZeroBreakdown(text){
-    const s=String(text||'').replace(/\s+/g,' '),m=s.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.,]+)\s*kWh\s*;?\s*llano\s*:\s*([\d.,]+)\s*kWh\s*;?\s*valle\s*:?\s*([\d.,]+)\s*kWh/i);return m?{P1:num(m[1]),P2:num(m[2]),P3:num(m[3])}:{};
+    const s=String(text||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ');
+    const m=s.match(/consumos\s+desagregados[\s\S]{0,90}?punta\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh[\s\S]{0,90}?llano\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh[\s\S]{0,90}?valle\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh/i);
+    return m?{P1:num(m[1]),P2:num(m[2]),P3:num(m[3])}:{};
   }
   function energyScore(e){
     if(!e)return-1;const informed=Object.values(e.periods||{}).filter(q=>q?.consumption!=null).length,costs=Object.values(e.periods||{}).filter(q=>q?.cost!=null).length;
     return(e.consumptionReliable?1000:0)+(e.costReliable?500:0)+informed*10+costs+(e.kwh!=null?3:0)+(e.energy!=null?2:0);
   }
-  function rescueEnergyFromDocumentText(text,tariff){
-    const source=String(text||'');
+  function rescueEnergyFromDocumentText(text,tariff,hints={}){
+    const source=String(text||'').replace(/\u00a0/g,' ');
     if(/^2\.0TD$/i.test(tariff)){
-      const m=source.match(/Energ[ií]a\s+consumida[\s\S]{0,220}?([\d.]+,\d{2})\s*kWh\s*[x×]\s*([\d.,]+)\s*€\s*\/\s*kWh[\s\S]{0,80}?([\d.]+,\d{2})\s*€/i);
-      const b=source.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.]+,\d{2})\s*kWh\s*;?\s*llano\s*:\s*([\d.]+,\d{2})\s*kWh\s*;?\s*valle\s*:?\s*([\d.]+,\d{2})\s*kWh/i);
-      if(!m)return null;
-      const kwh=num(m[1]),rate=num(m[2]),energy=num(m[3]),periods={};
-      if(b){periods.P1={consumption:num(b[1]),cost:null,price:rate};periods.P2={consumption:num(b[2]),cost:null,price:rate};periods.P3={consumption:num(b[3]),cost:null,price:rate};}
-      const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),calc=round2(Number(kwh||0)*Number(rate||0));
-      return{kwh,energy,periods,sumKwh,sumCost:energy??0,consumptionReliable:Object.keys(periods).length===3&&Math.abs(sumKwh-kwh)<=.1,costReliable:energy!=null&&Math.abs(calc-energy)<=.02,pricingMode:'single_rate'};
+      const km=(source.match(/Energ[ií]a\s+consumida[\s\S]{0,320}?([\d.]+(?:,\d+)?)\s*kWh/i)||[])[1];
+      const rate=(source.match(/Energ[ií]a\s+consumida[\s\S]{0,520}?([\d.]+(?:,\d+)?)\s*€\s*\/\s*kWh/i)||[])[1];
+      const explicitAmount=(source.match(/Energ[ií]a\s+consumida[\s\S]{0,700}?([\d.]+,\d{2})\s*€(?!\s*\/)/i)||[])[1];
+      const breakdown=parseTwoZeroBreakdown(source),periods={};
+      const breakdownKeys=Object.keys(breakdown);
+      for(let p=1;p<=3;p++)if(breakdown[`P${p}`]!=null)periods[`P${p}`]={consumption:breakdown[`P${p}`],cost:null,price:rate?num(rate):null};
+      let kwh=km?num(km):null;
+      if(kwh==null&&breakdownKeys.length===3)kwh=round2(Object.values(breakdown).reduce((s,v)=>s+Number(v||0),0));
+      let energy=explicitAmount?num(explicitAmount):null;
+      const derivedEnergy=hints.summaryEnergy!=null&&hints.power!=null&&hints.tax!=null?round2(Number(hints.summaryEnergy)-Number(hints.power)-Number(hints.tax)):null;
+      if(energy==null&&derivedEnergy!=null&&derivedEnergy>=0)energy=derivedEnergy;
+      const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),calc=kwh!=null&&rate?round2(kwh*num(rate)):null;
+      const consumptionReliable=kwh!=null&&breakdownKeys.length===3&&Math.abs(sumKwh-kwh)<=.1;
+      const costReliable=energy!=null&&((calc!=null&&Math.abs(calc-energy)<=.02)||(derivedEnergy!=null&&Math.abs(derivedEnergy-energy)<=.02));
+      return{kwh,energy,periods,sumKwh,sumCost:energy??0,consumptionReliable,costReliable,pricingMode:'single_rate',recoverySource:'document_text'};
     }
     if(/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)){
       const active={};
       for(let p=1;p<=6;p++){
-        const am=source.match(new RegExp(`Energ[ií]a\\s+activa\\s+P${p}[\\s\\S]{0,140}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh\\b`,'i'));
+        const am=source.match(new RegExp(`Energ[ií]a\\s+activa\\s+P${p}[\\s\\S]{0,220}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh\\b`,'i'));
         if(am)active[`P${p}`]=num(am[1]);
       }
       const periods={};
       for(let p=1;p<=6;p++){
-        const pm=source.match(new RegExp(`(?:Energ[ií]a\\s+consumida\\s+)?P${p}\\s+([\\d.]+(?:,\\d+)?)\\s*kWh\\s*[x×]\\s*([\\d.,]+)\\s*€\\s*\\/\\s*kWh[\\s\\S]{0,70}?([\\d.]+,\\d{2})\\s*€`,'i'));
+        const pm=source.match(new RegExp(`(?:Energ[ií]a\\s+consumida[\\s\\S]{0,100}?)?\\bP${p}\\b[\\s\\S]{0,180}?([\\d.]+(?:,\\d+)?)\\s*kWh[\\s\\S]{0,180}?([\\d.,]+)\\s*€\\s*\\/\\s*kWh[\\s\\S]{0,160}?([\\d.]+,\\d{2})\\s*€`,'i'));
         if(pm)periods[`P${p}`]={consumption:num(pm[1]),price:num(pm[2]),cost:num(pm[3])};
       }
-      const tm=source.match(/Total\s+([\d.]+(?:,\d+)?)\s*kWh\s+hasta[\s\S]{0,120}?([\d.]+,\d{2})\s*€/i);
+      const tm=source.match(/Total\s+([\d.]+(?:,\d+)?)\s*kWh[\s\S]{0,220}?([\d.]+,\d{2})\s*€/i);
       if(!tm)return null;
       const kwh=num(tm[1]),energy=num(tm[2]);
       for(let p=1;p<=6;p++){const k=`P${p}`;if(!periods[k]&&active[k]===0)periods[k]={consumption:0,cost:0,price:null};}
-      const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),sumCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0));
-      return{kwh,energy,periods,sumKwh,sumCost,consumptionReliable:Object.keys(periods).length===6&&Math.abs(sumKwh-kwh)<=.1,costReliable:Object.keys(periods).length===6&&Math.abs(sumCost-energy)<=.05,pricingMode:'periods'};
+      let knownConsumption=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),knownCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0));
+      const missingKeys=[];for(let p=1;p<=6;p++)if(!periods[`P${p}`])missingKeys.push(`P${p}`);
+      if(missingKeys.length&&Math.abs(knownConsumption-kwh)<=.1&&Math.abs(knownCost-energy)<=.05){
+        for(const k of missingKeys)periods[k]={consumption:0,cost:0,price:null};
+      }
+      knownConsumption=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0));knownCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0));
+      return{kwh,energy,periods,sumKwh:knownConsumption,sumCost:knownCost,consumptionReliable:Object.keys(periods).length===6&&Math.abs(knownConsumption-kwh)<=.1,costReliable:Object.keys(periods).length===6&&Math.abs(knownCost-energy)<=.05,pricingMode:'periods',recoverySource:'document_text'};
     }
     return null;
   }
@@ -316,9 +331,14 @@
     const rawActive=parseReadingRowsText(looseAll,'Energ[ií]a\\s+activa','kWh');
     const activeVariants=detailVariants.map((lines,i)=>{const p3=p3Variants[Math.min(i,p3Variants.length-1)]||[];return mergePeriodMaps(parseReadingRows([...lines,...p3],'Energ[ií]a\\s+activa','kWh'),rawActive);});
     const linePower=bestPower(detailVariants,tariff),textPowerCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parsePowerText(t,tariff)).filter(Boolean),textPower=textPowerCandidates.sort((a,b)=>powerScore(b)-powerScore(a))[0]||null,powerDetail=powerScore(textPower)>powerScore(linePower)?textPower:(linePower||textPower);
-    const lineEnergy=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n'))),textEnergyCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parseEnergyText(t,tariff,rawActive)).filter(Boolean),textEnergy=textEnergyCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null,rescuedEnergy=rescueEnergyFromDocumentText(String(d?.text||''),tariff),energyDetail=[lineEnergy,textEnergy,rescuedEnergy].filter(Boolean).sort((a,b)=>energyScore(b)-energyScore(a))[0]||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'};
+    const lineEnergy=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n'))),textEnergyCandidates=[...pageLooseTexts,rawPageTexts[1]||'',looseAll].map(t=>parseEnergyText(t,tariff,rawActive)).filter(Boolean),textEnergy=textEnergyCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null;
     const selectedDetail=detailVariants.reduce((best,lines)=>{const p=parsePower(lines,tariff),e=parseEnergy(lines,tariff,activeVariants[detailVariants.indexOf(lines)]||{},[...lines,...(p3Variants[Math.min(detailVariants.indexOf(lines),p3Variants.length-1)]||[])].join('\n')),score=(p.reliable?100:0)+(e?.consumptionReliable?50:0)+(e?.costReliable?25:0);return !best||score>best.score?{lines,score}:best;},null)?.lines||detailVariants[0]||[];
-    const concepts=parseConcepts(p1,selectedDetail,powerDetail?.value,energyDetail.energy),contracted=parseContracted(baseAll,tariff,powerDetail?.contracted||{}),reactivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+reactiva','kVArh'),capacitivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+capacitiva','kVArh'),maximeters=bestPeriodMap(combos.map(p=>p.flat()),'Max[ií]metro','kW');
+    let energyDetail=[lineEnergy,textEnergy].filter(Boolean).sort((a,b)=>energyScore(b)-energyScore(a))[0]||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'};
+    let concepts=parseConcepts(p1,selectedDetail,powerDetail?.value,energyDetail.energy);
+    const rescueSources=[String(d?.text||''),rawText,rawPageTexts[1]||'',looseAll,baseAll],rescueHints={summaryEnergy:concepts.summaryEnergy,power:powerDetail?.value,tax:concepts.tax},rescuedCandidates=rescueSources.map(t=>rescueEnergyFromDocumentText(t,tariff,rescueHints)).filter(Boolean),rescuedEnergy=rescuedCandidates.sort((a,b)=>energyScore(b)-energyScore(a))[0]||null;
+    if(energyScore(rescuedEnergy)>energyScore(energyDetail))energyDetail=rescuedEnergy;
+    concepts=parseConcepts(p1,selectedDetail,powerDetail?.value,energyDetail.energy);
+    const contracted=parseContracted(baseAll,tariff,powerDetail?.contracted||{}),reactivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+reactiva','kVArh'),capacitivePeriods=bestPeriodMap(combos.map(p=>p.flat()),'Energ[ií]a\\s+capacitiva','kVArh'),maximeters=bestPeriodMap(combos.map(p=>p.flat()),'Max[ií]metro','kW');
     if(Object.keys(maximeters).length===(expectedPowerPeriods(tariff)||0))maximeters._reliable=true;
     const maxDemandAnnual=parseAnnualDemand(baseAll),energy=energyDetail.energy,power=powerDetail?.value,discounts=concepts.discounts,social=concepts.social,rental=concepts.rental,tax=concepts.tax,vat=concepts.vat,total=concepts.total,other=round2(Number(discounts||0)+Number(social||0)+Number(rental||0)),excess=0,reactive=0,compensation=0,igic=0,distributorCharges=0,integratorAdjustment=0,regularizationReactive=0;
     const accounted=round2(Number(energy||0)+Number(power||0)+other+Number(tax||0)+Number(vat||0)),diff=total==null?null:round2(Number(total)-accounted),balanced=total!=null&&Math.abs(diff)<=.05,missing=[];
