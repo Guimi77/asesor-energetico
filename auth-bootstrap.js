@@ -57,7 +57,8 @@ window.addEventListener('DOMContentLoaded',()=>{
         }
       }
       @media(max-width:1100px){
-        #historicoView .history-table-wrap:has(> .history-table){max-height:64vh}
+        #historicoView .history-table-wrap:has(> .history-table){max-height:none;overflow-x:auto;overflow-y:visible;scrollbar-gutter:auto}
+        #historicoView .history-table thead th{position:static!important;box-shadow:none!important}
       }
     `;
     document.head.appendChild(style);
@@ -166,7 +167,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260918-clean1';
+    script.src='history-ui.js?v=20260918-chartfix1';
     script.dataset.historyUi='1';
     script.onload=()=>{
       loadAnalysisUi();
