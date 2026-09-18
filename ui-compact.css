@@ -4,7 +4,7 @@
 
 @media (min-width:901px){
   .sidebar{width:172px;padding:78px 10px 16px}
-  .app-shell{margin-left:172px;padding:14px 22px 30px}
+  .app-shell{margin-left:172px;max-width:none!important;width:auto!important;margin-right:0!important;padding:14px 22px 30px}
   .topbar{min-height:94px;margin-bottom:12px}
   .company-logo-wrap{width:min(300px,29vw)!important;min-height:92px!important;padding:0 10px!important}
   .company-logo{max-height:92px!important}
