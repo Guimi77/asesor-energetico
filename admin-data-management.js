@@ -279,13 +279,28 @@
     if (!isAdmin()) throw new Error('Solo un administrador puede archivar suministros.');
     const wanted = String(cups || '').replace(/\s/g, '').toUpperCase();
     const supply = state.supplies.find((item) => String(item.cups || '').replace(/\s/g, '').toUpperCase() === wanted);
-    if (!supply) throw new Error('No se ha encontrado este CUPS en la base central.');
+
+    if (!supply) {
+      if (!window.EnergyMaster?.archiveLocal) {
+        throw new Error('Este suministro es heredado y no está en la base central.');
+      }
+      const accepted = confirm(
+        'Este suministro no existe en la base central de Supabase; solo está en el maestro heredado local.\n\n' +
+        '¿Archivarlo igualmente? Se retirará del listado activo y se conservará una copia archivada local.'
+      );
+      if (!accepted) return false;
+
+      const result = window.EnergyMaster.archiveLocal(cups);
+      if (!result?.ok) throw new Error('No se ha podido archivar el suministro heredado.');
+      return result;
+    }
+
     const buttonLike = {
       dataset: { dbAction: 'archive_supply', id: supply.id, name: supply.cups },
       disabled: false,
     };
     await runLifecycle(buttonLike);
-    return true;
+    return { ok: true, mode: 'central_archive' };
   }
 
   window.ibtArchiveSupplyByCups = archiveSupplyByCups;

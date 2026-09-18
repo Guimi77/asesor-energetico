@@ -2,6 +2,7 @@
   'use strict';
 
   const STORAGE = 'ibt-energy-master-v1';
+  const LEGACY_ARCHIVE_STORAGE = 'ibt-energy-master-legacy-archive-v1';
   const $ = (selector) => document.querySelector(selector);
 
   let supplies = [];
@@ -346,6 +347,33 @@
     return removed;
   }
 
+  function archiveLocal(cups) {
+    const wanted = cupsKey(cups);
+    if (!wanted) return { ok: false, reason: 'cups_missing' };
+
+    const index = supplies.findIndex((supply) => cupsKey(supply.cups) === wanted);
+    if (index < 0) return { ok: false, reason: 'not_found' };
+
+    const supply = { ...supplies[index], status: 'ARCHIVADO', archivedAt: new Date().toISOString() };
+
+    try {
+      const archived = JSON.parse(localStorage.getItem(LEGACY_ARCHIVE_STORAGE) || '[]');
+      const list = Array.isArray(archived) ? archived : [];
+      const filtered = list.filter((item) => cupsKey(item?.cups) !== wanted);
+      filtered.push(supply);
+      localStorage.setItem(LEGACY_ARCHIVE_STORAGE, JSON.stringify(filtered));
+    } catch (error) {
+      console.warn('No se pudo conservar el suministro heredado en el archivo local', error);
+      return { ok: false, reason: 'archive_storage_failed', error };
+    }
+
+    supplies.splice(index, 1);
+    refresh({
+      message: '<strong>Suministro heredado archivado.</strong> No existía en la base central; se ha retirado del listado activo conservando una copia local archivada.',
+    });
+    return { ok: true, mode: 'legacy_local_archive', supply };
+  }
+
   function learnInvoice(data, cupsArg = '', tariffArg = '') {
     const d = typeof data === 'object' && data
       ? data
@@ -416,6 +444,7 @@
       },
       learnInvoice,
       removeLocal,
+      archiveLocal,
       refresh: () => refresh(),
       __v2: true,
     };
