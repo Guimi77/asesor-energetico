@@ -100,9 +100,9 @@
       cleanAddress();
       await supabase.auth.signOut({scope:'local'}).catch(()=>{});
       const notice=notified
-        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido tu solicitud. Un administrador vinculará tu cuenta con el cliente correspondiente. Te avisaremos cuando puedas entrar.'
+        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido tu solicitud. Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Te avisaremos cuando puedas entrar.'
         : '<strong>Siguiente paso:</strong> tu correo está confirmado, pero tu solicitud sigue pendiente. Contacta con Instal·lacions BT si necesitas comprobar su estado.';
-      render('ok','Correo confirmado','El correo '+email+' ha quedado confirmado correctamente. Tu solicitud de acceso sigue pendiente de aprobación.',notice);
+      render('ok','Registro completado','El correo '+email+' ha quedado confirmado correctamente. Tu solicitud de acceso sigue pendiente de aprobación.',notice);
     }
     verifyConfirmation().catch(err=>{
       console.error(err);
