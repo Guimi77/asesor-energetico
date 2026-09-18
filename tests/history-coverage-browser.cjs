@@ -31,7 +31,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('svg[data-field="kwh"] circle[data-month="2026-02"]').count(),0);
   assert.equal(await page.locator('svg[data-field="kwh"] .history-chart-missing').count(),0);
   assert.match(await page.locator('svg[data-field="eur"] circle[data-month="2026-03"] title').textContent(),/3 CUPS con registros/);
-  assert.equal(await page.locator('#historyCostChart circle').count(),2);
+  assert.equal(await page.locator('#historyCostChart circle').count(),3);
   const path=await page.locator('svg[data-field="kwh"] path').getAttribute('d');assert.equal((path.match(/M /g)||[]).length,2);
   for (const width of [1720,1440,1100,700,390]) {
    await page.setViewportSize({width,height:1100});
@@ -49,6 +49,6 @@ const {chromium}=require('playwright');
   const other=await browser.newPage();await other.bringToFront();await page.waitForTimeout(200);await page.bringToFront();await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>window.mutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
   await page.evaluate(()=>{const f=document.querySelector('#historyFrom'),t=document.querySelector('#historyTo');f.value='2027-01-01';t.value='2027-01-31';t.dispatchEvent(new Event('change'));});
   await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('.history-data-note').count(),0);assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
-  assert.deepEqual(errors,[]);console.log('PASS: quick-view partial-data messaging, 80% portfolio coverage, true gaps, real zero, exact totals, full labels at five widths, scope/date filters, details, idle/tab stability and empty state. Synthetic records only.');
+  assert.deepEqual(errors,[]);console.log('PASS: quick-view partial-data messaging, full stored-period coverage, true gaps, real zero, exact totals, full labels at five widths, scope/date filters, details, idle/tab stability and empty state. Synthetic records only.');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
