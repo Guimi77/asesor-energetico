@@ -401,9 +401,13 @@ td{padding:10px 8px}
   #historyContent>*+*{margin-top:8px}
   #historyContent .history-table-wrap:has(> .history-table){
     max-height:none!important;
-    overflow-x:auto!important;
+    overflow-x:scroll!important;
     overflow-y:visible!important;
+    overscroll-behavior-x:contain!important;
+    overscroll-behavior-y:auto!important;
     scrollbar-gutter:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-x pan-y!important;
   }
   #historyContent .history-table thead th{
     position:static!important;
@@ -412,5 +416,63 @@ td{padding:10px 8px}
   #historyContent .history-svg{
     contain:layout paint;
     min-height:120px!important;
+  }
+}
+
+
+/* Historical periods: page owns vertical scroll 2026-09-18 */
+#historyContent .history-table-wrap:has(> .history-table){
+  width:100%!important;
+  max-width:100%!important;
+  max-height:none!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  overscroll-behavior-x:contain!important;
+  overscroll-behavior-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
+  scrollbar-gutter:auto!important;
+  scrollbar-width:auto;
+  scrollbar-color:#9aa9bd #eef2f6;
+}
+#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar{
+  height:11px;
+}
+#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-track{
+  background:#eef2f6;
+  border-radius:999px;
+}
+#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-thumb{
+  background:#9aa9bd;
+  border:2px solid #eef2f6;
+  border-radius:999px;
+}
+#historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar-thumb:hover{
+  background:#72839b;
+}
+#historyContent .history-table-wrap:has(> .history-table) .history-table{
+  width:max-content!important;
+  min-width:100%!important;
+  max-width:none!important;
+}
+#historyContent .history-table-wrap:has(> .history-table) .history-table th,
+#historyContent .history-table-wrap:has(> .history-table) .history-table td{
+  white-space:nowrap!important;
+}
+@media(max-width:900px){
+  #historyContent .history-table-wrap:has(> .history-table){
+    overflow-x:scroll!important;
+    overflow-y:visible!important;
+    overscroll-behavior-x:contain!important;
+    overscroll-behavior-y:auto!important;
+    touch-action:pan-x pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding-bottom:2px;
+  }
+  #historyContent .history-table-wrap:has(> .history-table) .history-table{
+    min-width:1320px!important;
+  }
+  #historyContent .history-table-wrap:has(> .history-table)::-webkit-scrollbar{
+    height:12px;
   }
 }

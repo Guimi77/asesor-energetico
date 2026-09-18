@@ -33,10 +33,14 @@ window.addEventListener('DOMContentLoaded',()=>{
       #historicoView,#historyApp,#historyContent{min-width:0;max-width:100%}
       #historicoView{overflow-x:hidden}
       #historicoView .history-table-wrap:has(> .history-table){
-        max-height:min(68vh,720px);
-        overflow:auto;
-        overscroll-behavior:contain;
-        scrollbar-gutter:stable;
+        max-height:none;
+        overflow-x:auto;
+        overflow-y:visible;
+        overscroll-behavior-x:contain;
+        overscroll-behavior-y:auto;
+        scrollbar-gutter:auto;
+        -webkit-overflow-scrolling:touch;
+        touch-action:pan-x pan-y;
       }
       #historicoView .history-table thead th{
         position:sticky!important;
@@ -57,7 +61,16 @@ window.addEventListener('DOMContentLoaded',()=>{
         }
       }
       @media(max-width:1100px){
-        #historicoView .history-table-wrap:has(> .history-table){max-height:none;overflow-x:auto;overflow-y:visible;scrollbar-gutter:auto}
+        #historicoView .history-table-wrap:has(> .history-table){
+          max-height:none;
+          overflow-x:auto;
+          overflow-y:visible;
+          overscroll-behavior-x:contain;
+          overscroll-behavior-y:auto;
+          scrollbar-gutter:auto;
+          -webkit-overflow-scrolling:touch;
+          touch-action:pan-x pan-y;
+        }
         #historicoView .history-table thead th{position:static!important;box-shadow:none!important}
       }
     `;
