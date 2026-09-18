@@ -116,3 +116,20 @@ test('v2 fails closed when a billed energy subtotal conflicts with the period de
   assert.equal(r.readOk,false);
   assert.match(r.readMessage,/coste de energía/i);
 });
+
+
+test('v2 loose-text fallback recovers energy when PDF.js breaks visual rows',()=>{
+  const carlaLoose='DETALLE DE FACTURA ENERGÍA Potencia facturada Punta 5,75 kW x 27 días x 0,108192 €/kW día 16,80 € Valle 5,75 kW x 27 días x 0,050658 €/kW día 7,86 € Total importe potencia hasta 19/07/2026 24,66 € Energía consumida 485,91 kWh x 0,148729 €/kWh 72,27 € Descuento sobre consumo 15% 15 % s/72,27 € -10,84 € Las lecturas desagregadas son punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.';
+  const ce=api._test.parseEnergyText(carlaLoose,'2.0TD',{});
+  assert.equal(ce.kwh,485.91);assert.equal(ce.energy,72.27);assert.equal(ce.consumptionReliable,true);assert.equal(ce.costReliable,true);
+  assert.deepEqual([ce.periods.P1.consumption,ce.periods.P2.consumption,ce.periods.P3.consumption],[175.87,137.31,172.73]);
+
+  const dianaLoose='ENERGÍA Potencia facturada P1 16 kW x 34 días x 0,057502 €/kW día 31,28 € P2 16 kW x 34 días x 0,029962 €/kW día 16,30 € P3 16 kW x 34 días x 0,012647 €/kW día 6,88 € P4 16 kW x 34 días x 0,010967 €/kW día 5,97 € P5 16 kW x 34 días x 0,007094 €/kW día 3,86 € P6 16 kW x 34 días x 0,00407 €/kW día 2,21 € Total importe potencia hasta 31/05/2026 66,50 € Energía consumida P2 28 kWh x 0,198752 €/kWh 5,57 € P3 14 kWh x 0,172594 €/kWh 2,42 € P4 6 kWh x 0,150296 €/kWh 0,90 € P5 2 kWh x 0,131956 €/kWh 0,26 € P6 15 kWh x 0,147973 €/kWh 2,22 € Total 65 kWh hasta 31/05/2026 11,37 € Descuento sobre consumo 15%';
+  const de=api._test.parseEnergyText(dianaLoose,'3.0TD',{P1:0,P2:28,P3:14,P4:6,P5:2,P6:15});
+  assert.equal(de.kwh,65);assert.equal(de.energy,11.37);assert.equal(de.consumptionReliable,true);assert.equal(de.costReliable,true);
+});
+
+test('v2 holder fallback takes the recipient name before the postal address, not nearby marketing copy',()=>{
+  const text='IBERDROLA CLIENTES, S.A.U. CLIENTE PRUEBA APELLIDO C/ EJEMPLO, 17 CONTRATO Titular EMPRESA RESPONSABLE Consigue un negocio más eficiente con la ayuda Dirección de suministro: C/ EJEMPLO, 17';
+  assert.equal(api._test.parseRecipientHolder(text),'CLIENTE PRUEBA APELLIDO');
+});
