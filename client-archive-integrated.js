@@ -33,6 +33,7 @@
   }
 
   function simplifyClientHierarchy(card) {
+    if (card.classList.contains('multi-client-group')) return;
     const title = $('.client-tree-title h3', card)?.textContent || '';
     const clientKey = norm(title);
     if (!clientKey || clientKey === 'GRUPOXTRA') return;
@@ -61,11 +62,27 @@
 
     for (const card of cards) {
       simplifyClientHierarchy(card);
-      const title = $('.client-tree-title h3', card)?.textContent;
-      const key = norm(title);
-      if (!key || card.querySelector('.integrated-client-archive')) continue;
 
-      const sourceRow = rowsByName.get(key);
+      if (card.classList.contains('multi-client-group')) {
+        $$('.client-group-member', card).forEach((memberRow) => {
+          if (memberRow.querySelector('.integrated-client-archive')) return;
+          const clientName = memberRow.dataset.clientName || '';
+          const sourceRow = rowsByName.get(norm(clientName));
+          const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
+          const actions = $('.client-group-member-actions', memberRow);
+          if (!sourceButton || !actions) return;
+
+          sourceButton.classList.add('integrated-client-archive');
+          sourceButton.textContent = 'Archivar cliente';
+          sourceButton.title = 'Archivar este cliente legal conservando todo su histórico';
+          actions.appendChild(sourceButton);
+        });
+        continue;
+      }
+
+      if (card.querySelector('.integrated-client-archive')) continue;
+      const clientName = card.dataset.clientPrimary || $('.client-tree-title h3', card)?.textContent || '';
+      const sourceRow = rowsByName.get(norm(clientName));
       const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
       const actions = $('.client-tree-title', card);
       if (!sourceButton || !actions) continue;
@@ -176,6 +193,50 @@
         background:#fffaf0!important;
       }
       .add-supply-holder{display:none!important}
+      .multi-client-group .add-supply-holder{
+        display:inline-flex!important;
+        margin-top:5px!important;
+        padding:4px 0!important;
+        font-size:.68rem!important;
+      }
+      .client-group-members{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        padding:6px 10px 2px;
+        border-top:1px solid #edf1f5;
+      }
+      .client-group-member{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:5px 7px;
+        border:1px solid #dfe6ef;
+        border-radius:8px;
+        background:#f8fafc;
+      }
+      .client-group-member>div:first-child{
+        display:flex;
+        flex-direction:column;
+        gap:1px;
+      }
+      .client-group-member small{
+        color:#718096;
+        font-size:.62rem;
+      }
+      .client-group-member-actions{
+        display:flex;
+        align-items:center;
+      }
+      .client-group-member .integrated-client-archive{
+        margin-left:0!important;
+        padding:4px 7px!important;
+        font-size:.64rem!important;
+      }
+      .holder-client-name{
+        color:#718096;
+        font-size:.64rem;
+      }
       .simple-client-folder>summary{display:none!important}
       .simple-client-folder{border-top:1px solid #e7ebf1}
       .simple-client-folder>.holder-supplies{padding-top:8px}
