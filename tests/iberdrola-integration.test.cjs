@@ -3,19 +3,19 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const formats=require('../invoice-formats.js');
-const iberdrola=require('../iberdrola-parser.js');
+const iberdrola=require('../iberdrola-parser-v3.js');
 const source=file=>fs.readFileSync(file,'utf8');
 
 test('production loads the portable Iberdrola parser before every runtime consumer',()=>{
   const html=source('index.html');
-  const parser=html.indexOf('iberdrola-parser.js?v=');
-  const parserV2=html.indexOf('iberdrola-parser-v2.js?v=');
+  const parser=html.indexOf('iberdrola-parser-v3.js?v=');
   const app=html.indexOf('app.js?v=');
   const master=html.indexOf('supply-enricher-v2.js?v=');
-  assert(parser>=0,'Iberdrola parser script missing');
-  assert(parserV2>parser,'Iberdrola v2 must load after the legacy compatibility layer');
-  assert(app>parserV2,'main parser must load after Iberdrola v2');
-  assert(master>parser,'master enricher must load after Iberdrola parser');
+  assert(parser>=0,'Iberdrola v3 parser script missing');
+  assert(!html.includes('iberdrola-parser-hardening.js?v='),'legacy hardening must not run in production');
+  assert(!html.includes('iberdrola-parser-v2.js?v='),'legacy v2 must not run in production');
+  assert(app>parser,'main parser must load after Iberdrola v3');
+  assert(master>parser,'master enricher must load after Iberdrola v3');
   assert(html.includes('auth-bootstrap.js?v='));
   assert(source('auth-bootstrap.js').includes('xtra-history.js?v='));
 });
