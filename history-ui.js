@@ -259,16 +259,10 @@
 
   function chartCoverageView(points, expected) {
     const total = Math.max(0, Number(expected) || 0);
-    const threshold = total > 1 ? Math.max(1, Math.ceil(total * CHART_MIN_COVERAGE_RATIO)) : total;
-    const prepared = points.map(p => {
-      const chartExcluded = total > 1 && p.supplies < threshold;
-      return chartExcluded ? {...p, kwh:null, eur:null, chartExcluded:true} : {...p, chartExcluded:false};
-    });
-    const excludedPoints = prepared.filter(p => p.chartExcluded);
-    let first = 0, last = prepared.length;
-    while (first < last && prepared[first].chartExcluded) first++;
-    while (last > first && prepared[last-1].chartExcluded) last--;
-    return { points:prepared.slice(first,last), threshold, expected:total, excluded:excludedPoints.length, excludedPoints };
+    // Coverage is context, not a filter: every stored month with real data must remain visible.
+    // A portfolio can gain/lose supplies over time, so low coverage must never erase historical periods.
+    const prepared = points.map(p => ({...p, chartExcluded:false}));
+    return { points:prepared, threshold:total, expected:total, excluded:0, excludedPoints:[] };
   }
 
   function renderChartCoverage(points, expected, view = chartCoverageView(points, expected)) {
