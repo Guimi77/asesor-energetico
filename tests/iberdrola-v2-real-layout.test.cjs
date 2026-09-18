@@ -165,3 +165,34 @@ test('v2 rescue reads energy from the exact Iberdrola document text when visual 
   assert.deepEqual([de.periods.P1.consumption,de.periods.P2.consumption,de.periods.P3.consumption,de.periods.P4.consumption,de.periods.P5.consumption,de.periods.P6.consumption],[0,28,14,6,2,15]);
   assert.deepEqual([de.periods.P1.cost,de.periods.P2.cost,de.periods.P3.cost,de.periods.P4.cost,de.periods.P5.cost,de.periods.P6.cost],[0,5.57,2.42,0.9,0.26,2.22]);
 });
+
+
+test('v2 2026.09.18.5 recovers Carla even when PDF.js loses the billed-energy row structure',()=>{
+  const text=[
+    'ENERGÍA 101,36 €',
+    'Potencia facturada Punta 5,75 kW x 27 días x 0,108192 €/kW día 16,80 €',
+    'Valle 5,75 kW x 27 días x 0,050658 €/kW día 7,86 €',
+    'Total importe potencia hasta 19/07/2026 24,66 €',
+    'Energía consumida texto-intercalado 485,91 kWh texto-intercalado 0,148729 €/kWh texto-intercalado 72,27 €',
+    'Impuesto sobre electricidad (*) 5,11269632 % s/86,71 € 4,43 €',
+    'Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.'
+  ].join('\n');
+  const e=api._test.rescueEnergyFromDocumentText(text,'2.0TD',{summaryEnergy:101.36,power:24.66,tax:4.43});
+  assert.equal(e.kwh,485.91);assert.equal(e.energy,72.27);assert.equal(e.consumptionReliable,true);assert.equal(e.costReliable,true);
+  assert.deepEqual([e.periods.P1.consumption,e.periods.P2.consumption,e.periods.P3.consumption],[175.87,137.31,172.73]);
+});
+
+test('v2 2026.09.18.5 completes Diana P1 as zero only when the other five periods exactly equal the printed totals',()=>{
+  const text=[
+    'Energía consumida P2 28 kWh x 0,198752 €/kWh 5,57 €',
+    'P3 14 kWh x 0,172594 €/kWh 2,42 €',
+    'P4 6 kWh x 0,150296 €/kWh 0,90 €',
+    'P5 2 kWh x 0,131956 €/kWh 0,26 €',
+    'P6 15 kWh x 0,147973 €/kWh 2,22 €',
+    'Total 65 kWh hasta 31/05/2026 11,37 €'
+  ].join('\n');
+  const e=api._test.rescueEnergyFromDocumentText(text,'3.0TD',{});
+  assert.equal(e.consumptionReliable,true);assert.equal(e.costReliable,true);
+  assert.deepEqual([e.periods.P1.consumption,e.periods.P2.consumption,e.periods.P3.consumption,e.periods.P4.consumption,e.periods.P5.consumption,e.periods.P6.consumption],[0,28,14,6,2,15]);
+  assert.deepEqual([e.periods.P1.cost,e.periods.P2.cost,e.periods.P3.cost,e.periods.P4.cost,e.periods.P5.cost,e.periods.P6.cost],[0,5.57,2.42,0.9,0.26,2.22]);
+});
