@@ -200,11 +200,7 @@
         font-size:.68rem!important;
       }
       .client-group-members{
-        display:flex;
-        flex-wrap:wrap;
-        gap:6px;
-        padding:6px 10px 2px;
-        border-top:1px solid #edf1f5;
+        display:none!important;
       }
       .client-group-member{
         display:flex;
