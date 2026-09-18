@@ -147,7 +147,7 @@
     const social=socialSection??lineEuro(p1,/CARGOS\s+NORMATIVOS/i)??0;
     const rental=sectionEuro(all,/Alquiler\s+equipos?\s+medida/i,/TOTAL\s+SERVICIOS|IMPORTE\s+TOTAL|^IVA/m,260)??lineEuro(p1,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i)??0;
     const tax=sectionEuro(all,/Impuesto\s+sobre\s+electricidad/i,/TOTAL\s+ENERG[IÍ]A/i,320)??0;
-    const vat=sectionEuro(all,/^IVA(?:\s|\()/mi,/TOTAL\s+IMPORTE\s+FACTURA/i,220)??lineEuro(p1,/^IVA\b/i)??0;
+    const vat=lineEuro(p1,/^IVA\b/i)??sectionEuro((pages[1]||[]).join('\n'),/^IVA(?:\s|\()/mi,/TOTAL\s+IMPORTE\s+FACTURA/i,220)??0;
     const total=sectionEuro(all,/TOTAL\s+IMPORTE\s+FACTURA/i,/\(\*\)|NIF\s+titular|N[º°o.]?\s*contador/i,160)??lineEuro(p1,/^TOTAL\b/i);
     const other=round2(Number(discounts)+Number(social)+Number(rental)),energy=energyDetail.energy,power=powerDetail.value,accounted=round2(Number(energy||0)+Number(power||0)+other+Number(tax||0)+Number(vat||0)),diff=total==null?null:round2(Number(total)-accounted),balanced=total!=null&&Math.abs(diff)<=.05,contracted={...powerDetail.contracted};
     const mContr=all.match(/Potencia\s+contratada\s*\(kW\)\s*:\s*([^\n]{1,120})/i);if(mContr){const vals=[...mContr[1].matchAll(/\b(\d+(?:[.,]\d+)?)\b/g)].map(x=>num(x[1])).slice(0,6);vals.forEach((v,i)=>contracted[`P${i+1}`]=v);}
