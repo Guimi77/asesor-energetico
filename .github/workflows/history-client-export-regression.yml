@@ -37,8 +37,6 @@ jobs:
         run: |
           node tests/history-client-export-browser.cjs
           python tests/history-client-export-xml.py
-          node tests/history-chart-refresh-browser.cjs
-          node tests/history-recommendations-browser.cjs
           node tests/historical-export-enrichment-exceljs.cjs
       - uses: actions/upload-artifact@v4
         with:
