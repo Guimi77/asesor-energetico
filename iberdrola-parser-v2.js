@@ -192,3 +192,35 @@
     const sumKwh=round2(Object.values(periods).reduce((s,q)=>s+Number(q.consumption||0),0)),sumCost=round2(Object.values(periods).reduce((s,q)=>s+Number(q.cost||0),0)),consumptionReliable=printedKwh!=null&&Object.values(periods).every(q=>q.consumption!=null)&&Math.abs(sumKwh-printedKwh)<=.1,costReliable=printedCost!=null&&Object.values(periods).every(q=>q.cost!=null)&&Math.abs(sumCost-printedCost)<=.05;
     return{kwh:printedKwh??(consumptionReliable?sumKwh:null),energy:printedCost??(costReliable?sumCost:null),periods,sumKwh,sumCost,consumptionReliable,costReliable,pricingMode:'periods'};
   }
+  function bestEnergy(pageVariantsList,tariff,readingVariants,allTexts){let best=null,score=-1;for(let i=0;i<pageVariantsList.length;i++){const active=readingVariants[i]||{},e=parseEnergy(pageVariantsList[i],tariff,active,allTexts[i]||'');if(!e)continue;const informed=Object.values(e.periods||{}).filter(q=>q.consumption!=null).length,costs=Object.values(e.periods||{}).filter(q=>q.cost!=null).length,s=(e.consumptionReliable?1000:0)+(e.costReliable?500:0)+informed*10+costs;if(s>score){best=e;score=s;}}return best;}
+
+  function summaryAmount(p1,re){for(const line of p1||[]){if(re.test(String(line||''))){const v=lastEuro(line);if(v!=null)return v;}}return null;}
+  function rowAmount(lines,re){for(const line of lines||[]){if(re.test(String(line||''))){const v=lastEuro(line);if(v!=null)return v;}}return null;}
+  function sumRows(lines,re){let sum=0,found=false;for(const line of lines||[]){if(!re.test(String(line||'')))continue;const v=lastEuro(line);if(v!=null){sum+=v;found=true;}}return found?round2(sum):null;}
+  function parseConcepts(p1,detail,power,energy){
+    const summaryEnergy=summaryAmount(p1,/^\s*ENERG[IÍ]A\b/i),summaryDiscount=summaryAmount(p1,/DESCUENTOS\s+ENERG[IÍ]A/i),summaryNormative=summaryAmount(p1,/CARGOS\s+NORMATIVOS/i),summaryServices=summaryAmount(p1,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),summaryVat=summaryAmount(p1,/^\s*IVA\b/i),summaryTotal=summaryAmount(p1,/^\s*TOTAL\b/i);
+    const discounts=rowAmount(detail,/Descuento\s+sobre\s+consumo/i)??summaryDiscount??0,social=sumRows(detail,/Financiaci[oó]n\s+bono\s+social/i)??summaryNormative??0,rental=rowAmount(detail,/Alquiler\s+equipos?\s+medida/i)??summaryServices??0;
+    const taxRow=rowAmount(detail,/Impuesto\s+sobre\s+electricidad/i),taxBySummary=summaryEnergy!=null&&power!=null&&energy!=null?round2(summaryEnergy-power-energy):null,tax=taxBySummary!=null&&(taxRow==null||Math.abs(taxRow-taxBySummary)>.05)?taxBySummary:(taxRow??taxBySummary??0),vat=rowAmount(detail,/^\s*IVA(?:\s|\()/i)??summaryVat??0,total=rowAmount(detail,/TOTAL\s+IMPORTE\s+FACTURA/i)??summaryTotal;
+    return{discounts,social,rental,tax,vat,total,summaryEnergy};
+  }
+
+  function parseContracted(all,tariff,fallback){
+    const out={...(fallback||{})},expected=expectedPowerPeriods(tariff),m=String(all||'').match(/Potencia\s+contratada\s*\(kW\)\s*:\s*([^\n]{1,150})/i);
+    if(m){const values=[...m[1].matchAll(/\b(\d+(?:[.,]\d+)?)\b/g)].map(x=>num(x[1])).filter(v=>v!=null).slice(0,expected||6);if(!expected||values.length>=expected)values.forEach((v,i)=>{if(i<(expected||values.length))out[`P${i+1}`]=v;});}
+    if(/^2\.0TD$/i.test(tariff)){const p=String(all||'').match(/Potencia\s+punta\s*:\s*([\d.,]+)\s*kW/i),v=String(all||'').match(/Potencia\s+valle\s*:\s*([\d.,]+)\s*kW/i);if(out.P1==null&&p)out.P1=num(p[1]);if(out.P2==null&&v)out.P2=num(v[1]);}
+    return out;
+  }
+  function parseAnnualDemand(all){const m=String(all||'').match(/potencias\s+m[aá]ximas\s+demandadas[\s\S]{0,220}?([\d.,]+)\s*kW\s+en\s+P1[\s\S]{0,120}?([\d.,]+)\s*kW\s+en\s+P2/i);return m?{P1:num(m[1]),P2:num(m[2]),_source:'annual_max_demand'}:{};}
+  function parseDistributor(all){const m=String(all||'').match(/Empresa\s+distribuidora\s*:\s*([^\n]{2,180})/i);return clean((m?.[1]||'').split(/N[uú]mero\s+de\s+contrato\s+de\s+acceso\s*:/i)[0]);}
+
+  function parse(d,file,options={}){
+    if(!detect(d))return null;
+    const combos=allVariants(d),primary=combos[0]||[],pageCount=primary.length,p1Variants=pageVariants(d,0),detailVariants=pageVariants(d,1),p3Variants=pageVariants(d,2),allTextVariants=combos.map(pages=>pages.flat().join('\n'));
+    const rawText=(d?.rawPages||[]).flat().map(x=>x?.str||'').join(' ');
+    const baseAll=[String(d?.text||''),...(d?.pages||[]).flat(),rawText].join('\n');
+    const tariff=normalizeTariff(baseAll)||'—';
+    const p1=p1Variants.slice().sort((a,b)=>b.length-a.length)[0]||[],holderCandidates=p1Variants.map(parseHolder).filter(Boolean).sort((a,b)=>b.length-a.length),holder=holderCandidates[0]||'',addressCandidates=p1Variants.map(parseAddress).filter(Boolean).sort((a,b)=>b.length-a.length),supplyAddress=addressCandidates[0]||'',place=splitPlace(supplyAddress),periodCandidates=p1Variants.map(parsePeriod).filter(p=>p.label!=='Por identificar'),periodInfo=periodCandidates[0]||{label:'Por identificar',start:'',end:'',days:null},p1All=p1Variants.map(textOf).join('\n');
+    const invoiceNumber=nextLongNumber(p1All,/N[º°o.]?\s*FACTURA\s*:/i,10,22,520)||'Por identificar',contract=nextLongNumber(p1All,/N[º°o.]?\s*DE\s*CONTRATO\s*:/i,6,20,220),cups=findStrictCups(baseAll),issueDate=parseIssueDate(p1);
+
+    const activeVariants=detailVariants.map((lines,i)=>{const p3=p3Variants[Math.min(i,p3Variants.length-1)]||[];return parseReadingRows([...lines,...p3],'Energ[ií]a\s+activa','kWh');});
+    const powerDetail=bestPower(detailVariants,tariff),energyDetail=bestEnergy(detailVariants,tariff,activeVariants,detailVariants.map((lines,i)=>[...lines,...(p3Variants[Math.min(i,p3Variants.length-1)]||[])].join('\n')))||{kwh:null,energy:null,periods:{},consumptionReliable:false,costReliable:false,pricingMode:'unknown'};
