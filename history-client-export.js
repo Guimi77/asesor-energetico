@@ -70,10 +70,9 @@
     return out;
   }
   function reportCoverage(months,expected){
-    const total=Math.max(0,Number(expected)||0),threshold=total>1?Math.max(1,Math.ceil(total*.8)):total;
-    let excluded=0;
-    const points=months.map(m=>{const omit=total>1&&m.supplyCount<threshold;if(omit)excluded++;return omit?{...m,kwh:null,total:null,energyPrice:null,totalUnit:null,chartExcluded:true}:{...m,chartExcluded:false};});
-    return {months:points,threshold,expected:total,excluded};
+    const total=Math.max(0,Number(expected)||0);
+    // Excel must reflect every stored period. Coverage is informational and never removes months from charts.
+    return {months:months.map(m=>({...m,chartExcluded:false})),threshold:total,expected:total,excluded:0};
   }
   function colors(){return Object.assign({navy:'#061B38',blue:'#1834B8',red:'#B42318',light:'#F4F7FB',text:'#10233F',muted:'#65758A'},root.IBT_REPORT_TEMPLATE?.palette||{});}
   const argb=c=>'FF'+c.replace('#','');
