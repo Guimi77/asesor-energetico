@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=20260917-iberdrola1';
+    script.src='xtra-history.js?v=3da286d1e243';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
