@@ -132,7 +132,7 @@
       const end=p1text.match(/Fecha\s+final\s+contrato\s*:\s*(\d{1,2}[./]\d{1,2}[./]\d{4})/i);renewalDate=end?normalizeDate(end[1]):'';
       contractType=clean((p1text.match(/Tipo\s*:\s*([^\n]*?)(?=\s+N[º°o.]?\s*Contrato\s*:|$)/i)||[])[1]||'Mercado libre');
     }else{
-      const di=p3.findIndex(l=>/^Distribuidora\b/i.test(l));if(di>=0){const parts=[];for(let i=di+1;i<Math.min(p3.length,di+4);i++){let q=clean(p3[i]);if(/N[º°o.]?\s+de\s+contador/i.test(q))break;q=clean(q.split(/\bdistribuci[oó]n\b/i)[0]);q=clean(q.split(/\b2\.0TD\b/i)[0]);q=clean(q.split(/\bLocalizador\s+de\s+pago\b/i)[0]);if(q&&/^[A-ZÁÉÍÓÚÜÑÇ .,&-]+$/i.test(q))parts.push(q);}distributor=clean(parts.join(' '));}
+      const di=p3.findIndex(l=>/^Distribuidora\b/i.test(l));if(di>=0){const parts=[];for(let i=di+1;i<Math.min(p3.length,di+7);i++){let q=clean(p3[i]);if(/N[º°o.]?\s+de\s+contador/i.test(q))break;if(/^(?:Localizador\s+de\s+pago|CPR:|Emisor:|Referencia:|Identificaci[oó]n:)/i.test(q))continue;q=clean(q.split(/\bdistribuci[oó]n\b/i)[0]);q=clean(q.split(/\b(?:2\.0TD|3\.0TD|6\.[1-4]TD)\b/i)[0]);q=clean(q.replace(/\s+\d+\s*$/,''));if(q&&/^[A-ZÁÉÍÓÚÜÑÇ .,&-]+$/i.test(q)&&!/^Forma\s+de\s+pago/i.test(q))parts.push(q);}distributor=clean(parts.join(' '));}
       const pair=p3text.match(/N[º°o.]?\s+de\s+contador\s+N[º°o.]?\s+contrato\s+de\s+acceso[^\n]*\n\s*(\d{5,20})\s+(\d{6,20})/i);if(pair){meterNumber=pair[1];accessContract=pair[2];}
       const end=text.match(/Fecha\s+fin\s+de\s+contrato[\s\S]{0,120}?(\d{1,2}[./]\d{1,2}[./]\d{4})/i);renewalDate=end?normalizeDate(end[1]):'';
       const tm=p3text.match(/Comercializadora\s+Tipo\s+de\s+tarifa[\s\S]{0,160}?Repsol\s+Comercializadora[^\n]*?\s+(Mercado\s+libre)\b/i);contractType=tm?clean(tm[1]):'Mercado libre';
