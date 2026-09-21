@@ -24,7 +24,7 @@ const item=(cups,holder)=>({
   measurements:[{period:3,contracted:16.5,maximum:0,ratio:0,observations:4}],
   sources:[{id:cups+'-MAY',invoice:'MAY',start:'2026-05-13',end:'2026-05-31'},{id:cups+'-AUG',invoice:'AUG',start:'2026-08-01',end:'2026-08-31'}],
 });
-const snapshot={checked:true,error:null,requestedCups:[ALCONASER,OTHER],matchedCups:[ALCONASER,OTHER],missingCups:[],items:[item(ALCONASER,'ALCONASER'),item(OTHER,'OTRO')],used:8,excluded:0,duplicates:0,supplies:2,records:8};
+const snapshot={checked:true,error:null,requestedCups:[ALCONASER,OTHER],matchedCups:[ALCONASER,OTHER],missingCups:[],items:[item(ALCONASER,'ALCONASER'),item(OTHER,'OTRO')],used:8,usedByCups:{[ALCONASER.slice(0,20)]:2,[OTHER.slice(0,20)]:6},excluded:0,duplicates:0,supplies:2,records:8};
 
 (async()=>{
   const wb=new ExcelJS.Workbook();
