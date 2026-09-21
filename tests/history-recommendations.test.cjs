@@ -39,7 +39,7 @@ test('Core recommendation dependencies remain locked while Endesa input adapters
  const part=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
  const currentEnricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',baseline+':supply-enricher-v2.js'],{encoding:'utf8'});
  assert.equal(part(currentEnricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
- assert(currentEnricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
+ assert(currentEnricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('const expectedEnergyPeriods='));assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(consumption>0&&energy<=0)'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));
  const ui=fs.readFileSync('history-ui.js','utf8');assert(ui.includes('${renderRecommendations(records)}'));assert(ui.includes('window.IBTHistoryRecommendations?.render'));const html=fs.readFileSync('index.html','utf8');assert(html.indexOf('history-recommendations.js')<html.indexOf('auth-bootstrap.js'));
 });

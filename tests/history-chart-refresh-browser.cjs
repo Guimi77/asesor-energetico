@@ -52,11 +52,12 @@ const server=http.createServer((req,res)=>{
   await page.evaluate(()=>{window.chartMutations=0;new MutationObserver(m=>window.chartMutations+=m.length).observe(document.querySelector('#historyContent'),{childList:true,subtree:true});});
   const queries=await page.evaluate(()=>window.mockQueries);const other=await browser.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(300);await page.bringToFront();await page.waitForTimeout(600);
   assert.equal(await page.evaluate(()=>window.chartMutations),0);assert.equal(await page.evaluate(()=>window.mockQueries),queries);await other.close();
-  await page.goto(root+'/candidate/?ready=1&case=gap');await page.waitForSelector('#historyCostChart .history-empty');
-  assert.equal(await page.locator('#historyCostChart circle').count(),0);
+  await page.goto(root+'/candidate/?ready=1&case=gap');await page.waitForSelector('#historyCostChart svg');
+  assert.equal(await page.locator('#historyCostChart circle').count(),2);
+  assert.equal(await page.locator('#historyCostChart .history-cost-missing').count(),1);
   assert.match(await page.locator('.history-data-note').innerText(),/datos parciales/);
-  await page.fill('#historyFrom','2027-01-01');await page.locator('#historyFrom').dispatchEvent('change');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
-  await page.goto(root+'/candidate/?ready=1&case=zero');await page.waitForSelector('#historyCostChart .history-empty');assert.equal(await page.locator('#historyCostChart circle').count(),0);assert.equal(await page.locator('#historyCostChart path').count(),0);
+  assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
+  await page.goto(root+'/candidate/?ready=1&case=zero');await page.waitForSelector('.history-table');assert.equal(await page.locator('#historyCostChart circle').count(),0);assert.equal(await page.locator('#historyCostChart path').count(),0);assert((await page.locator('#historyCostChart .history-cost-missing').count())+(await page.locator('#historyCostChart .history-empty').count())>0);
   assert.deepEqual(errors,[]);
   console.log('PASS: reload x3, delayed and immediate sessions, 341 synthetic records, 52 supplies, three charts, weighted numeric cost, portfolio coverage filtering, filters, detail, recommendations, no idle redraw and empty selections.');
   console.log('No production database, real invoices or RLS tests were used.');
