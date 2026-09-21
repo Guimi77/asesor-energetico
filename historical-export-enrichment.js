@@ -62,7 +62,7 @@
   }
 
   function errorSnapshot(cups, error) {
-    return {checked:false, error:clean(error?.message || error || 'Histórico no disponible'), requestedCups:[...(cups || [])], matchedCups:[], missingCups:[...(cups || [])], items:[], used:0, excluded:0, duplicates:0, supplies:0, records:0};
+    return {checked:false, error:clean(error?.message || error || 'Histórico no disponible'), requestedCups:[...(cups || [])], matchedCups:[], missingCups:[...(cups || [])], items:[], used:0, usedByCups:{}, excluded:0, duplicates:0, supplies:0, records:0};
   }
 
   async function fetchAllInvoices(supabase, supplyIds) {
@@ -91,7 +91,7 @@
 
   async function fetchSnapshot(wb) {
     const requestedCups = workbookCups(wb);
-    if (!requestedCups.length) return {checked:true, error:null, requestedCups:[], matchedCups:[], missingCups:[], items:[], used:0, excluded:0, duplicates:0, supplies:0, records:0};
+    if (!requestedCups.length) return {checked:true, error:null, requestedCups:[], matchedCups:[], missingCups:[], items:[], used:0, usedByCups:{}, excluded:0, duplicates:0, supplies:0, records:0};
     const supabase = root.ibtSupabase;
     const recommendations = root.IBTHistoryRecommendations;
     if (!supabase || !recommendations?.build) return errorSnapshot(requestedCups, 'No se ha cargado la conexión al histórico o el motor de recomendaciones.');
@@ -111,7 +111,7 @@
       const supplies = [...byId.values()].filter(s => requestedKeys.has(cupsKey(s.cups)));
       const matchedKeys = new Set(supplies.map(s => cupsKey(s.cups)));
       const missingCups = requestedCups.filter(c => !matchedKeys.has(cupsKey(c)));
-      if (!supplies.length) return {checked:true,error:null,requestedCups,matchedCups:[],missingCups,items:[],used:0,excluded:0,duplicates:0,supplies:0,records:0};
+      if (!supplies.length) return {checked:true,error:null,requestedCups,matchedCups:[],missingCups,items:[],used:0,usedByCups:{},excluded:0,duplicates:0,supplies:0,records:0};
 
       const holderIds = unique(supplies.map(s => s.holder_id));
       const holderQuery = await supabase.from('holders').select('id,client_id,legal_name,tax_id,status').in('id', holderIds);
@@ -121,6 +121,16 @@
       const supplyById = new Map(supplies.map(s => [s.id, s]));
       const records = await fetchAllInvoices(supabase, supplies.map(s => s.id));
       const result = recommendations.build({records, supplies});
+      const recordsBySupply = new Map();
+      for (const record of records) {
+        if (!recordsBySupply.has(record.supply_id)) recordsBySupply.set(record.supply_id, []);
+        recordsBySupply.get(record.supply_id).push(record);
+      }
+      const usedByCups = {};
+      for (const supply of supplies) {
+        const one = recommendations.build({records:recordsBySupply.get(supply.id) || [], supplies:[supply]});
+        usedByCups[cupsKey(supply.cups)] = one.used;
+      }
       const items = result.items.map(item => {
         const supply = supplyById.get(item.supplyId) || {};
         const holder = holderById.get(supply.holder_id) || {};
@@ -133,7 +143,7 @@
       return {
         checked:true, error:null, requestedCups,
         matchedCups:supplies.map(s => s.cups), missingCups, items,
-        used:result.used, excluded:result.excluded, duplicates:result.duplicates, supplies:result.supplies, records:records.length,
+        used:result.used, usedByCups, excluded:result.excluded, duplicates:result.duplicates, supplies:result.supplies, records:records.length,
       };
     } catch (error) {
       console.error('No se pudo incorporar el histórico al Excel', error);
@@ -190,6 +200,18 @@
     if (rows.length) root.XLSX.utils.sheet_add_aoa(ws, rows, {origin:-1});
   }
 
+  function recordsForCups(snapshot, cups) {
+    const keys = new Set((cups || []).map(cupsKey).filter(Boolean));
+    if (!keys.size) return 0;
+    const byCups = snapshot?.usedByCups || {};
+    const mapped = [...keys].reduce((sum,key)=>sum+(Number(byCups[key])||0),0);
+    if (Object.keys(byCups).length) return mapped;
+    const ids = new Set();
+    for (const item of itemsForCups(snapshot, cups)) for (const source of item?.sources || []) if (source?.id) ids.add(source.id);
+    if (ids.size) return ids.size;
+    if ((snapshot?.matchedCups || []).length === 1 && keys.has(cupsKey(snapshot.matchedCups[0]))) return Number(snapshot.used) || 0;
+    return 0;
+  }
   function clientSheetStatus(snapshot, cups) {
     const items = itemsForCups(snapshot, cups), missing = missingForCups(snapshot, cups);
     if (!snapshot?.checked) return {items, missing, message:`Histórico no verificado: ${snapshot?.error || 'sin detalle'}.`};
@@ -207,8 +229,9 @@
     ws.getCell(1,1).value = 'RECOMENDACIONES DEL HISTÓRICO';
     ws.getCell(1,1).font = {bold:true,size:18,color:{argb:'FFFFFFFF'}};
     ws.getCell(1,1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:argb(p.navy)}};
+    const localUsed = recordsForCups(snapshot, cups);
     ws.getCell(2,1).value = snapshot?.checked
-      ? `Revisión consolidada del histórico autorizado · ${snapshot.used} registro(s) validados. No son cambios aprobados ni ahorros garantizados.`
+      ? `Revisión consolidada del histórico autorizado · ${localUsed} registro(s) validados de este libro. No son cambios aprobados ni ahorros garantizados.`
       : `HISTÓRICO NO VERIFICADO: ${snapshot?.error || 'sin detalle'}.`;
     ws.getCell(2,1).font = {italic:true,size:10,color:{argb:argb(p.muted)}};
     ws.getCell(2,1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:argb(p.light)}};
@@ -289,7 +312,7 @@
     root.document?.addEventListener?.('click', event => { if (event?.target?.id === 'exportClientExcel') clientRequested = true; }, true);
   }
 
-  const api = Object.freeze({workbookCups, itemRange, sourceText, measurementText, typeLabel, itemsForCups, missingForCups, recommendationTableRows, errorSnapshot, fetchSnapshot, addSheetJsRecommendations, appendSheetJsPoints, addExcelJsRecommendations, clientSheetStatus, install});
+  const api = Object.freeze({workbookCups, itemRange, sourceText, measurementText, typeLabel, itemsForCups, missingForCups, recordsForCups, recommendationTableRows, errorSnapshot, fetchSnapshot, addSheetJsRecommendations, appendSheetJsPoints, addExcelJsRecommendations, clientSheetStatus, install});
   root.IBTHistoricalExportEnrichment = api;
   install();
 })(typeof globalThis !== 'undefined' ? globalThis : this);

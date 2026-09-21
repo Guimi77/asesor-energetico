@@ -126,7 +126,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-historical-export-enrichment]')){
     const script=document.createElement('script');
-    script.src='historical-export-enrichment.js?v=20260916-history1';
+    script.src='historical-export-enrichment.js?v=483845e87300';
     script.dataset.historicalExportEnrichment='1';
     document.body.appendChild(script);
   }

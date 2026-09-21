@@ -71,6 +71,19 @@ test('Client workbook keeps body cells aligned with headers and renders total co
   assert.match(source,/\['Precio medio de energía','€\/kWh','energyPrice','price',start\+36\],\['Coste total €\/kWh','€\/kWh','totalUnit','price',start\+54\]/);
 });
 
+
+test('Client export preserves missing period costs as null instead of inventing zero',()=>{
+  const source=fs.readFileSync(__dirname+'/../client-report-export.js','utf8');
+  assert.match(source,/nullableNumber=v=>v===''\|\|v==null\?null:/);
+  assert.match(source,/cost:nullableNumber\(d\[o\+1\]\)/);
+});
+
+test('Client export sanitizes legacy retailer and distributor names with the common normalizer',()=>{
+  const source=fs.readFileSync(__dirname+'/../client-report-export.js','utf8');
+  assert.match(source,/semanticText=v=>window\.IBTPdfTextNormalizer\?\.repair/);
+  assert.match(source,/semanticText\(m\.distributor\|\|''\)/);
+});
+
 test('Filename range reflects the real selected period instead of a hard-coded year',()=>{
   assert.equal(api.rangeTag([row('01/07/2025 - 31/07/2025'),row('01/08/2026 - 31/08/2026')]),'2025-07_a_2026-08');
 });

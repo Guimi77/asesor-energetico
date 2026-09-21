@@ -22,9 +22,9 @@ const item=(cups,holder)=>({
   type:'power',cups,holderName:holder,supplyName:holder,title:'Estudiar un posible ajuste de potencia',amount:null,
   evidence:'4 facturas comparables (111 días) sin excesos registrados.',action:'Revisar ciclo anual.',caveat:'No es potencia recomendada.',detailKind:'power',
   measurements:[{period:3,contracted:16.5,maximum:0,ratio:0,observations:4}],
-  sources:[{invoice:'MAY',start:'2026-05-13',end:'2026-05-31'},{invoice:'AUG',start:'2026-08-01',end:'2026-08-31'}],
+  sources:[{id:cups+'-MAY',invoice:'MAY',start:'2026-05-13',end:'2026-05-31'},{id:cups+'-AUG',invoice:'AUG',start:'2026-08-01',end:'2026-08-31'}],
 });
-const snapshot={checked:true,error:null,requestedCups:[ALCONASER,OTHER],matchedCups:[ALCONASER,OTHER],missingCups:[],items:[item(ALCONASER,'ALCONASER'),item(OTHER,'OTRO')],used:8,excluded:0,duplicates:0,supplies:2,records:8};
+const snapshot={checked:true,error:null,requestedCups:[ALCONASER,OTHER],matchedCups:[ALCONASER,OTHER],missingCups:[],items:[item(ALCONASER,'ALCONASER'),item(OTHER,'OTRO')],used:8,usedByCups:{[ALCONASER.slice(0,20)]:2,[OTHER.slice(0,20)]:6},excluded:0,duplicates:0,supplies:2,records:8};
 
 (async()=>{
   const wb=new ExcelJS.Workbook();
@@ -36,6 +36,7 @@ const snapshot={checked:true,error:null,requestedCups:[ALCONASER,OTHER],matchedC
   const rec=wb.getWorksheet('RECOMENDACIONES');
   assert.ok(rec,'the client workbook must contain RECOMENDACIONES');
   assert.equal(rec.getCell('B5').value,ALCONASER);
+  assert.match(String(rec.getCell('A2').value),/2 registro\(s\) validados de este libro/);
   assert.notEqual(rec.getCell('B5').value,OTHER);
   assert.match(String(rec.getCell('H5').value),/4 facturas comparables/);
   assert.match(String(rec.getCell('K5').value),/MAY/);

@@ -142,10 +142,21 @@ test('internal workbook gets a historical recommendations sheet and a historical
   assert.equal(workbook.Sheets['Puntos a revisar'].__appended[0][0],'HISTÓRICO');
 });
 
+
+test('client workbook historical counter is scoped to its own CUPS',()=>{
+  const {api}=load();
+  const a=powerItem(ALCONASER),b={...powerItem(OTHER),cups:OTHER};
+  a.sources=a.sources.map((x,i)=>({...x,id:'a'+i}));
+  b.sources=b.sources.map((x,i)=>({...x,id:'b'+i}));
+  const snapshot={checked:true,items:[a,b],missingCups:[],matchedCups:[ALCONASER,OTHER],used:8,usedByCups:{[ALCONASER.slice(0,20)]:4,[OTHER.slice(0,20)]:4}};
+  assert.equal(api.recordsForCups(snapshot,[ALCONASER]),4);
+  assert.equal(api.recordsForCups(snapshot,[OTHER]),4);
+});
+
 test('the enrichment loads after the canonical history engine and is cache-busted',()=>{
   const historyPos=indexSource.indexOf('history-recommendations.js?v=20260916-powerboundary1');
-  const enrichmentPos=indexSource.indexOf('historical-export-enrichment.js?v=20260916-history1');
+  const enrichmentPos=indexSource.indexOf('historical-export-enrichment.js?v=483845e87300');
   assert.ok(historyPos>=0 && enrichmentPos>historyPos,'the canonical history engine must load first');
   assert.match(indexSource,/auth-bootstrap\.js\?v=[^"'<>\s]+/);
-  assert.match(bootstrapSource,/historical-export-enrichment\.js\?v=20260916-history1/);
+  assert.match(bootstrapSource,/historical-export-enrichment\.js\?v=483845e87300/);
 });

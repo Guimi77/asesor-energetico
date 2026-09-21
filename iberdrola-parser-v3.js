@@ -4,7 +4,7 @@
   else root.IBTIberdrolaParser=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const REVISION='2026.09.21.3';
+  const REVISION='2026.09.21.4';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=s=>String(s??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   function canonicalText(value){
