@@ -4,10 +4,22 @@
   else root.IBTIberdrolaParser=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const REVISION='2026.09.21.1';
+  const REVISION='2026.09.21.2';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=s=>String(s??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-  const norm=s=>clean(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'');
+  function canonicalText(value){
+    let s=clean(value),prev='';
+    // Iberdrola PDFs split accented glyphs into independent PDF.js items:
+    // "Energ í a", "d í as", "FACTURACI Ó N", "N ú mero".
+    // Repair that encoding artifact once, centrally, before any semantic parsing.
+    while(s!==prev){
+      prev=s;
+      s=s.replace(/([A-Za-zÀ-ÿ])\s+([ÁÉÍÓÚÜÑáéíóúüñ])\s+([A-Za-zÀ-ÿ])/g,'$1$2$3');
+      s=s.replace(/(^|\s)([ÁÉÍÓÚÜÑáéíóúüñ])\s+([A-Za-zÀ-ÿ]{2,})/g,'$1$2$3');
+    }
+    return clean(s.normalize('NFKD').replace(/[\u0300-\u036f]/g,''));
+  }
+  const norm=s=>canonicalText(s);
   const num=v=>{
     if(v==null||v==='')return null;
     let s=String(v).trim().replace(/\s/g,'');
@@ -33,9 +45,9 @@
       if(!best){best={y:p.y,items:[]};rows.push(best);}else best.y=(best.y*best.items.length+p.y)/(best.items.length+1);
       best.items.push(p);
     }
-    return rows.sort((a,b)=>b.y-a.y).map((r,index)=>{const items=r.items.sort((a,b)=>a.x-b.x),text=clean(items.map(i=>i.s).join(' '));return{index,y:r.y,text,items,x0:items[0]?.x??0,x1:items.at(-1)?.x??0};});
+    return rows.sort((a,b)=>b.y-a.y).map((r,index)=>{const items=r.items.sort((a,b)=>a.x-b.x),rawText=clean(items.map(i=>i.s).join(' ')),text=canonicalText(rawText);return{index,y:r.y,text,rawText,items,x0:items[0]?.x??0,x1:items.at(-1)?.x??0};});
   }
-  function rowsFromLines(lines){return (lines||[]).map((text,index)=>({index,y:-index,text:clean(text),items:[{s:clean(text),x:0,y:-index}],x0:0,x1:0})).filter(r=>r.text);}
+  function rowsFromLines(lines){return (lines||[]).map((value,index)=>{const rawText=clean(value),text=canonicalText(rawText);return{index,y:-index,text,rawText,items:[{s:rawText,x:0,y:-index}],x0:0,x1:0};}).filter(r=>r.text);}
   function pageRows(d,page){
     const raw=d?.rawPages?.[page];
     if(raw?.length)return rowsFromItems(raw);
@@ -60,7 +72,15 @@
     if(days==null){const a=new Date(`${toIso(m[1])}T00:00:00Z`),b=new Date(`${toIso(m[2])}T00:00:00Z`);days=Math.round((b-a)/86400000);}
     return{label:`${m[1]} - ${m[2]} (${days} días)`,start:toIso(m[1]),end:toIso(m[2]),days};
   }
-  function invoiceNumber(rows){const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*FACTURA\s*:?\s*(?:\n\s*)?(\d{10,22})/i);return m?.[1]||'Por identificar';}
+  function invoiceNumber(rows){
+    const i=findRow(rows,/PERIODO\s+DE\s+FACTURACION[\s\S]*N[º°o.]?\s*FACTURA/i);
+    if(i>=0&&rows[i+1]){
+      const m=rows[i+1].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
+      if(m)return m[1];
+    }
+    const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*FACTURA\s*:?[^\n]*\n[^\n]*?\b(\d{10,22})\b/i);
+    return m?.[1]||'Por identificar';
+  }
   function contractNumber(rows){const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*DE\s*CONTRATO\s*:?\s*(?:\n\s*)?(\d{6,20})/i);return m?.[1]||'';}
   function holder(rows){
     const texts=rows.map(r=>r.text), banned=/IBERDROLA|CLIENTES|FACTURA|ELECTRICIDAD|CONTRATO|REMIT|TITULAR|DIRECCI[ÓO]N|POTENCIA|RESPONSABLE|SOSTENIBLE/i;
@@ -119,8 +139,15 @@
     const discounts=detail.discount, social=detail.social, rental=detail.rental, tax=detail.tax, vat=detail.vat, total=detail.total??summary.total, other=round2(Number(discounts||0)+Number(social||0)+Number(rental||0)), accounted=round2(Number(energy.energy||0)+Number(power.value||0)+other+Number(tax||0)+Number(vat||0)), diff=total==null?null:round2(total-accounted), balanced=total!=null&&Math.abs(diff)<=.05;
     const checks={summaryEnergy:summary.energy!=null&&energy.energy!=null&&power.value!=null&&tax!=null&&Math.abs(summary.energy-(energy.energy+power.value+tax))<=.05,discount:summary.discount!=null&&discounts!=null&&Math.abs(summary.discount-discounts)<=.05,normative:summary.normative!=null&&Math.abs(summary.normative-social)<=.05,services:summary.services!=null&&rental!=null&&Math.abs(summary.services-rental)<=.05,vat:summary.vat!=null&&vat!=null&&Math.abs(summary.vat-vat)<=.05,total:summary.total!=null&&total!=null&&Math.abs(summary.total-total)<=.05};
     const missing=[];if(company==='Por identificar')missing.push('titular');if(!cups)missing.push('CUPS');if(period.label==='Por identificar')missing.push('periodo');if(tariff==='—')missing.push('tarifa');if(!power.reliable)missing.push(power.message);if(!energy.consumptionReliable)missing.push('consumo por periodos');if(!energy.costReliable)missing.push('coste de energía');for(const [k,v] of Object.entries(checks))if(!v)missing.push(`validación ${k}`);if(!balanced)missing.push('cuadre económico');
-    const readOk=!missing.length;const readingActual=/[ÚU]ltima\s+lectura\s*:\s*real/i.test(text)||/siendo[\s\S]{0,120}?lecturas[\s\S]{0,60}?reales/i.test(text),reading=readingActual?{status:'actual',sourceLabel:'Lectura real indicada por Iberdrola'}:(options.readingClassifier?.(text)||{status:'unknown',sourceLabel:''});
-    return{file:file?.name||'',invoiceNumber:invoice,company,cups,period:period.label,tariff,kwh:energy.kwh,energy:energy.energy,power:power.value,excess:0,reactive:0,compensation:0,social,rental,integratorAdjustment:0,regularizationReactive:0,other,tax,vat,igic:0,distributorCharges:0,total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':`Falta o revisar: ${missing.join(', ')}`,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel||'',avg:energy.kwh&&total?total/energy.kwh:0,opportunity:'Sin alertas',periods:energy.periods,contracted,maximeters:mx,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:power,energyPricingMode:energy.pricingMode,sourceFormat:'iberdrola',supplier:'IBERDROLA CLIENTES, S.A.U.',retailer:'IBERDROLA CLIENTES, S.A.U.',commercializer:'IBERDROLA CLIENTES, S.A.U.',supplyAddress:addr,supplyCity:place.city,supplyProvince:place.province,contract,contractNumber:contract,accessContract:'',distributor:'',renewalDate:'',permanence:'',meterNumber:'',issueDate:'',billingStart:period.start,billingEnd:period.end,billingDays:period.days,discounts,reactivePeriods:parseReactive(all,'Energ[ií]a\\s+reactiva'),capacitivePeriods:parseReactive(all,'Energ[ií]a\\s+capacitiva'),activeReadings:active,validation:checks};
+    const readOk=!missing.length;const readingActual=/Ultima\s+lectura\s*:\s*real/i.test(text)||/siendo[\s\S]{0,120}?lecturas[\s\S]{0,60}?reales/i.test(text),reading=readingActual?{status:'actual',sourceLabel:'Lectura real indicada por Iberdrola'}:(options.readingClassifier?.(text)||{status:'unknown',sourceLabel:''});
+    const taxId=(text.match(/NIF\s+titular\s+del\s+contrato\s*:\s*([A-Z0-9-]+)/i)||[])[1]||'';
+    const distributor=clean((text.match(/Empresa\s+distribuidora\s*:\s*([^\n]+)/i)||[])[1]||'');
+    const accessContract=(text.match(/Numero\s+de\s+contrato\s+de\s+acceso\s*:\s*(\d{6,20})/i)||[])[1]||'';
+    const renewalDate=(text.match(/Fecha\s+final\s+del\s+contrato\s*:\s*(\d{2}\/\d{2}\/\d{4})/i)||[])[1]||'';
+    const permanence=clean((text.match(/Permanencia\s*:\s*([^\n]+)/i)||[])[1]||'');
+    const meterNumber=(text.match(/N[º°o.]?\s*contador\s*:\s*(\d{5,20})/i)||[])[1]||'';
+    let issueDate='';const idate=text.match(/FECHA\s+DE\s+EMISION\s*:[^\n]*\n[^\n]*?\b(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/i);if(idate)issueDate=`${idate[3]}-${MONTHS[idate[2].toLowerCase()]||''}-${String(idate[1]).padStart(2,'0')}`;
+    return{file:file?.name||'',invoiceNumber:invoice,company,cups,period:period.label,tariff,kwh:energy.kwh,energy:energy.energy,power:power.value,excess:0,reactive:0,compensation:0,social,rental,integratorAdjustment:0,regularizationReactive:0,other,tax,vat,igic:0,distributorCharges:0,total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':`Falta o revisar: ${missing.join(', ')}`,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel||'',avg:energy.kwh&&total?total/energy.kwh:0,opportunity:'Sin alertas',periods:energy.periods,contracted,maximeters:mx,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:power,energyPricingMode:energy.pricingMode,sourceFormat:'iberdrola',supplier:'IBERDROLA CLIENTES, S.A.U.',retailer:'IBERDROLA CLIENTES, S.A.U.',commercializer:'IBERDROLA CLIENTES, S.A.U.',taxId,supplyAddress:addr,supplyCity:place.city,supplyProvince:place.province,contract,contractNumber:contract,accessContract,distributor,renewalDate,permanence,meterNumber,issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,discounts,reactivePeriods:parseReactive(all,'Energ[ií]a\\s+reactiva'),capacitivePeriods:parseReactive(all,'Energ[ií]a\\s+capacitiva'),activeReadings:active,validation:checks};
   }
-  return Object.freeze({detect,parse,revision:REVISION,_test:{rowsFromItems,parsePower,parseEnergy,parseSummary,parseDetailConcepts}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,rowsFromItems,rowsFromLines,parsePower,parseEnergy,parseSummary,parseDetailConcepts,invoiceNumber}});
 });
