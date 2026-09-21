@@ -190,6 +190,15 @@
     if (rows.length) root.XLSX.utils.sheet_add_aoa(ws, rows, {origin:-1});
   }
 
+  function recordsForCups(snapshot, cups) {
+    const keys = new Set((cups || []).map(cupsKey).filter(Boolean));
+    if (!keys.size) return 0;
+    const ids = new Set();
+    for (const item of itemsForCups(snapshot, cups)) for (const source of item?.sources || []) if (source?.id) ids.add(source.id);
+    if (ids.size) return ids.size;
+    if ((snapshot?.matchedCups || []).length === 1 && keys.has(cupsKey(snapshot.matchedCups[0]))) return Number(snapshot.used) || 0;
+    return 0;
+  }
   function clientSheetStatus(snapshot, cups) {
     const items = itemsForCups(snapshot, cups), missing = missingForCups(snapshot, cups);
     if (!snapshot?.checked) return {items, missing, message:`Histórico no verificado: ${snapshot?.error || 'sin detalle'}.`};
@@ -207,8 +216,9 @@
     ws.getCell(1,1).value = 'RECOMENDACIONES DEL HISTÓRICO';
     ws.getCell(1,1).font = {bold:true,size:18,color:{argb:'FFFFFFFF'}};
     ws.getCell(1,1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:argb(p.navy)}};
+    const localUsed = recordsForCups(snapshot, cups);
     ws.getCell(2,1).value = snapshot?.checked
-      ? `Revisión consolidada del histórico autorizado · ${snapshot.used} registro(s) validados. No son cambios aprobados ni ahorros garantizados.`
+      ? `Revisión consolidada del histórico autorizado · ${localUsed} registro(s) validados de este libro. No son cambios aprobados ni ahorros garantizados.`
       : `HISTÓRICO NO VERIFICADO: ${snapshot?.error || 'sin detalle'}.`;
     ws.getCell(2,1).font = {italic:true,size:10,color:{argb:argb(p.muted)}};
     ws.getCell(2,1).fill = {type:'pattern',pattern:'solid',fgColor:{argb:argb(p.light)}};
@@ -289,7 +299,7 @@
     root.document?.addEventListener?.('click', event => { if (event?.target?.id === 'exportClientExcel') clientRequested = true; }, true);
   }
 
-  const api = Object.freeze({workbookCups, itemRange, sourceText, measurementText, typeLabel, itemsForCups, missingForCups, recommendationTableRows, errorSnapshot, fetchSnapshot, addSheetJsRecommendations, appendSheetJsPoints, addExcelJsRecommendations, clientSheetStatus, install});
+  const api = Object.freeze({workbookCups, itemRange, sourceText, measurementText, typeLabel, itemsForCups, missingForCups, recordsForCups, recommendationTableRows, errorSnapshot, fetchSnapshot, addSheetJsRecommendations, appendSheetJsPoints, addExcelJsRecommendations, clientSheetStatus, install});
   root.IBTHistoricalExportEnrichment = api;
   install();
 })(typeof globalThis !== 'undefined' ? globalThis : this);
