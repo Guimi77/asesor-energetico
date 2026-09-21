@@ -87,7 +87,12 @@ const diana=()=>doc([
   'Fecha final del contrato: 25/08/2027','Permanencia: Si (Fecha fin 05/09/2026)',
   'Empresa distribuidora: EDISTRIBUCI Ó N REDES DIGITALES S.L.U.',
   'N ú mero de contrato de acceso: 500021702758',
-  'Identificaci ó n punto de suministro (CUPS): ES 0031 5007 4475 7001 LB'
+  'Identificaci ó n punto de suministro (CUPS): ES 0031 5007 4475 7001 LB',
+  'Energ í a reactiva P1 0 kVArh','Energ í a reactiva P2 1 kVArh','Energ í a reactiva P3 1 kVArh',
+  'Energ í a reactiva P4 0 kVArh','Energ í a reactiva P5 0 kVArh','Energ í a reactiva P6 3 kVArh',
+  'Energ í a capacitiva P1 0 kVArh','Energ í a capacitiva P2 6 kVArh','Energ í a capacitiva P3 2 kVArh',
+  'Energ í a capacitiva P4 1 kVArh','Energ í a capacitiva P5 0 kVArh','Energ í a capacitiva P6 1 kVArh',
+  'Max í metro P1 0 kW','Max í metro P2 1 kW','Max í metro P3 0 kW','Max í metro P4 0 kW','Max í metro P5 0 kW','Max í metro P6 0 kW'
 ]);
 
 test('normaliza de forma central el artefacto real de acentos separados de PDF.js',()=>{
@@ -141,4 +146,9 @@ test('entrada exacta de la auditoría PDF.js #14: Diana cierra a céntimo con P1
   assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[0,28,14,6,2,15]);
   assert.deepEqual([r.periods.P1.cost,r.periods.P2.cost,r.periods.P3.cost,r.periods.P4.cost,r.periods.P5.cost,r.periods.P6.cost],[0,5.57,2.42,0.9,0.26,2.22]);
   assert.deepEqual([r.contracted.P1,r.contracted.P2,r.contracted.P3,r.contracted.P4,r.contracted.P5,r.contracted.P6],[16,16,16,16,16,16]);
+  assert.deepEqual([r.maximeters.P1,r.maximeters.P2,r.maximeters.P3,r.maximeters.P4,r.maximeters.P5,r.maximeters.P6],[0,1,0,0,0,0]);
+  assert.equal(r.maximeters._reliable,true);
+  assert.deepEqual([r.reactivePeriods.P1,r.reactivePeriods.P2,r.reactivePeriods.P3,r.reactivePeriods.P4,r.reactivePeriods.P5,r.reactivePeriods.P6],[0,1,1,0,0,3]);
+  assert.deepEqual([r.capacitivePeriods.P1,r.capacitivePeriods.P2,r.capacitivePeriods.P3,r.capacitivePeriods.P4,r.capacitivePeriods.P5,r.capacitivePeriods.P6],[0,6,2,1,0,1]);
+  assert.equal(r.reactive,0,'medición de reactiva no equivale a coste facturado');
 });
