@@ -84,3 +84,23 @@ test('Iberdrola secondary consumers preserve PDF.js geometry instead of reparsin
   assert.match(history,/iberdrola\?\.detect\?\.\(source\)/);
   assert.match(history,/extractHistory\(prepared\.data,file\)/);
 });
+
+
+test('Iberdrola history preserves measured reactive energy without turning it into a billed charge',()=>{
+  const history=source('xtra-history.js');
+  assert.match(history,/const reactiveMeasurements=row\.reactivePeriods\|\|\{\}/);
+  assert.match(history,/reactive_kvarh:Number\(value\)/);
+  assert.match(history,/consumption_kvarh:Number\(value\)/);
+  assert.match(history,/amount_eur:0/);
+  assert.match(history,/reactive_measurements:reactivePeriods\.length\?'extracted':'not_present'/);
+  assert.match(history,/reactivePeriods,taxLines/);
+});
+
+test('Iberdrola history reports exact fail-closed omission reasons instead of a generic source_incomplete',()=>{
+  const history=source('xtra-history.js');
+  assert.match(history,/reason:'cups_missing'/);
+  assert.match(history,/reason:'invoice_number_missing'/);
+  assert.match(history,/reason:'billing_period_missing'/);
+  assert.match(history,/reason:'power_detail_unreliable'/);
+  assert.doesNotMatch(history,/reason:'source_incomplete'/);
+});
