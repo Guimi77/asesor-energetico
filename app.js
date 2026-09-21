@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
-const PARSER_VERSION='2026.09.21.3';window.IBT_PARSER_VERSION=PARSER_VERSION;
+const PARSER_VERSION='2026.09.21.4';window.IBT_PARSER_VERSION=PARSER_VERSION;
 const PDFJS_DIAGNOSTIC_PAGES=[];
 function clonePdfJsItem(item,index){
  const t=Array.isArray(item?.transform)?item.transform.slice(0,6):[];
