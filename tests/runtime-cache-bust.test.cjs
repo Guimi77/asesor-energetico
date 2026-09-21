@@ -21,6 +21,7 @@ function assertCacheToken(file){
 
 test('los assets críticos no pueden desplegar código nuevo con una URL cacheada antigua',()=>{
   assertCacheToken('app.js');
+  assertCacheToken('pdf-text-normalizer.js');
   assertCacheToken('iberdrola-parser-v3.js');
   assertCacheToken('parser-audit.js');
 });
