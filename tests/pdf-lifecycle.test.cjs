@@ -31,7 +31,8 @@ for(const [path,name,end] of readerSpec){
   const baseline=reader(old(path),name,end),candidate=reader(source(path),name,end);
   for(let i=0;i<341;i++){
    const expected=await baseline.read(file),actual=await candidate.read(file);
-   const actualPlain=JSON.parse(JSON.stringify(actual)),expectedPlain=JSON.parse(JSON.stringify(expected));\n   if(path==='app.js'||path==='xtra-history.js'){assert.deepEqual(actualPlain.pages,expectedPlain.pages);assert.equal(actualPlain.text,expectedPlain.text);assert.equal(actualPlain.rawPages.length,path==='app.js'?4:3);}else assert.deepEqual(actualPlain,expectedPlain);
+   const actualPlain=JSON.parse(JSON.stringify(actual)),expectedPlain=JSON.parse(JSON.stringify(expected));
+   if(path==='app.js'||path==='xtra-history.js'){assert.deepEqual(actualPlain.pages,expectedPlain.pages);assert.equal(actualPlain.text,expectedPlain.text);assert.equal(actualPlain.rawPages.length,path==='app.js'?4:3);}else assert.deepEqual(actualPlain,expectedPlain);
    assert.equal(candidate.stats().closed,i+1);
   }
   assert.equal(baseline.stats().closed,0,'The previous leak must be reproduced');
