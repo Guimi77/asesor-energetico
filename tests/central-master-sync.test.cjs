@@ -90,6 +90,7 @@ function buildHarness(role = 'admin', options = {}) {
       from(table) { calls.push({ table, op: 'from' }); return query(table); },
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
+        if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
         if (name !== 'ensure_supply_from_master') return { data: null, error: new Error('unexpected_rpc') };
         if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
           return { data: null, error: new Error('forced_rpc_failure') };
