@@ -10,6 +10,31 @@ Antes de modificar parser, exportaciones, maestro, informes, clientes, históric
 
 ## Parser de facturas
 
+### Normalización común previa a todos los parsers
+
+Toda factura procesada por PDF.js debe pasar **antes de la detección de comercializadora y antes de cualquier parser específico** por la capa común `pdf-text-normalizer.js`.
+
+Esta capa tiene una responsabilidad limitada y portable: reparar artefactos de extracción de PDF.js que no pertenecen al contenido real de la factura, especialmente glifos acentuados separados en elementos independientes, por ejemplo:
+
+- `Energ í a` → `Energía`;
+- `FACTURACI Ó N` → `FACTURACIÓN`;
+- `N ú mero` → `Número`;
+- `Ú ltima` → `Última`.
+
+Reglas obligatorias:
+
+- la normalización debe aplicarse por igual a FENIE, Endesa, Iberdrola y cualquier parser futuro;
+- no debe alterar importes, fechas, CUPS, referencias, unidades ni signos;
+- debe ser idempotente;
+- los `rawPages` / items originales de PDF.js se conservan sin modificar para auditoría y trazabilidad;
+- los parsers específicos no deben volver a implementar esta corrección de forma distinta salvo como defensa compatible;
+- histórico, maestro/enriquecimiento y cualquier ruta secundaria que vuelva a leer un PDF deben utilizar la misma capa común;
+- cualquier nueva regla de normalización debe llevar regresiones de todas las comercializadoras soportadas antes de publicarse.
+
+Arquitectura objetivo:
+
+`PDF → PDF.js → normalización común → detector de formato → parser específico → modelo energético común`
+
 La batería de referencia actual contiene **341 facturas reales** y la auditoría del parser comprueba como mínimo:
 
 - identidad esencial;
@@ -24,7 +49,7 @@ Un cambio del parser no se considera válido si mejora una casuística pero empe
 
 Los parsers específicos deben permanecer desacoplados entre sí y devolver el mismo modelo energético normalizado. Añadir una nueva comercializadora no autoriza a ampliar de forma ambigua los detectores de formatos ya soportados ni a modificar sus cálculos sin una prueba específica.
 
-**Iberdrola** se incorpora mediante `iberdrola-parser.js` como parser independiente. Su detector no puede apropiarse de facturas Endesa, FENIE ni formatos desconocidos. La aplicación, el maestro de suministros y el histórico deben consumir ese mismo parser portable en lugar de duplicar sus reglas de lectura.
+**Iberdrola** se procesa mediante el parser portable `iberdrola-parser-v3.js`. Su detector no puede apropiarse de facturas Endesa, FENIE ni formatos desconocidos. La aplicación, el maestro de suministros y el histórico deben consumir ese mismo parser portable en lugar de duplicar sus reglas de lectura.
 
 La persistencia histórica de cualquier nuevo parser sigue siendo *fail closed*: una factura solo puede guardarse cuando la fila del parser principal está validada, cuadra económicamente y coincide con la extracción histórica en consumo, energía, potencia, excesos, reactiva y total.
 
