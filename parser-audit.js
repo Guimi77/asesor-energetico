@@ -28,8 +28,8 @@ function auditWorkbook(wb){
     const d=byInvoice.get(invoice)||[];
     const add=(type,msg,severity='REVISAR')=>issues.push([severity,invoice,company,cups,period,tariff,type,msg]);
     const parserStatus=txt(r[0]);if(!/^CORRECTA$/i.test(parserStatus))add('ESTADO PARSER',`La fila está marcada como ${parserStatus||'SIN ESTADO'} por el parser principal.`, 'ERROR');
-    const idGood=!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
-    if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: empresa, CUPS, periodo, tarifa o total.','ERROR');
+    const idGood=!!invoice&&invoice!=='Por identificar'&&!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
+    if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: nº factura, empresa, CUPS, periodo, tarifa o total.','ERROR');
     let pkwh=0,pcost=0,periodsGood=true,periodConsumptionCells=0,periodCostCells=0;
     const expectedPeriods=expectedEnergyPeriods(tariff);
     const hasAnyPeriodPrice=[1,2,3,4,5,6].some(p=>has(d[5+(p-1)*5+2]));
