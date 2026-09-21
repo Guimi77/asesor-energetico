@@ -37,11 +37,11 @@ function valueAfter(line, labelRegex) {
 
 function splitPlace(address) {
   const parsed=window.IBTFenieSupplyLocation?.parse?.(address);
-  if(parsed)return{city:clean(parsed.city),province:clean(parsed.province),displayAddress:clean(parsed.displayAddress)};
+  if(parsed)return{city:clean(parsed.city),province:clean(parsed.province)};
   const normalized = norm(address);
   const match = normalized.match(/,?\s*(\d{5})\s+([^()]+?)(?:\s*\(([^()]*)\))?\s*$/i);
-  if (!match) return { city: '', province: '', displayAddress: normalized };
-  return { city: clean(match[2]), province: clean(match[3] || ''), displayAddress: normalized };
+  if (!match) return { city: '', province: '' };
+  return { city: clean(match[2]), province: clean(match[3] || '') };
 }
 
 function section(lines, startRegex, endRegexes) {
