@@ -123,8 +123,10 @@ test('Observed power changes have before, after, delta, identity and source peri
  const api=eventsApi();const data=[record('2026-01-01',[{period:1,contracted_kw:3.45},{period:2,contracted_kw:3.45}]),record('2026-02-01',[{period:1,contracted_kw:5.7},{period:2,contracted_kw:5.7}])];
  const events=api.events(data);assert.equal(events.length,1);assert.equal(events[0].changes.length,2);assert.equal(events[0].changes[0].delta,2.25);
  const html=api.markup(events[0]);for(const text of ['Antes','Después','Diferencia','+2,250 kW','Suministro de prueba','Titular de prueba','Registro anterior','Registro posterior','Inicio del periodo posterior'])assert(html.includes(text),text);
- assert(source('history-ui.js').includes('Estos cambios no son recomendaciones de ahorro'));
- assert(source('history-ui.js').includes('no confirma el día exacto'));
+ const historyUi=source('history-ui.js');
+ assert(historyUi.includes('Cambios detectados'));
+ assert(historyUi.includes('<span class="history-scope">Tarifa y potencia</span>'));
+ assert(historyUi.indexOf('Cambios detectados')<historyUi.indexOf('${renderRecommendations(records)}'));
 });
 test('Missing, null and ambiguous power periods never become false zero or a change',()=>{
  const api=eventsApi();
