@@ -152,3 +152,152 @@ test('Iberdrola v3 recovers the Carla/Diana fields from raw PDF items when the b
   assert.equal(d.kwh,65);assert.equal(d.energy,11.37);assert.equal(d.power,66.5);assert.equal(d.tax,3.93);assert.equal(d.diff,0);
   assert.deepEqual([d.periods.P1.consumption,d.periods.P2.consumption,d.periods.P3.consumption,d.periods.P4.consumption,d.periods.P5.consumption,d.periods.P6.consumption],[0,28,14,6,2,15]);
 });
+
+
+function spatialPage(rows){
+  const items=[];
+  rows.forEach((parts,rowIndex)=>{
+    const y=800-rowIndex*11;
+    for(const [x,str] of parts)items.push({str,transform:[1,0,0,1,x,y],height:9});
+  });
+  return items;
+}
+
+test('Iberdrola geometry parser ignores consumption infographic euros and reads only billed concept rows',()=>{
+  const carla={
+    pages:[],
+    rawPages:[
+      spatialPage([
+        [[40,'FACTURA DE ELECTRICIDAD'],[260,'IBERDROLA CLIENTES, S.A.U.']],
+        [[40,'CARLA FERRERO MALOW']],
+        [[40,'C/ DE LA LLUM, 5']],
+        [[40,'CONTRATO']],
+        [[40,'Dirección de suministro:'],[210,'C/ DE LA LLUM, 5 07190 ESPORLES (ILLES BALEARS)']],
+        [[40,'Nº DE CONTRATO: 633501753']],
+        [[40,'RESUMEN DE FACTURA']],
+        [[40,'PERIODO DE FACTURACIÓN:'],[250,'22/06/2026 - 19/07/2026']],
+        [[40,'Nº FACTURA:'],[250,'21260727010128461']],
+        [[40,'DIAS FACTURADOS:'],[250,'27']],
+        [[40,'ENERGÍA'],[520,'101,36 €']],
+        [[40,'DESCUENTOS ENERGÍA'],[520,'-10,84 €']],
+        [[40,'CARGOS NORMATIVOS'],[520,'0,62 €']],
+        [[40,'SERVICIOS Y OTROS CONCEPTOS'],[520,'0,72 €']],
+        [[40,'IVA'],[520,'19,29 €']],
+        [[40,'TOTAL'],[520,'111,15 €']]
+      ]),
+      spatialPage([
+        [[40,'INFORMACIÓN SOBRE CONSUMO']],
+        [[40,'485,91 kWh'],[300,'4,12 €'],[400,'4,12 €']],
+        [[40,'DETALLE DE FACTURA']],
+        [[40,'ENERGÍA']],
+        [[40,'Potencia facturada Punta'],[270,'5,75 kW x 27 días x 0,108192 €/kW día'],[540,'16,80 €']],
+        [[40,'Valle'],[270,'5,75 kW x 27 días x 0,050658 €/kW día'],[540,'7,86 €']],
+        [[40,'Total importe potencia hasta 19/07/2026'],[540,'24,66 €']],
+        [[40,'Energía consumida'],[270,'485,91 kWh x 0,148729 €/kWh'],[540,'72,27 €']],
+        [[40,'Descuento sobre consumo 15%'],[270,'15 % s/72,27 €'],[540,'-10,84 €']],
+        [[40,'CARGOS NORMATIVOS']],
+        [[40,'Financiación bono social fijo (22/06/2026-30/06/2026)'],[540,'0,15 €']],
+        [[40,'Financiación bono social fijo (30/06/2026-19/07/2026)'],[540,'0,47 €']],
+        [[40,'Impuesto sobre electricidad (*)'],[270,'5,11269632 % s/86,71 €'],[540,'4,43 €']],
+        [[40,'TOTAL ENERGÍA'],[540,'91,14 €']],
+        [[40,'SERVICIOS Y OTROS CONCEPTOS']],
+        [[40,'Alquiler equipos medida'],[540,'0,72 €']],
+        [[40,'TOTAL SERVICIOS Y OTROS CONCEPTOS'],[540,'0,72 €']],
+        [[40,'IMPORTE TOTAL'],[540,'91,86 €']],
+        [[40,'IVA (*)'],[270,'21 % s/91,86 €'],[540,'19,29 €']],
+        [[40,'TOTAL IMPORTE FACTURA'],[540,'111,15 €']],
+        [[40,'Peaje de acceso a la red (ATR): 2.0TD']],
+        [[40,'Identificación punto de suministro (CUPS): ES 0031 5001 6491 5001 GV']],
+        [[40,'Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.']]
+      ])
+    ]
+  };
+  carla.text='intentionally misleading flattened text 485,91 kWh 4,12 € 4,12 €';
+  const cr=parser.parse(carla,{name:'carla-real-geometry.pdf'});
+  assert.equal(cr.readOk,true,JSON.stringify(cr));
+  assert.equal(cr.energy,72.27);
+  assert.equal(cr.power,24.66);
+  assert.equal(cr.discounts,-10.84);
+  assert.equal(cr.social,0.62);
+  assert.equal(cr.rental,0.72);
+  assert.equal(cr.tax,4.43);
+  assert.equal(cr.vat,19.29);
+  assert.equal(cr.other,-9.50);
+  assert.equal(cr.total,111.15);
+  assert.equal(cr.diff,0);
+
+  const diana={
+    pages:[],
+    rawPages:[
+      spatialPage([
+        [[40,'FACTURA DE ELECTRICIDAD'],[260,'IBERDROLA CLIENTES, S.A.U.']],
+        [[40,'DIANA MARIA CHRISTINA VINCES CABADA']],
+        [[40,'C/ CAN GAMUNDI, 17-., LC 18']],
+        [[40,'CONTRATO']],
+        [[40,'Dirección de suministro:'],[210,'C/ CAN GAMUNDI, 17-., LC 18 PALMA 07199 PALMA DE MALLORCA (ILLES BALEARS)']],
+        [[40,'Nº DE CONTRATO: 957890618']],
+        [[40,'RESUMEN DE FACTURA']],
+        [[40,'PERIODO DE FACTURACIÓN:'],[250,'27/04/2026 - 31/05/2026']],
+        [[40,'Nº FACTURA:'],[250,'21260608010256253']],
+        [[40,'DIAS FACTURADOS:'],[250,'34']],
+        [[40,'ENERGÍA'],[520,'81,80 €']],
+        [[40,'DESCUENTOS ENERGÍA'],[520,'-1,71 €']],
+        [[40,'CARGOS NORMATIVOS'],[520,'0,65 €']],
+        [[40,'SERVICIOS Y OTROS CONCEPTOS'],[520,'12,07 €']],
+        [[40,'IVA'],[520,'19,49 €']],
+        [[40,'TOTAL'],[520,'112,30 €']]
+      ]),
+      spatialPage([
+        [[40,'INFORMACIÓN SOBRE CONSUMO']],
+        [[40,'65 kWh'],[300,'3,30 €'],[400,'7,78 €']],
+        [[40,'DETALLE DE FACTURA']],
+        [[40,'ENERGÍA']],
+        [[40,'Potencia facturada P1'],[270,'16 kW x 34 días x 0,057502 €/kW día'],[540,'31,28 €']],
+        [[40,'P2'],[270,'16 kW x 34 días x 0,029962 €/kW día'],[540,'16,30 €']],
+        [[40,'P3'],[270,'16 kW x 34 días x 0,012647 €/kW día'],[540,'6,88 €']],
+        [[40,'P4'],[270,'16 kW x 34 días x 0,010967 €/kW día'],[540,'5,97 €']],
+        [[40,'P5'],[270,'16 kW x 34 días x 0,007094 €/kW día'],[540,'3,86 €']],
+        [[40,'P6'],[270,'16 kW x 34 días x 0,00407 €/kW día'],[540,'2,21 €']],
+        [[40,'Total importe potencia hasta 31/05/2026'],[540,'66,50 €']],
+        [[40,'Energía consumida P2'],[270,'28 kWh x 0,198752 €/kWh'],[540,'5,57 €']],
+        [[40,'P3'],[270,'14 kWh x 0,172594 €/kWh'],[540,'2,42 €']],
+        [[40,'P4'],[270,'6 kWh x 0,150296 €/kWh'],[540,'0,90 €']],
+        [[40,'P5'],[270,'2 kWh x 0,131956 €/kWh'],[540,'0,26 €']],
+        [[40,'P6'],[270,'15 kWh x 0,147973 €/kWh'],[540,'2,22 €']],
+        [[40,'Total 65 kWh hasta 31/05/2026'],[540,'11,37 €']],
+        [[40,'Descuento sobre consumo 15%'],[540,'-1,71 €']],
+        [[40,'CARGOS NORMATIVOS']],
+        [[40,'Financiación bono social fijo'],[540,'0,65 €']],
+        [[40,'Impuesto sobre electricidad (*)'],[270,'5,11269632 % s/76,81 €'],[540,'3,93 €']],
+        [[40,'TOTAL ENERGÍA'],[540,'80,74 €']],
+        [[40,'SERVICIOS Y OTROS CONCEPTOS']],
+        [[40,'Alquiler equipos medida'],[540,'12,07 €']],
+        [[40,'IVA'],[270,'21 % s/92,81 €'],[540,'19,49 €']],
+        [[40,'TOTAL IMPORTE FACTURA'],[540,'112,30 €']],
+        [[40,'300209449 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh']],
+        [[40,'300209449 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh']]
+      ]),
+      spatialPage([
+        [[40,'Última lectura: real']],
+        [[40,'Peaje de acceso a la red (ATR): 3.0TD']],
+        [[40,'Potencia contratada (kW): 16 / 16 / 16 / 16 / 16 / 16']],
+        [[40,'Identificación punto de suministro (CUPS): ES 0031 5007 4475 7001 LB']]
+      ])
+    ]
+  };
+  diana.text='intentionally misleading flattened text 65 kWh 3,30 € 7,78 €';
+  const dr=parser.parse(diana,{name:'diana-real-geometry.pdf'});
+  assert.equal(dr.readOk,true,JSON.stringify(dr));
+  assert.equal(dr.kwh,65);
+  assert.equal(dr.energy,11.37);
+  assert.equal(dr.power,66.50);
+  assert.equal(dr.discounts,-1.71);
+  assert.equal(dr.social,0.65);
+  assert.equal(dr.rental,12.07);
+  assert.equal(dr.tax,3.93);
+  assert.equal(dr.vat,19.49);
+  assert.equal(dr.other,11.01);
+  assert.equal(dr.total,112.30);
+  assert.equal(dr.diff,0);
+  assert.deepEqual([dr.periods.P1.consumption,dr.periods.P2.consumption,dr.periods.P3.consumption,dr.periods.P4.consumption,dr.periods.P5.consumption,dr.periods.P6.consumption],[0,28,14,6,2,15]);
+});
