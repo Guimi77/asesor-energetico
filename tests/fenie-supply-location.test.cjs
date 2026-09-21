@@ -30,4 +30,7 @@ test('la mejora vive en el enriquecimiento del suministro, no en el parser econ√
   const source=fs.readFileSync(require('node:path').join(__dirname,'..','supply-enricher-v2.js'),'utf8');
   assert.match(source,/IBTFenieSupplyLocation\?\.parse/);
   assert.match(source,/const parsed=window\.IBTFenieSupplyLocation\?\.parse\?\.\(address\)/);
+  const master=fs.readFileSync(require('node:path').join(__dirname,'..','master-v2.js'),'utf8');
+  assert.match(master,/function displaySupplyCity\(supply = \{\}\)/);
+  assert.match(master,/displaySupplyCity\(supply\) \|\| 'Localidad pendiente'/);
 });
