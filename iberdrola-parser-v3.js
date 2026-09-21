@@ -73,20 +73,22 @@
     return{label:`${m[1]} - ${m[2]} (${days} días)`,start:toIso(m[1]),end:toIso(m[2]),days};
   }
   function invoiceNumber(rows){
-    const i=findRow(rows,/PERIODO\s+DE\s+FACTURACION[\s\S]*N[º°o.]?\s*FACTURA/i);
-    if(i>=0){
-      // The real PDF can interleave marketing copy between the header and the
-      // row containing period + invoice number. Search only the small local
-      // block and require the billing date range, so unrelated long numbers
-      // elsewhere on the page cannot be mistaken for the invoice number.
+    // Prefer the explicit invoice label. Depending on the PDF geometry,
+    // Iberdrola can put the label and value on the same visual row or can
+    // interleave unrelated marketing copy before the row that contains
+    // billing period + invoice number.
+    for(let i=0;i<rows.length;i++){
+      if(!/N[º°o.]?\s*FACTURA\b/i.test(rows[i].text))continue;
+      const direct=rows[i].text.match(/N[º°o.]?\s*FACTURA\s*:?\s*(\d{10,22})\b/i);
+      if(direct)return direct[1];
       for(let n=i+1;n<Math.min(rows.length,i+6);n++){
-        const m=rows[n].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
-        if(m)return m[1];
+        const dated=rows[n].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
+        if(dated)return dated[1];
       }
     }
     const text=rows.map(r=>r.text).join('\n');
-    const m=text.match(/PERIODO\s+DE\s+FACTURACION[\s\S]{0,320}?N[º°o.]?\s*FACTURA[\s\S]{0,320}?(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\s+(\d{10,22})\b/i);
-    return m?.[3]||'Por identificar';
+    const dated=text.match(/PERIODO\s+DE\s+FACTURACION[\s\S]{0,420}?N[º°o.]?\s*FACTURA[\s\S]{0,420}?(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\s+(\d{10,22})\b/i);
+    return dated?.[3]||'Por identificar';
   }
   function contractNumber(rows){const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*DE\s*CONTRATO\s*:?\s*(?:\n\s*)?(\d{6,20})/i);return m?.[1]||'';}
   function holder(rows){
