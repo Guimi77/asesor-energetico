@@ -34,3 +34,9 @@ test('Auditar parser exporta items crudos y líneas reconstruidas en hojas separ
     assert.ok(audit.includes(header),`Falta la columna de diagnóstico: ${header}`);
   }
 });
+
+
+test('la auditoría común considera el número de factura parte de la identidad esencial',()=>{
+  assert.match(audit,/!!invoice&&invoice!=='Por identificar'/);
+  assert.match(audit,/nº factura, empresa, CUPS, periodo, tarifa o total/);
+});
