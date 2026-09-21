@@ -1,7 +1,7 @@
 name: Parser regression
 on:
   push:
-    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'iberdrola-parser.js', 'iberdrola-parser-hardening.js', 'iberdrola-parser-v2.js', 'iberdrola-parser-v3.js', 'repsol-parser.js', 'pdf-text-normalizer.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'iberdrola-parser.js', 'iberdrola-parser-hardening.js', 'iberdrola-parser-v2.js', 'iberdrola-parser-v3.js', 'repsol-parser.js', 'pdf-text-normalizer.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'master-v2.js', 'tests/**', '.github/workflows/parser-regression.yml']
   pull_request:
     paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'iberdrola-parser.js', 'iberdrola-parser-hardening.js', 'iberdrola-parser-v2.js', 'iberdrola-parser-v3.js', 'repsol-parser.js', 'pdf-text-normalizer.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
   workflow_dispatch:
@@ -41,6 +41,7 @@ jobs:
           node --check bulk-performance.js
           node --check folder-upload.js
           node --check supply-enricher-v2.js
+          node --check master-v2.js
           node --check supply-source-guard.js
           node --check supply-lifecycle.js
           node --check lifecycle-analysis-guard.js
