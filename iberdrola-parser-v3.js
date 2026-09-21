@@ -4,7 +4,7 @@
   else root.IBTIberdrolaParser=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const REVISION='2026.09.21.2';
+  const REVISION='2026.09.21.3';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=s=>String(s??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   function canonicalText(value){
@@ -74,12 +74,19 @@
   }
   function invoiceNumber(rows){
     const i=findRow(rows,/PERIODO\s+DE\s+FACTURACION[\s\S]*N[º°o.]?\s*FACTURA/i);
-    if(i>=0&&rows[i+1]){
-      const m=rows[i+1].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
-      if(m)return m[1];
+    if(i>=0){
+      // The real PDF can interleave marketing copy between the header and the
+      // row containing period + invoice number. Search only the small local
+      // block and require the billing date range, so unrelated long numbers
+      // elsewhere on the page cannot be mistaken for the invoice number.
+      for(let n=i+1;n<Math.min(rows.length,i+6);n++){
+        const m=rows[n].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
+        if(m)return m[1];
+      }
     }
-    const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*FACTURA\s*:?[^\n]*\n[^\n]*?\b(\d{10,22})\b/i);
-    return m?.[1]||'Por identificar';
+    const text=rows.map(r=>r.text).join('\n');
+    const m=text.match(/PERIODO\s+DE\s+FACTURACION[\s\S]{0,320}?N[º°o.]?\s*FACTURA[\s\S]{0,320}?(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\s+(\d{10,22})\b/i);
+    return m?.[3]||'Por identificar';
   }
   function contractNumber(rows){const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*DE\s*CONTRATO\s*:?\s*(?:\n\s*)?(\d{6,20})/i);return m?.[1]||'';}
   function holder(rows){
@@ -138,7 +145,7 @@
     if(!detect(d))return null;const all=allRows(d),p1=all[0]||[],p2=all[1]||[],text=all.flat().map(r=>r.text).join('\n'),tariff=normalizeTariff(text),period=periodInfo(p1),company=holder(p1),cups=strictCups(text),contract=contractNumber(p1),invoice=invoiceNumber(p1),addr=address(p1),place=splitPlace(addr),summary=parseSummary(p1),power=parsePower(p2,tariff),active=parseActiveReadings(all),energy=parseEnergy(p2,tariff,active,all),detail=parseDetailConcepts(p2),contracted=parseContracted(all,tariff,power),mx=parseMaximeters(all);
     const discounts=detail.discount, social=detail.social, rental=detail.rental, tax=detail.tax, vat=detail.vat, total=detail.total??summary.total, other=round2(Number(discounts||0)+Number(social||0)+Number(rental||0)), accounted=round2(Number(energy.energy||0)+Number(power.value||0)+other+Number(tax||0)+Number(vat||0)), diff=total==null?null:round2(total-accounted), balanced=total!=null&&Math.abs(diff)<=.05;
     const checks={summaryEnergy:summary.energy!=null&&energy.energy!=null&&power.value!=null&&tax!=null&&Math.abs(summary.energy-(energy.energy+power.value+tax))<=.05,discount:summary.discount!=null&&discounts!=null&&Math.abs(summary.discount-discounts)<=.05,normative:summary.normative!=null&&Math.abs(summary.normative-social)<=.05,services:summary.services!=null&&rental!=null&&Math.abs(summary.services-rental)<=.05,vat:summary.vat!=null&&vat!=null&&Math.abs(summary.vat-vat)<=.05,total:summary.total!=null&&total!=null&&Math.abs(summary.total-total)<=.05};
-    const missing=[];if(company==='Por identificar')missing.push('titular');if(!cups)missing.push('CUPS');if(period.label==='Por identificar')missing.push('periodo');if(tariff==='—')missing.push('tarifa');if(!power.reliable)missing.push(power.message);if(!energy.consumptionReliable)missing.push('consumo por periodos');if(!energy.costReliable)missing.push('coste de energía');for(const [k,v] of Object.entries(checks))if(!v)missing.push(`validación ${k}`);if(!balanced)missing.push('cuadre económico');
+    const missing=[];if(company==='Por identificar')missing.push('titular');if(invoice==='Por identificar')missing.push('nº factura');if(!cups)missing.push('CUPS');if(period.label==='Por identificar')missing.push('periodo');if(tariff==='—')missing.push('tarifa');if(!power.reliable)missing.push(power.message);if(!energy.consumptionReliable)missing.push('consumo por periodos');if(!energy.costReliable)missing.push('coste de energía');for(const [k,v] of Object.entries(checks))if(!v)missing.push(`validación ${k}`);if(!balanced)missing.push('cuadre económico');
     const readOk=!missing.length;const readingActual=/Ultima\s+lectura\s*:\s*real/i.test(text)||/siendo[\s\S]{0,120}?lecturas[\s\S]{0,60}?reales/i.test(text),reading=readingActual?{status:'actual',sourceLabel:'Lectura real indicada por Iberdrola'}:(options.readingClassifier?.(text)||{status:'unknown',sourceLabel:''});
     const taxId=(text.match(/NIF\s+titular\s+del\s+contrato\s*:\s*([A-Z0-9-]+)/i)||[])[1]||'';
     const distributor=clean((text.match(/Empresa\s+distribuidora\s*:\s*([^\n]+)/i)||[])[1]||'');
