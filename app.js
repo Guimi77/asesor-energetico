@@ -1,16 +1,39 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 const PARSER_VERSION='2026.09.21.1';window.IBT_PARSER_VERSION=PARSER_VERSION;
+const PDFJS_DIAGNOSTIC_PAGES=[];
+function clonePdfJsItem(item,index){
+ const t=Array.isArray(item?.transform)?item.transform.slice(0,6):[];
+ return{index,text:String(item?.str??''),x:Number(t[4]??0),y:Number(t[5]??0),width:Number(item?.width??0),height:Number(item?.height??0),hasEOL:!!item?.hasEOL,dir:String(item?.dir??''),fontName:String(item?.fontName??''),transform:t.map(v=>Number(v??0))};
+}
+function clearPdfJsDiagnostic(fileName=''){
+ if(!fileName){PDFJS_DIAGNOSTIC_PAGES.length=0;return}
+ for(let i=PDFJS_DIAGNOSTIC_PAGES.length-1;i>=0;i--)if(PDFJS_DIAGNOSTIC_PAGES[i].file===fileName)PDFJS_DIAGNOSTIC_PAGES.splice(i,1);
+}
+function capturePdfJsPage(file,pageNumber,items,viewport){
+ PDFJS_DIAGNOSTIC_PAGES.push({file:file?.name||'',page:pageNumber,pageWidth:Number(viewport?.width??0),pageHeight:Number(viewport?.height??0),invoiceNumber:'',sourceFormat:'',parserVersion:PARSER_VERSION,items:(items||[]).map(clonePdfJsItem),reconstructedLines:lines(items||[])});
+}
+function finalizePdfJsDiagnostic(fileName,row){
+ for(const page of PDFJS_DIAGNOSTIC_PAGES)if(page.file===fileName){page.invoiceNumber=String(row?.invoiceNumber||'');page.sourceFormat=String(row?.sourceFormat||'');page.parserVersion=String(row?.parserVersion||PARSER_VERSION);}
+}
+window.IBTParserDiagnostics={
+ clear:()=>clearPdfJsDiagnostic(),
+ pages:()=>PDFJS_DIAGNOSTIC_PAGES.map(p=>({...p,items:p.items.map(i=>({...i,transform:[...i.transform]})),reconstructedLines:[...p.reconstructedLines]})),
+ items:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.items.map(i=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,pageWidth:p.pageWidth,pageHeight:p.pageHeight,...i}))),
+ lines:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.reconstructedLines.map((text,index)=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,lineIndex:index,text})))
+};
 const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),round2=n=>Math.round((Number(n)||0)*100)/100,cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const num=s=>{if(s==null)return 0;let x=String(s).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');return Number(x)||0},euros=s=>[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])),lastEuro=s=>{const a=euros(s);return a.length?a.at(-1):0},readingStatusLabel=s=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[s]||'No determinada';
 function lines(items){const p=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x),g=[];for(const q of p){let z=g.find(v=>Math.abs(v.y-q.y)<=2.2);if(!z)g.push(z={y:q.y,a:[]});z.a.push(q)}return g.sort((a,b)=>b.y-a.y).map(z=>z.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ').replace(/\s+/g,' ').trim())}
 async function pdfData(file){
+ clearPdfJsDiagnostic(file?.name||'');
  const task=pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())});
  const pages=[],rawPages=[];
  try{
   const pdf=await task.promise;
   for(let i=1;i<=pdf.numPages;i++){
-   const p=await pdf.getPage(i),c=await p.getTextContent();
+   const p=await pdf.getPage(i),c=await p.getTextContent(),viewport=p.getViewport({scale:1});
+   capturePdfJsPage(file,i,c.items,viewport);
    rawPages.push(c.items);pages.push(lines(c.items));
   }
   return{pages,rawPages,text:pages.flat().join('\n')};
@@ -80,7 +103,7 @@ async function parseInvoiceFile(file){
  }
  row.ocrValidated=true;return row;
 }
-async function process(files){for(const file of [...files]){if(!file.name.toLowerCase().endsWith('.pdf'))continue;try{const r=await parseInvoiceFile(file),k=cleanKey(r.invoiceNumber);if(!(k&&k!==cleanKey('Por identificar')&&rows.some(x=>cleanKey(x.invoiceNumber)===k)))rows.push(r);window.IBTInvoiceSupersession?.reconcile?.(rows)}catch(e){console.warn('Error leyendo',file.name,e)}render()}}
+async function process(files){for(const file of [...files]){if(!file.name.toLowerCase().endsWith('.pdf'))continue;try{const r=await parseInvoiceFile(file);finalizePdfJsDiagnostic(file.name,r);const k=cleanKey(r.invoiceNumber);if(!(k&&k!==cleanKey('Por identificar')&&rows.some(x=>cleanKey(x.invoiceNumber)===k)))rows.push(r);window.IBTInvoiceSupersession?.reconcile?.(rows)}catch(e){console.warn('Error leyendo',file.name,e)}render()}}
 function activeRows(){const result=window.IBTInvoiceSupersession?.reconcile?.(rows);return result?.active||rows.filter(r=>!r?.superseded)}
 function render(){
  const active=activeRows(),visible=[...rows].sort((a,b)=>Number(!!a.superseded)-Number(!!b.superseded)),b=$('#resultsBody');
@@ -99,7 +122,7 @@ function decorate(ws,title,subtitle,widths,last){ws['!merges']=[{s:{r:0,c:0},e:{
 function exportExcel(){const exportRows=activeRows();const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser ${PARSER_VERSION}`};const sumH=['Estado','Nº factura','Empresa','CUPS','Periodo','Tarifa','Consumo kWh','Energía €','Potencia €','Excesos €','Reactiva €','Comp. excedentes €','Otros €','Derechos distribuidora €','Imp. electricidad €','IVA €','IGIC €','Total factura €','Cuadre','Coste €/kWh','Qué revisar','Tipo lectura','Origen lectura'],sumR=exportRows.map(r=>[r.unsupported?'NO COMPATIBLE':r.readOk?'CORRECTA':'ERROR',r.invoiceNumber,r.company,r.cups,r.period,r.tariff,r.kwh,r.energy,r.power,r.excess,r.reactive,r.compensation,r.other,r.distributorCharges,r.tax,r.vat,r.igic,r.total,r.unsupported?'—':r.balanced?'OK':'REVISAR',r.avg,r.opportunity,readingStatusLabel(r.readingStatus),r.readingSourceLabel||'']),ws=XLSX.utils.aoa_to_sheet([['INSTAL·LACIONS BT · INFORME ENERGÉTICO'],[`Resumen de facturas procesadas · Alpha · Parser ${PARSER_VERSION}`],sumH,...sumR]);decorate(ws,'INSTAL·LACIONS BT · INFORME ENERGÉTICO',`Resumen de facturas procesadas · Parser ${PARSER_VERSION}`,[12,18,28,27,26,10,14,13,13,12,12,16,13,19,16,12,12,15,11,14,42,20,30],22);for(let i=4;i<=exportRows.length+3;i++){const a=ws[`A${i}`];if(a)a.s={font:{bold:true,color:{rgb:exportRows[i-4].readOk?'19742B':XL.red}},fill:{fgColor:{rgb:exportRows[i-4].readOk?XL.lightGreen:XL.lightRed}},alignment:{horizontal:'center'},border:grid};const o=ws[`U${i}`];if(o&&exportRows[i-4].opportunity!=='Sin alertas')o.s={font:{bold:true,color:{rgb:'8B5600'}},fill:{fgColor:{rgb:XL.lightOrange}},alignment:{wrapText:true},border:grid}}XLSX.utils.book_append_sheet(wb,ws,'Resumen');
  const detH=['Nº factura','Empresa','CUPS','Periodo','Tarifa'];for(let p=1;p<=6;p++)detH.push(`P${p} kWh`,`P${p} €`,`P${p} €/kWh`,`P${p} kW contratados`,`P${p} maxímetro kW`);const detR=exportRows.map(r=>{const x=[r.invoiceNumber,r.company,r.cups,r.period,r.tariff];for(let p=1;p<=6;p++){const key=`P${p}`,has=Object.prototype.hasOwnProperty.call(r.periods,key),q=r.periods[key]||{};x.push(has?q.consumption:'',has?q.cost:'',has?q.price:'',Object.prototype.hasOwnProperty.call(r.contracted,key)?r.contracted[key]:'',r.maximeters[key]??'')}return x}),wd=XLSX.utils.aoa_to_sheet([['INSTAL·LACIONS BT · DETALLE P1-P6'],['Consumos, precios, potencias contratadas y maxímetros'],detH,...detR]);decorate(wd,'INSTAL·LACIONS BT · DETALLE P1-P6','Consumos, precios, potencias contratadas y maxímetros',[18,27,27,25,10,...Array(30).fill(14)],34);XLSX.utils.book_append_sheet(wb,wd,'Detalle P1-P6');
  const opH=['Nº factura','Empresa','CUPS','Periodo','Total €','Excesos €','Reactiva €','Qué revisar'],opR=exportRows.filter(r=>r.opportunity!=='Sin alertas'||!r.readOk).map(r=>[r.invoiceNumber,r.company,r.cups,r.period,r.total,r.excess,r.reactive,r.opportunity]),wo=XLSX.utils.aoa_to_sheet([['INSTAL·LACIONS BT · PUNTOS A REVISAR'],['Alertas y puntos de revisión detectados'],opH,...opR]);decorate(wo,'INSTAL·LACIONS BT · PUNTOS A REVISAR','Alertas y puntos de revisión detectados',[18,28,27,25,14,14,14,55],7);XLSX.utils.book_append_sheet(wb,wo,'Puntos a revisar');XLSX.writeFile(wb,'Informe_Energetico_Instalacions_BT.xlsx')}
-const dz=$('#dropZone'),input=$('#fileInput');$('#pickFiles').onclick=()=>{input.value='';input.click()};input.onchange=e=>{const f=[...e.target.files];input.value='';process(f)};['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('drag')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('drag')}));dz.addEventListener('drop',e=>process([...e.dataTransfer.files]));$('#exportExcel').onclick=exportExcel;$('#clearData').onclick=()=>{rows=[];input.value='';render()};render();
+const dz=$('#dropZone'),input=$('#fileInput');$('#pickFiles').onclick=()=>{input.value='';input.click()};input.onchange=e=>{const f=[...e.target.files];input.value='';process(f)};['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('drag')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('drag')}));dz.addEventListener('drop',e=>process([...e.dataTransfer.files]));$('#exportExcel').onclick=exportExcel;$('#clearData').onclick=()=>{rows=[];input.value='';window.IBTParserDiagnostics?.clear?.();render()};render();
 
 // Keep the validation reason beside the status so it cannot disappear beyond
 // the horizontal scroll area. Export the same reason instead of an unrelated
