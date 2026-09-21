@@ -114,6 +114,8 @@ test('entrada exacta de la auditoría PDF.js #14: Carla cierra a céntimo',()=>{
   assert.equal(r.invoiceNumber,'21260727010128461');
   assert.equal(r.company,'CARLA FERRERO MALOW');
   assert.equal(r.cups,'ES0031500164915001GV');
+  assert.equal(r.taxId,'47647341N');
+  assert.equal(r.accessContract,'500023491391');
   assert.equal(r.period,'22/06/2026 - 19/07/2026 (27 días)');
   assert.equal(r.tariff,'2.0TD');
   assert.equal(r.kwh,485.91);assert.equal(r.energy,72.27);assert.equal(r.power,24.66);
@@ -128,6 +130,9 @@ test('entrada exacta de la auditoría PDF.js #14: Diana cierra a céntimo con P1
   assert.equal(r.invoiceNumber,'21260608010256253');
   assert.equal(r.company,'DIANA MARIA CHRISTINA VINCES CABADA');
   assert.equal(r.cups,'ES0031500744757001LB');
+  assert.equal(r.distributor,'EDISTRIBUCION REDES DIGITALES S.L.U.');
+  assert.equal(r.accessContract,'500021702758');
+  assert.equal(r.renewalDate,'25/08/2027');
   assert.equal(r.period,'27/04/2026 - 31/05/2026 (34 días)');
   assert.equal(r.tariff,'3.0TD');
   assert.equal(r.kwh,65);assert.equal(r.energy,11.37);assert.equal(r.power,66.5);
