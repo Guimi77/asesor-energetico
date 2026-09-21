@@ -161,7 +161,7 @@ function parseSupply(lines) {
     distributor: clean(distributor),
     retailer: 'FENIE ENERGIA',
     accessContract,
-    supplyName: place.displayAddress || clean(address),
+    supplyName: clean(address),
     invoiceNumber,
     periodEnd: periodMatch[2] || '',
     contractType,
