@@ -43,7 +43,7 @@ test('master and history consume the shared parser instead of duplicating Iberdr
   assert(history.includes('function extractIberdrola(d,file)'));
   assert(history.includes("if(iberdrola?.detect?.(d))return extractIberdrola(d,file)"));
   assert(history.includes('rawPages:raw'));
-  assert(history.includes("prepared=iberdrola?.detect?.(source)?{data:source,attempted:false,error:null}"));
+  assert(history.includes("prepared=(iberdrola?.detect?.(source)||repsol?.detect?.(source))?{data:source,attempted:false,error:null}"));
   assert(history.includes("const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'"));
   assert(history.includes("retailer:row.retailer||'IBERDROLA CLIENTES, S.A.U.'"));
 });
