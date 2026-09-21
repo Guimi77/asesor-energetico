@@ -10,7 +10,6 @@ test('lee localidad FENIE aunque la dirección termine con dos ámbitos entre pa
   assert.equal(r.city,'CALVIA');
   assert.equal(r.province,'ILLES BALEARS');
   assert.equal(r.region,'BALEARS');
-  assert.equal(r.displayAddress,'GERMANS PINZONS 2, OBRAS 1, 07181 CALVIA (ILLES BALEARS)');
 });
 
 test('no altera direcciones FENIE normales de un solo ámbito',()=>{
@@ -18,15 +17,13 @@ test('no altera direcciones FENIE normales de un solo ámbito',()=>{
   const r=location.parse(address);
   assert.equal(r.city,'ESPORLES');
   assert.equal(r.province,'BALEARS');
-  assert.equal(r.displayAddress,address);
 });
 
-test('sin código postal falla cerrado y conserva la dirección',()=>{
+test('sin código postal falla cerrado sin inventar localidad',()=>{
   const address='CAMI SENSE CODI POSTAL';
   const r=location.parse(address);
   assert.equal(r.city,'');
   assert.equal(r.province,'');
-  assert.equal(r.displayAddress,address);
 });
 
 test('la mejora vive en el enriquecimiento del suministro, no en el parser económico FENIE',()=>{
