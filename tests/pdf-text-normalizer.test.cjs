@@ -53,12 +53,15 @@ test('la arquitectura aplica la capa comun antes de parser principal, historico 
   const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
   const history=fs.readFileSync(path.join(root,'xtra-history.js'),'utf8');
   const supply=fs.readFileSync(path.join(root,'supply-enricher-v2.js'),'utf8');
+  const master=fs.readFileSync(path.join(root,'master-v2.js'),'utf8');
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert.match(app,/IBTPdfTextNormalizer\?\.repair/);
   assert.match(app,/IBTPdfTextNormalizer\?\.normalizeData/);
   assert.match(app,/function parseInvoice\(d,file\)\{d=normalizePdfData\(d\)/);
   assert.match(history,/IBTPdfTextNormalizer\?\.repair/);
   assert.match(supply,/IBTPdfTextNormalizer\?\.repair/);
+  assert.match(master,/IBTPdfTextNormalizer\?\.repair/,'el maestro debe sanear nombres estructurados heredados con la misma capa común');
+  assert.match(master,/distributor:\s*semanticText\(raw\.distributor\)/);
   const normalizerIndex=html.indexOf('pdf-text-normalizer.js?v=');
   const formatsIndex=html.indexOf('invoice-formats.js?v=');
   const iberdrolaIndex=html.indexOf('iberdrola-parser-v3.js?v=');
