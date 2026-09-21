@@ -79,3 +79,19 @@ test('Credits reduce reactive historical balance without becoming savings',()=>{
   assert.match(x.evidence,/Abonos/);
   assert.match(x.caveat,/no equivale a ahorro posible/);
 });
+
+
+test('Measured Iberdrola reactive kVArh with zero billed cost is preserved without creating a false reactive alert',()=>{
+  const rows=[rec(0,{reactive_cost_eur:0,invoice_reactive:[
+    {period:1,reactive_kvarh:0,amount_eur:0},
+    {period:2,reactive_kvarh:1,amount_eur:0},
+    {period:3,reactive_kvarh:1,amount_eur:0},
+    {period:4,reactive_kvarh:0,amount_eur:0},
+    {period:5,reactive_kvarh:0,amount_eur:0},
+    {period:6,reactive_kvarh:3,amount_eur:0},
+  ]})];
+  const result=build(rows);
+  assert.equal(result.items.some(item=>item.type==='reactive'),false);
+  assert.equal(rows[0].invoice_reactive.length,6);
+  assert.deepEqual(rows[0].invoice_reactive.map(x=>x.reactive_kvarh),[0,1,1,0,0,3]);
+});
