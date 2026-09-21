@@ -5,6 +5,7 @@ const COMPLETENESS_VERSION='energy-2026.09.15.1';
 const $=s=>document.querySelector(s);
 const norm=v=>String(v??'').trim();
 const clean=v=>norm(v).replace(/\s+/g,' ');
+const semantic=v=>window.IBTPdfTextNormalizer?.repair?.(v)??clean(v);
 const cleanKey=v=>norm(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
 const cupsKey=v=>{const x=cleanKey(v);return x.startsWith('ES')&&x.length>=20?x.slice(0,20):x};
 const num=s=>{if(s==null)return 0;let x=String(s).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');return Number(x)||0};
@@ -15,7 +16,7 @@ const same=(a,b,t=.05)=>Math.abs((Number(a)||0)-(Number(b)||0))<=t;
 function lines(items){
 const pts=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x),groups=[];
 for(const q of pts){let g=groups.find(v=>Math.abs(v.y-q.y)<=2.2);if(!g)groups.push(g={y:q.y,a:[]});g.a.push(q)}
-return groups.sort((a,b)=>b.y-a.y).map(g=>g.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ').replace(/\s+/g,' ').trim());
+return groups.sort((a,b)=>b.y-a.y).map(g=>semantic(g.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ')));
 }
 const find=(a,re)=>a.find(x=>re.test(x))||'';
 function section(a,start,ends){const i=a.findIndex(x=>start.test(x));if(i<0)return[];let j=a.length;for(let k=i+1;k<a.length;k++){if(ends.some(r=>r.test(a[k]))){j=k;break}}return a.slice(i,j)}
