@@ -206,6 +206,13 @@
     element.innerHTML = `<strong>${clients.size} cliente${clients.size === 1 ? '' : 's'} · ${holders.size} titular${holders.size === 1 ? '' : 'es'} · ${supplies.length} CUPS</strong> ${source ? `actualizados desde <strong>${esc(source)}</strong> y ` : ''}guardados localmente en este navegador.`;
   }
 
+  function displaySupplyCity(supply = {}) {
+    const stored = norm(supply.city);
+    if (stored) return stored;
+    if (!/FENIE/i.test(norm(supply.retailer))) return '';
+    return norm(window.IBTFenieSupplyLocation?.parse?.(supply.address)?.city);
+  }
+
   function holderTree(list) {
     const groups = new Map();
     for (const supply of list) {
@@ -280,7 +287,7 @@
             const title = internal && supply.alias
               ? [supply.alias, supply.address || supply.name].filter(Boolean).join(' - ')
               : supply.name || supply.address || 'Suministro';
-            const city = supply.city || 'Localidad pendiente';
+            const city = displaySupplyCity(supply) || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
             return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
@@ -327,7 +334,7 @@
     const list = supplies.filter((supply) => Object.values(supply).join(' ').toLowerCase().includes(needle));
 
     body.innerHTML = list.length
-      ? list.map((supply) => `<tr><td><span class="status ${String(supply.status).toUpperCase() === 'ACTIVO' ? 'ok' : 'review'}">${esc(supply.status)}</span></td><td><strong>${esc(supply.client)}</strong></td><td>${esc(supply.holder || '—')}</td><td>${esc(supply.cups)}</td><td>${esc(supply.address || supply.name || '—')}</td><td>${esc(supply.city || '—')}</td><td>${esc(supply.tariff || '—')}</td><td>${esc(supply.contract || '—')}</td><td><button class="secondary edit-supply" data-cups="${esc(supply.cups)}">Editar</button></td></tr>`).join('')
+      ? list.map((supply) => `<tr><td><span class="status ${String(supply.status).toUpperCase() === 'ACTIVO' ? 'ok' : 'review'}">${esc(supply.status)}</span></td><td><strong>${esc(supply.client)}</strong></td><td>${esc(supply.holder || '—')}</td><td>${esc(supply.cups)}</td><td>${esc(supply.address || supply.name || '—')}</td><td>${esc(displaySupplyCity(supply) || '—')}</td><td>${esc(supply.tariff || '—')}</td><td>${esc(supply.contract || '—')}</td><td><button class="secondary edit-supply" data-cups="${esc(supply.cups)}">Editar</button></td></tr>`).join('')
       : `<tr class="empty"><td colspan="9">${supplies.length ? 'No hay suministros que coincidan con la búsqueda.' : 'Añade un cliente o importa el maestro.'}</td></tr>`;
 
     body.querySelectorAll('.edit-supply').forEach((button) => {
