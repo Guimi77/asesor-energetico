@@ -48,7 +48,10 @@ const diana=()=>doc([
   'DIANA MARIA CHRISTINA VINCES','CABADA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
   'Direcci ó n de suministro:','C/ CAN GAMUNDI, 17-., LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)',
   'Nº DE CONTRATO: 957890618 EMPRESA SOSTENIBLE,','RESUMEN DE FACTURA',
-  'PERIODO DE FACTURACI Ó N: Nº FACTURA:','27/04/2026 - 31/05/2026 21260608010256253',
+  'PERIODO DE FACTURACI Ó N: Nº FACTURA:',
+  'Calcula y reduce la huella de carbono',
+  '27/04/2026 - 31/05/2026 21260608010256253',
+  'de tu empresa con nuestra calculadora:',
   'DIAS FACTURADOS: FECHA DE EMISI Ó N: www.mihuellacarbono.com','34 8 de junio de 2026',
   'ENERG Í A.............................................................................81,80 €',
   'DESCUENTOS ENERG Í A .................................................-1,71 €',
@@ -132,7 +135,7 @@ test('entrada exacta de la auditoría PDF.js #14: Carla cierra a céntimo',()=>{
 test('entrada exacta de la auditoría PDF.js #14: Diana cierra a céntimo con P1=0 leído del contador',()=>{
   const r=parser.parse(diana(),{name:'957890618_2026-06-08-170136007639_260720_153834.pdf'});
   assert.equal(r.readOk,true,JSON.stringify(r));
-  assert.equal(r.invoiceNumber,'21260608010256253');
+  assert.equal(r.invoiceNumber,'21260608010256253','debe saltar las filas de marketing intercaladas entre cabecera y dato');
   assert.equal(r.company,'DIANA MARIA CHRISTINA VINCES CABADA');
   assert.equal(r.cups,'ES0031500744757001LB');
   assert.equal(r.distributor,'EDISTRIBUCION REDES DIGITALES S.L.U.');
