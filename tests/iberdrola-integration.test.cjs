@@ -34,13 +34,16 @@ test('main parser routes Iberdrola before legacy formats and before FENIE OCR fa
 
 test('master and history consume the shared parser instead of duplicating Iberdrola billing rules',()=>{
   const master=source('supply-enricher-v2.js'),history=source('xtra-history.js');
-  assert(master.includes('function parseIberdrolaSupply(pages,file)'));
-  assert(master.includes('parser?.parse?.({pages,text},file'));
-  assert(master.includes("format==='iberdrola'?parseIberdrolaSupply(pages,file)"));
+  assert(master.includes('function parseIberdrolaSupply(data,file)'));
+  assert(master.includes('parser?.parse?.(data,file'));
+  assert(master.includes('rawPages.push(content.items)'));
+  assert(master.includes('let pdfData={pages,rawPages,text:pages.flat().join'));
+  assert(master.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file)"));
   assert(master.includes("retailer:row.retailer||'IBERDROLA CLIENTES, S.A.U.'"));
   assert(history.includes('function extractIberdrola(d,file)'));
-  assert(history.includes("if(iberdrola?.detect?.(d.text))return extractIberdrola(d,file)"));
-  assert(history.includes("prepared=iberdrola?.detect?.(source.text)?{data:source,attempted:false,error:null}"));
+  assert(history.includes("if(iberdrola?.detect?.(d))return extractIberdrola(d,file)"));
+  assert(history.includes('rawPages:raw'));
+  assert(history.includes("prepared=iberdrola?.detect?.(source)?{data:source,attempted:false,error:null}"));
   assert(history.includes("const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'"));
   assert(history.includes("retailer:row.retailer||'IBERDROLA CLIENTES, S.A.U.'"));
 });
@@ -70,4 +73,14 @@ test('Iberdrola historical persistence stays fail closed behind the validated ma
   assert(persist.includes('same(ui.energy,x.energy)'));
   assert(persist.includes('same(ui.power,x.power)'));
   assert(persist.includes('same(ui.total,x.total)'));
+});
+
+test('Iberdrola secondary consumers preserve PDF.js geometry instead of reparsing flattened text',()=>{
+  const master=source('supply-enricher-v2.js'),history=source('xtra-history.js');
+  assert.match(master,/rawPages\.push\(content\.items\)/);
+  assert.match(master,/parseIberdrolaSupply\(pdfData,file\)/);
+  assert.match(master,/parser\?\.parse\?\.\(data,file/);
+  assert.match(history,/rawPages:raw/);
+  assert.match(history,/iberdrola\?\.detect\?\.\(source\)/);
+  assert.match(history,/extractIberdrola\(prepared\.data,file\)/);
 });
