@@ -72,7 +72,7 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
  assert(app.includes("format==='fenie')return parseFenie"));
  assert(app.includes("format==='endesa')return formats.parseEndesa"));
  assert(app.includes('Factura no compatible todavía'));
- assert(enricher.includes("format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pages,file):{}"));
+ assert(enricher.includes("format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  assert(enricher.includes("retailer:'Endesa Energía S.A.U.'"));
  assert(audit.includes('const expectedEnergyPeriods='));
  assert(audit.includes('const hasAnyPeriodCost='));
