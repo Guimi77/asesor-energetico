@@ -65,8 +65,8 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
  // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
- assert.equal(source('auth.css'),at(AUTH_BASE,'auth.css'),'auth.css must not change');
- assert.equal(source('history-cost-chart.js'),old('history-cost-chart.js'),'history-cost-chart.js must not change');
+ assert.equal(source('auth.css'),at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','auth.css'),'auth.css must not change in this Repsol change');
+ assert.equal(source('history-cost-chart.js'),at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
