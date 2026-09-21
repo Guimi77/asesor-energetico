@@ -3,6 +3,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 const norm = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 const clean = (value) => norm(value).replace(/^[\s:;-]+/, '');
+const semantic = (value) => window.IBTPdfTextNormalizer?.repair?.(value) ?? norm(value);
 
 function linesFromItems(items) {
   const points = items
@@ -22,7 +23,7 @@ function linesFromItems(items) {
 
   return groups
     .sort((a, b) => b.y - a.y)
-    .map((group) => norm(group.items.sort((a, b) => a.x - b.x).map((item) => item.str).join(' ')));
+    .map((group) => semantic(group.items.sort((a, b) => a.x - b.x).map((item) => item.str).join(' ')));
 }
 
 function firstLine(lines, regex) {
