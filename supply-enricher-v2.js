@@ -36,6 +36,8 @@ function valueAfter(line, labelRegex) {
 }
 
 function splitPlace(address) {
+  const parsed=window.IBTFenieSupplyLocation?.parse?.(address);
+  if(parsed)return{city:clean(parsed.city),province:clean(parsed.province)};
   const normalized = norm(address);
   const match = normalized.match(/,?\s*(\d{5})\s+([^()]+?)(?:\s*\(([^()]*)\))?\s*$/i);
   if (!match) return { city: '', province: '' };
