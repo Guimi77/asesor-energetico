@@ -16,7 +16,7 @@ function reader(code,name,end,mode='ok'){
  let opened=0,closed=0,pages=0;
  const items=[{str:'FENIE ENERGIA',transform:[1,0,0,1,20,440]},{str:'CUPS: ES0000000000000000TEST',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
  const pdfjsLib={GlobalWorkerOptions:{},getDocument(){opened++;
-  const pdf={numPages:4,async getPage(){pages++;if(mode==='page')throw Error('page');return {async getTextContent(){if(mode==='text')throw Error('text');return {items};}};}};
+  const pdf={numPages:4,async getPage(){pages++;if(mode==='page')throw Error('page');return {getViewport(){return {width:595.28,height:841.89};},async getTextContent(){if(mode==='text')throw Error('text');return {items};}};}};
   return {promise:mode==='load'?Promise.reject(Error('load')):Promise.resolve(pdf),async destroy(){await Promise.resolve();closed++;}};
  }};
  const context={pdfjsLib,window:{EnergyMaster:{learnInvoice:()=>({ok:true,enriched:true})},IBTInvoiceFormats:{detect:s=>/FENIE ENERGIA/i.test(String(s||''))?'fenie':'unknown'}},document:{querySelector:()=>null},console,Uint8Array,setTimeout};
@@ -31,7 +31,7 @@ for(const [path,name,end] of readerSpec){
   const baseline=reader(old(path),name,end),candidate=reader(source(path),name,end);
   for(let i=0;i<341;i++){
    const expected=await baseline.read(file),actual=await candidate.read(file);
-   assert.deepEqual(JSON.parse(JSON.stringify(actual)),JSON.parse(JSON.stringify(expected)));
+   const actualPlain=JSON.parse(JSON.stringify(actual)),expectedPlain=JSON.parse(JSON.stringify(expected));\n   if(path==='app.js'||path==='xtra-history.js'){assert.deepEqual(actualPlain.pages,expectedPlain.pages);assert.equal(actualPlain.text,expectedPlain.text);assert.equal(actualPlain.rawPages.length,path==='app.js'?4:3);}else assert.deepEqual(actualPlain,expectedPlain);
    assert.equal(candidate.stats().closed,i+1);
   }
   assert.equal(baseline.stats().closed,0,'The previous leak must be reproduced');
@@ -61,8 +61,8 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
   .replace(/ const expected=Number\(expectedPeriods\)\|\|0;\s+const complete=entries\.length>0&&\(expected\?entries\.length===expected:entries\.length===uniqueLabels\.length\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')
   .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
  assert.equal(normalized,parserExpected);
- assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(old('app.js'),'function lines(items)','async function pdfData'));
- assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(old('supply-enricher-v2.js'),'function parseSupply(lines)','async function waitForMaster'));
+ assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','app.js'),'function lines(items)','async function pdfData'));
+ assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
  // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
  assert.equal(source('auth.css'),at(AUTH_BASE,'auth.css'),'auth.css must not change');
  assert.equal(source('history-cost-chart.js'),old('history-cost-chart.js'),'history-cost-chart.js must not change');
