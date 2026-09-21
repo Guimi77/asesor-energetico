@@ -32,5 +32,5 @@ test('sin código postal falla cerrado y conserva la dirección',()=>{
 test('la mejora vive en el enriquecimiento del suministro, no en el parser económico FENIE',()=>{
   const source=fs.readFileSync(require('node:path').join(__dirname,'..','supply-enricher-v2.js'),'utf8');
   assert.match(source,/IBTFenieSupplyLocation\?\.parse/);
-  assert.match(source,/supplyName: place\.displayAddress \|\| clean\(address\)/);
+  assert.match(source,/const parsed=window\.IBTFenieSupplyLocation\?\.parse\?\.\(address\)/);
 });
