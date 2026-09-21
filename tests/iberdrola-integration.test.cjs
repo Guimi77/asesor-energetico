@@ -82,5 +82,5 @@ test('Iberdrola secondary consumers preserve PDF.js geometry instead of reparsin
   assert.match(master,/parser\?\.parse\?\.\(data,file/);
   assert.match(history,/rawPages:raw/);
   assert.match(history,/iberdrola\?\.detect\?\.\(source\)/);
-  assert.match(history,/extractIberdrola\(prepared\.data,file\)/);
+  assert.match(history,/extractHistory\(prepared\.data,file\)/);
 });
