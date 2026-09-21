@@ -121,7 +121,7 @@ for(let i=1;i<=Math.min(pdf.numPages,3);i++){
 const p=await pdf.getPage(i),c=await p.getTextContent();
 raw.push(c.items);pages.push(lines(c.items));
 }
-return {pages,raw,text:pages.flat().join('\n')};
+const data={pages,raw,rawPages:raw,text:pages.flat().join('\n')};return window.IBTPdfTextNormalizer?.normalizeData?.(data)??data;
 }finally{
 await task.destroy();
 }
@@ -222,7 +222,7 @@ const completeness={version:COMPLETENESS_VERSION,invoice_number:status(row.invoi
 const assessment=row.readOk&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
 return{file:file.name,invoiceNumber:row.invoiceNumber,cups:row.cups,tariff,periodText,period,total:Number(row.total)||0,kwh:Number(row.kwh)||0,energy:Number(row.energy)||0,power:Number(row.power)||0,excess:Number(row.excess)||0,reactive:Number(row.reactive)||0,compensation:Number(row.compensation)||0,social:Number(row.social)||0,rental:Number(row.rental)||0,tax:Number(row.tax)||0,vat:Number(row.vat)||0,igic:Number(row.igic)||0,distributorCharges:Number(row.distributorCharges)||0,other:Number(row.other)||0,accounted:Number(row.accounted)||0,diff:Number(row.diff)||0,energyPeriods,powerPeriods,maximeterRows,excessPeriods:[],reactivePeriods:[],taxLines,adjustments,distributorRights:[],distributor:row.distributor||'',retailer:row.retailer||'IBERDROLA CLIENTES, S.A.U.',contract:row.contract||row.contractNumber||'',powerReliable:!!row.readOk&&!!row.powerDetail?.reliable,holderName:row.company||'',holderTaxId:row.taxId||'',sourceSupplyAddress:row.supplyAddress||'',accessContract:row.accessContract||'',issueDate:row.issueDate||'',contractType:row.contractType||'',contractEndDate:row.renewalDate||'',meterNumber:row.meterNumber||'',readingStatus:row.readingStatus||'unknown',readingSourceLabel:row.readingSourceLabel||'',completeness,assessment};
 }
-function extractHistory(d,file){const iberdrola=window.IBTIberdrolaParser;if(iberdrola?.detect?.(d.text))return extractIberdrola(d,file);const formats=window.IBTInvoiceFormats,format=formats?.detect?.(d.text);if(format==='endesa')return extractEndesa(d,file);if(format==='fenie')return extractFenie(d,file);return null;}
+function extractHistory(d,file){const iberdrola=window.IBTIberdrolaParser;if(iberdrola?.detect?.(d))return extractIberdrola(d,file);const formats=window.IBTInvoiceFormats,format=formats?.detect?.(d.text);if(format==='endesa')return extractEndesa(d,file);if(format==='fenie')return extractFenie(d,file);return null;}
 function parseUiNumber(s){return num(String(s||'').replace(/\s*€/g,''))}
 function rowSnapshot(cups,periodText){
 for(const tr of document.querySelectorAll('#resultsBody tr')){const c=tr.children;if(c.length<16)continue;if(cupsKey(c[2].textContent)!==cupsKey(cups))continue;if(norm(c[3].textContent)!==norm(periodText))continue;return {status:norm(c[0].textContent),kwh:parseUiNumber(c[5].textContent),energy:parseUiNumber(c[6].textContent),power:parseUiNumber(c[7].textContent),excess:parseUiNumber(c[8].textContent),reactive:parseUiNumber(c[9].textContent),total:parseUiNumber(c[12].textContent),balance:norm(c[13].textContent)}}
@@ -237,7 +237,7 @@ el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
 if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
-const source=await readPdf(file),iberdrola=window.IBTIberdrolaParser,fallback=window.IBTFenieOcrFallback,prepared=iberdrola?.detect?.(source.text)?{data:source,attempted:false,error:null}:fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
+const source=await readPdf(file),iberdrola=window.IBTIberdrolaParser,fallback=window.IBTFenieOcrFallback,prepared=iberdrola?.detect?.(source)?{data:source,attempted:false,error:null}:fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
 if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
 const x=extractHistory(prepared.data,file);
 if(!x?.cups||!x.invoiceNumber||!x.period.start||!x.powerReliable)return {skipped:true,reason:'source_incomplete'};
