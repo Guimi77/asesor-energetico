@@ -16,6 +16,9 @@
   };
 
   const norm = (value) => String(value ?? '').trim();
+  // Reuse the common semantic repair on structured text too. This migrates
+  // old master values that were saved before detached PDF.js accents were fixed.
+  const semanticText = (value) => window.IBTPdfTextNormalizer?.repair?.(value) ?? norm(value);
   const key = (value) => norm(value)
     .toUpperCase()
     .normalize('NFD')
@@ -97,6 +100,8 @@
       status: norm(raw.status) || 'ACTIVO',
       cups: norm(raw.cups).replace(/\s/g, ''),
       alias: norm(raw.alias || raw.supplyAlias),
+      retailer: semanticText(raw.retailer || raw.commercializer),
+      distributor: semanticText(raw.distributor),
     };
   }
 
@@ -711,10 +716,15 @@
       const saved = JSON.parse(localStorage.getItem(STORAGE) || '[]');
       if (Array.isArray(saved)) {
         supplies = [];
+        let migratedText = false;
         for (const supply of saved) {
           if (!supply?.cups) continue;
-          upsertSupply(normalizeSupply(supply), { allowMove: true });
+          const normalized = normalizeSupply(supply);
+          if (normalized.distributor !== norm(supply.distributor) || normalized.retailer !== norm(supply.retailer || supply.commercializer)) migratedText = true;
+          upsertSupply(normalized, { allowMove: true });
         }
+        // One-time, lossless migration of legacy split-accent entity names.
+        if (migratedText) save();
       }
     } catch (error) {
       console.warn('No se pudo leer el maestro guardado', error);
