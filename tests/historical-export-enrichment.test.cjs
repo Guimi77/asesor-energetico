@@ -158,5 +158,5 @@ test('the enrichment loads after the canonical history engine and is cache-buste
   const enrichmentPos=indexSource.indexOf('historical-export-enrichment.js?v=483845e87300');
   assert.ok(historyPos>=0 && enrichmentPos>historyPos,'the canonical history engine must load first');
   assert.match(indexSource,/auth-bootstrap\.js\?v=[^"'<>\s]+/);
-  assert.match(bootstrapSource,/historical-export-enrichment\.js\?v=ba80ee015f11/);
+  assert.match(bootstrapSource,/historical-export-enrichment\.js\?v=483845e87300/);
 });
