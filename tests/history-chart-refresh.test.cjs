@@ -42,7 +42,7 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  // The FENIE supply parser stays byte-for-byte locked. Endesa has its own adapter after this boundary.
  const enricher=source('supply-enricher-v2.js'),oldEnricher=old('supply-enricher-v2.js');
  assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
- assert(enricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
+ assert(enricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='naturgy'?parseNaturgySupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  // The audit may evolve, but missing energy/period data must remain fail-closed.
  const audit=source('parser-audit.js');
  assert(audit.includes('const expectedEnergyPeriods='));
