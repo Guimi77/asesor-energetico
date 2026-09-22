@@ -24,5 +24,6 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('pdf-text-normalizer.js');
   assertCacheToken('iberdrola-parser-v3.js');
   assertCacheToken('repsol-parser.js');
+  assertCacheToken('naturgy-parser.js');
   assertCacheToken('parser-audit.js');
 });
