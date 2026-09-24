@@ -1,0 +1,16 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Material privado de desarrollo de parsers
+private-fixtures/
+tests/fixtures/private/
+tests/**/*.pdf
+
+# Temporales
+.tmp/
+tmp/
