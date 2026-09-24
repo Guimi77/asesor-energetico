@@ -502,6 +502,43 @@ td{padding:10px 8px}
 
 
 
+
+
+/* History filters: keep five independent columns; do not inherit global wide-search sizing */
+@media (min-width:901px){
+  #historicoView .history-toolbar{
+    grid-template-columns:minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.7fr) minmax(0,.92fr) minmax(0,.92fr)!important;
+    column-gap:14px!important;
+    row-gap:8px!important;
+  }
+  #historicoView .history-toolbar label,
+  #historicoView .history-combo,
+  #historicoView #historyClientControl{
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+  }
+  #historicoView .history-toolbar input,
+  #historicoView .history-toolbar input[id$="Search"],
+  #historicoView .history-toolbar input[id*="Search"],
+  #historicoView .history-search-input,
+  #historicoView input[type="date"]{
+    box-sizing:border-box!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    min-height:36px!important;
+  }
+  #historicoView .history-search-input{
+    padding:7px 40px 7px 10px!important;
+  }
+  #historicoView input[type="date"]{
+    padding:7px 10px!important;
+  }
+  #historicoView .history-controls-card{
+    overflow:visible!important;
+  }
+}
 /* Desktop search fields: clearer and wider 2026-09-18 */
 @media (min-width:901px){
   .search-box,
