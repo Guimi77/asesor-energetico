@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {execFileSync}=require('node:child_process');
-const ui=fs.readFileSync('history-ui.js','utf8'),base='34ced0d0d52579d2e44fb5873a9f29a212e5f3c3';
+const {acceptedCommit,at}=require('./helpers/regression-baseline.cjs');
+const ui=fs.readFileSync('history-ui.js','utf8'),base=acceptedCommit();
 const ctx={Map,Set,Number,Math,JSON,String,CHART_MIN_COVERAGE_RATIO:0.8,n:v=>Number(v)||0,monthKey:v=>String(v||'').slice(0,7),monthLabel:v=>v,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),money:v=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))};
 vm.createContext(ctx);vm.runInContext(ui.slice(ui.indexOf('  function aggregateMonthly'),ui.indexOf('  function powerSignature'))+'\nglobalThis.monthly=chartMonthly;globalThis.view=chartCoverageView;globalThis.coverage=renderChartCoverage;globalThis.plot=svgChart;globalThis.cost=svgCostChart;',ctx);
 const row=(s,m,k=100,e=20)=>({supply_id:s,billing_start:m+'-01',billing_end:m+'-28',consumption_kwh:k,total_eur:e});
@@ -29,7 +29,7 @@ test('Coverage changes stay isolated from authentication, history data and FENIE
  assert(ui.includes("$('.history-combo-menu').forEach(menu => {"));
  assert(!ui.includes("$('#historyHolder')?.addEventListener('change'"));
  assert(!ui.includes("$('#historySupply')?.addEventListener('change'"));
- const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',base+':supply-enricher-v2.js'],{encoding:'utf8'});
+ const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=at(base,'supply-enricher-v2.js');
  assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  // A missing energy breakdown must never be reinterpreted as a legitimate zero merely because the invoice total exists.

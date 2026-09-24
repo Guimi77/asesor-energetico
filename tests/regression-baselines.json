@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "accepted": {
+    "version": 1,
+    "commit": "f584188189cac36d269ebf6ff6a49f4f3d4e0bea",
+    "acceptedAt": "2026-09-24",
+    "acceptedBy": "Guimi77",
+    "reason": "Baseline inicial: estado de main posterior al PR #29 con todas las regresiones y GitHub Pages verificadas en verde."
+  },
+  "frozen": {
+    "historyChartRefreshLegacyTwoCharts": {
+      "commit": "c2a3e38daf5c064960c166941692f01691f1d7fa",
+      "reason": "Referencia histórica fija que reproduce el fallo de sesión diferida con solo dos gráficas. No se promociona."
+    },
+    "pdfLifecycleWorkerLeak": {
+      "commit": "1668d5ea2f8059d17e08502d83c6395db361c4bf",
+      "reason": "Referencia histórica fija que reproduce la fuga de workers PDF. No se promociona."
+    },
+    "fenieParserBeforePowerPeriodBoundary": {
+      "commit": "4cc8fe564bc0dd3921251b964c3cdde6d06cea14",
+      "reason": "Referencia histórica fija usada para aislar el cambio aprobado de límites de periodos de potencia."
+    },
+    "repsolIsolationReference": {
+      "commit": "b3c0da573d58fbb0163b3f4365b9bfb93070e2ca",
+      "reason": "Referencia histórica fija usada para comprobar que cambios Repsol no alteran bloques ajenos."
+    }
+  }
+}
