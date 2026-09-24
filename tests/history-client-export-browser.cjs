@@ -19,7 +19,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.addScriptTag({path:'history-ui.js'});await page.evaluate(()=>window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}})));
   const ready=()=>page.waitForFunction(()=>!document.querySelector('#historyExportClient')?.disabled);
   await ready();assert.equal(await page.locator('.history-table tbody tr').count(),4);assert.equal(await page.locator('.history-chart').count(),3);
-  await page.selectOption('#historyHolder','h');await ready();await page.selectOption('#historySupply','s');await ready();
+  await page.fill('#historyHolderSearch','SYNTHETIC A');await page.press('#historyHolderSearch','Enter');await ready();await page.fill('#historySupplySearch','TEST-CUPS-001');await page.press('#historySupplySearch','Enter');await ready();
   const downloadOne=async()=>{const event=page.waitForEvent('download');await page.click('#historyExportClient');const d=await event;const path=await d.path();return {name:d.suggestedFilename(),buffer:fs.readFileSync(path)};};
   const queries=await page.evaluate(()=>window.queryCount),file=await downloadOne();assert(file.name.endsWith('.xlsx'));assert(file.name.includes('2027-01-31'));
   assert.equal(await page.evaluate(()=>window.queryCount),queries,'Export must not query or alter Supabase');
@@ -39,7 +39,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const feb=await downloadOne(),fwb=new ExcelJS.Workbook();await fwb.xlsx.load(feb.buffer);assert.equal(fwb.getWorksheet('PERIODOS').getCell('U5').value,90);
   await page.fill('#historyFrom','2028-01-01');await page.locator('#historyFrom').dispatchEvent('change');await page.waitForTimeout(350);assert(await page.locator('#historyExportClient').isDisabled());
   await page.evaluate(()=>{window.queryDelay=0;window.failNextInvoices=true;const el=document.querySelector('#historyFrom');el.value='';el.dispatchEvent(new Event('change'));});await page.waitForSelector('.history-error');assert(await page.locator('#historyExportClient').isDisabled());
-  await page.fill('#historyTo','');await page.locator('#historyTo').dispatchEvent('change');await ready();await page.selectOption('#historyHolder','');await ready();
+  await page.fill('#historyTo','');await page.locator('#historyTo').dispatchEvent('change');await ready();await page.fill('#historySupplySearch','Todos los CUPS');await page.press('#historySupplySearch','Enter');await ready();await page.fill('#historyHolderSearch','Todos los titulares');await page.press('#historyHolderSearch','Enter');await ready();
   const groupDownload=await downloadOne();assert(groupDownload.name.endsWith('.zip'));const zipped=await JSZip.loadAsync(groupDownload.buffer);const files=Object.keys(zipped.files).filter(n=>n.endsWith('.xlsx'));assert.equal(files.length,2);
   for(const n of files){const book=new ExcelJS.Workbook();await book.xlsx.load(await zipped.file(n).async('nodebuffer'));const w=book.getWorksheet('PERIODOS');assert.equal(new Set(w.getRows(5,w.rowCount-4).map(r=>r.getCell(2).value)).size,1);}
   await page.evaluate(()=>{window.testDB.clients=window.testDB.clients.filter(c=>c.id==='c');window.ibtCurrentProfile={id:'synthetic-client',role:'client'};window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));});await ready();assert.equal(await page.locator('#historyClient').count(),0);

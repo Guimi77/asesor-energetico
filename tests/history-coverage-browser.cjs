@@ -39,7 +39,7 @@ const {chromium}=require('playwright');
    assert.deepEqual(clipped,[],'SVG labels must fit at '+width+'px');
   }
   await page.setViewportSize({width:1720,height:1100});fs.mkdirSync('test-output',{recursive:true});await page.screenshot({path:'test-output/history-coverage.png',fullPage:true});
-  await page.selectOption('#historySupply','a');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===3);
+  await page.fill('#historySupplySearch','TEST-a');await page.press('#historySupplySearch','Enter');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===3);
   assert.match(await page.locator('.history-data-note').innerText(),/Hay un mes con datos incompletos/);
   await page.evaluate(()=>{const f=document.querySelector('#historyFrom'),t=document.querySelector('#historyTo');f.value='2026-03-01';t.value='2026-03-31';t.dispatchEvent(new Event('change'));});
   await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===1);

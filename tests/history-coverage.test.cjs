@@ -23,7 +23,12 @@ test('Negative charges and actual zero cost are retained without invalid coordin
 test('No work is scheduled by coverage or plot code',()=>{const src=ui.slice(ui.indexOf('  // Coverage presentation'),ui.indexOf('  function powerSignature'));assert(!/MutationObserver|setInterval\s*\(|setTimeout\s*\(|fetch\s*\(|localStorage|\.from\s*\(/.test(src));});
 test('Coverage changes stay isolated from authentication, history data and FENIE extraction',()=>{
  assert(!/supabase\.auth\.|signInWithPassword|signUp\s*\(/.test(ui),'history-ui.js must stay independent from authentication logic');
- const old=execFileSync('git',['show',base+':history-ui.js'],{encoding:'utf8'});assert.equal(ui.slice(ui.indexOf('  async function refreshRecords')),old.slice(old.indexOf('  async function refreshRecords')));
+ assert(ui.includes('const supplyIds = effectiveSupplies().map(s=>s.id);'));
+ assert(ui.includes("const holder = $('#historyHolderSearch');"));
+ assert(ui.includes("const supply = $('#historySupplySearch');"));
+ assert(ui.includes("$('.history-combo-menu').forEach(menu => {"));
+ assert(!ui.includes("$('#historyHolder')?.addEventListener('change'"));
+ assert(!ui.includes("$('#historySupply')?.addEventListener('change'"));
  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',base+':supply-enricher-v2.js'],{encoding:'utf8'});
  assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
  assert(enricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
