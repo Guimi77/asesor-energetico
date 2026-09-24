@@ -265,11 +265,19 @@ return{file:file.name,invoiceNumber:row.invoiceNumber,cups:row.cups,tariff,perio
 function extractHistory(d,file){const uenergia=window.IBTUenergiaParser;if(uenergia?.detect?.(d))return extractUenergia(d,file);const iberdrola=window.IBTIberdrolaParser;if(iberdrola?.detect?.(d))return extractIberdrola(d,file);const repsol=window.IBTRepsolParser;if(repsol?.detect?.(d))return extractRepsol(d,file);const formats=window.IBTInvoiceFormats,format=formats?.detect?.(d.text);if(format==='endesa')return extractEndesa(d,file);if(format==='fenie')return extractFenie(d,file);return null;}
 function parseUiNumber(s){return num(String(s||'').replace(/\s*€/g,''))}
 function rowSnapshot(cups,periodText){
-for(const tr of document.querySelectorAll('#resultsBody tr')){const c=tr.children;if(c.length<16)continue;if(cupsKey(c[2].textContent)!==cupsKey(cups))continue;if(norm(c[3].textContent)!==norm(periodText))continue;return {status:norm(c[0].textContent),kwh:parseUiNumber(c[5].textContent),energy:parseUiNumber(c[6].textContent),power:parseUiNumber(c[7].textContent),excess:parseUiNumber(c[8].textContent),reactive:parseUiNumber(c[9].textContent),total:parseUiNumber(c[12].textContent),balance:norm(c[13].textContent)}}
+for(const tr of document.querySelectorAll('#resultsBody tr')){
+ const c=tr.children;if(c.length<16)continue;
+ const offset=c[1]?.dataset?.validationReason?1:0;
+ if(cupsKey(c[2+offset]?.textContent)!==cupsKey(cups))continue;
+ if(norm(c[3+offset]?.textContent)!==norm(periodText))continue;
+ return {status:norm(c[0]?.textContent),kwh:parseUiNumber(c[5+offset]?.textContent),energy:parseUiNumber(c[6+offset]?.textContent),power:parseUiNumber(c[7+offset]?.textContent),excess:parseUiNumber(c[8+offset]?.textContent),reactive:parseUiNumber(c[9+offset]?.textContent),total:parseUiNumber(c[12+offset]?.textContent),balance:norm(c[13+offset]?.textContent)}
+}
 return null;
 }
 async function waitForMainRow(cups,periodText){for(let i=0;i<600;i++){const r=rowSnapshot(cups,periodText);if(r)return r;await new Promise(r=>setTimeout(r,100))}return null}
-const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal'};
+const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente'};
+const HISTORY_EXCLUSIONS=[{source:'uenergia',invoiceNumber:'26088471',cups:'ES0031500608978003VH0F',reason:'Cambio de titular · factura anterior no deseada en histórico'}];
+function excludedHistoryInvoice(x){return HISTORY_EXCLUSIONS.find(item=>item.source==='uenergia'&&cleanKey(item.invoiceNumber)===cleanKey(x?.invoiceNumber)&&cupsKey(item.cups)===cupsKey(x?.cups))||null;}
 function skipSummary(reasons){
 const entries=Object.entries(reasons||{}).filter(([,count])=>count>0);
 return entries.length?' · '+entries.map(([reason,count])=>`${HISTORY_SKIP_LABELS[reason]||reason}: ${count}`).join(' · '):'';
@@ -286,6 +294,7 @@ const source=await readPdf(file),uenergia=window.IBTUenergiaParser,iberdrola=win
 if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
 const x=extractHistory(prepared.data,file);
 if(!x?.cups)return {skipped:true,reason:'cups_missing'};
+const excluded=excludedHistoryInvoice(x);if(excluded)return {skipped:true,reason:'user_excluded_invoice',detail:excluded.reason};
 if(!x.invoiceNumber||/^Por identificar$/i.test(x.invoiceNumber))return {skipped:true,reason:'invoice_number_missing'};
 if(!x.period.start||!x.period.end)return {skipped:true,reason:'billing_period_missing'};
 if(!x.powerReliable)return {skipped:true,reason:'power_detail_unreliable'};
