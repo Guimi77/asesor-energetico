@@ -90,7 +90,7 @@ function unsupportedFallback(file){return{unsupported:true,file:file?.name||'',i
 function parseInvoice(d,file){d=normalizePdfData(d);const uenergia=window.IBTUenergiaParser;if(uenergia?.detect?.(d))return uenergia.parse(d,file,{parserVersion:PARSER_VERSION,readingClassifier:window.IBTReadingStatus?.classify});const iberdrola=window.IBTIberdrolaParser;if(iberdrola?.detect?.(d))return iberdrola.parse(d,file,{parserVersion:PARSER_VERSION,readingClassifier:window.IBTReadingStatus?.classify});const repsol=window.IBTRepsolParser;if(repsol?.detect?.(d))return repsol.parse(d,file,{parserVersion:PARSER_VERSION,readingClassifier:window.IBTReadingStatus?.classify});const formats=window.IBTInvoiceFormats;if(!formats?.detect){if(/Endesa\s+Energ[ií]a/i.test(d.text))return unsupportedFallback(file);return parseFenie(d,file)}const format=formats.detect(d.text);if(format==='fenie')return parseFenie(d,file);if(format==='endesa')return formats.parseEndesa(d,file,{parserVersion:PARSER_VERSION,readingClassifier:window.IBTReadingStatus?.classify});return formats.unsupportedRow?.(file)||unsupportedFallback(file)}
 async function parseInvoiceFile(file){
  const original=await pdfData(file);
- if(window.IBTUenergiaParser?.detect?.(original)||window.IBTIberdrolaParser?.detect?.(original)||window.IBTRepsolParser?.detect?.(original))return parseInvoice(original,file);
+ if(window.IBTUenergiaParser?.detect?.(original))return parseInvoice(original,file);if(window.IBTIberdrolaParser?.detect?.(original)||window.IBTRepsolParser?.detect?.(original))return parseInvoice(original,file);
  const fallback=window.IBTFenieOcrFallback;
  if(!fallback?.prepare)return parseInvoice(original,file);
  const prepared=await fallback.prepare(file,original,pdfjsLib);
