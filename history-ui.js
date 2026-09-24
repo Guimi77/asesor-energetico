@@ -62,6 +62,26 @@
     input.setAttribute('aria-expanded', 'true');
     closeAllSearchMenus(menu);
   }
+
+  function renderMultiSearchMenu(input, menu, items, label, selectedIds = [], { allLabel = '', showAll = false } = {}) {
+    if (!input || !menu) return;
+    const selected = new Set(selectedIds || []);
+    const query = showAll ? '' : searchKey(input.value);
+    const filtered = (items || []).filter(item => !query || searchKey(label(item)).includes(query));
+    const allOption = allLabel
+      ? `<button type="button" class="history-combo-option multi ${selected.size ? '' : 'active'}" role="option" aria-selected="${selected.size ? 'false' : 'true'}" data-action="all"><span class="history-combo-check">${selected.size ? '' : '✓'}</span><span>${esc(allLabel)}</span></button>`
+      : '';
+    const options = filtered.slice(0, 250).map(item => {
+      const text = label(item);
+      const active = selected.has(item.id);
+      return `<button type="button" class="history-combo-option multi${active ? ' active' : ''}" role="option" aria-selected="${active ? 'true' : 'false'}" data-id="${esc(item.id)}"><span class="history-combo-check">${active ? '✓' : ''}</span><span>${esc(text)}</span></button>`;
+    }).join('');
+    menu.innerHTML = allOption + (options || '<div class="history-combo-empty">Sin coincidencias</div>');
+    menu.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    closeAllSearchMenus(menu);
+  }
+
   const CHART_MIN_COVERAGE_RATIO = 0.8;
 
   const state = {
@@ -71,8 +91,8 @@
     supplies: [],
     records: [],
     currentClient: '',
-    currentHolder: '',
-    currentSupply: '',
+    selectedHolders: [],
+    selectedSupplies: [],
     initialized: false,
     loading: false,
     scopeLoading: false,
@@ -82,7 +102,15 @@
   };
 
   function exportScopeKey() {
-    return JSON.stringify([window.ibtCurrentProfile?.id, window.ibtCurrentProfile?.role, state.currentClient, state.currentHolder, state.currentSupply, $('#historyFrom')?.value || '', $('#historyTo')?.value || '']);
+    return JSON.stringify([
+      window.ibtCurrentProfile?.id,
+      window.ibtCurrentProfile?.role,
+      state.currentClient,
+      [...state.selectedHolders].sort(),
+      [...state.selectedSupplies].sort(),
+      $('#historyFrom')?.value || '',
+      $('#historyTo')?.value || ''
+    ]);
   }
   function updateExportButton() {
     const btn = $('#historyExportClient');
@@ -97,7 +125,7 @@
     if (status) status.textContent = 'Generando Excel de la selección...';
     try {
       if (!window.IBTHistoryClientExport) throw new Error('No se ha cargado el exportador. Recarga la página.');
-      const input = structuredClone({client:state.clients.find(c=>c.id===state.currentClient), holders:state.holders, supplies:state.supplies, records:state.records, holderId:state.currentHolder, supplyId:state.currentSupply, from:$('#historyFrom')?.value || '', to:$('#historyTo')?.value || ''});
+      const input = structuredClone({client:state.clients.find(c=>c.id===state.currentClient), holders:state.holders, supplies:state.supplies, records:state.records, holderIds:[...state.selectedHolders], supplyIds:[...state.selectedSupplies], holderId:'', supplyId:'', from:$('#historyFrom')?.value || '', to:$('#historyTo')?.value || ''});
       const result = await window.IBTHistoryClientExport.exportSelection(input, {stillCurrent:()=>state.loadedScope===key && exportScopeKey()===key && !state.loading && !state.scopeLoading});
       if (status) status.textContent = result.records + ' periodos exportados en ' + result.files + ' libro(s).';
     } catch (error) {
@@ -111,7 +139,7 @@
     const style = document.createElement('style');
     style.id = 'historyUiStyles';
     style.textContent = `
-      .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.7fr) minmax(0,.92fr) minmax(0,.92fr);column-gap:14px;row-gap:10px;align-items:end}.history-toolbar label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-combo{position:relative;min-width:0;width:100%;max-width:100%}.history-combo .history-search-input{padding-right:40px}.history-combo-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:7px;background:transparent;color:#65758a;font:700 15px/1 sans-serif;cursor:pointer}.history-combo-toggle:hover,.history-combo-toggle:focus-visible{background:#eef3f8;color:#10233f;outline:none}.history-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:100;max-height:300px;overflow:auto;padding:5px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;box-shadow:0 10px 28px rgba(16,35,63,.16)}.history-combo-menu[hidden]{display:none}.history-combo-option{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:#fff;color:#10233f;text-align:left;font:inherit;line-height:1.25;cursor:pointer;white-space:normal}.history-combo-option:hover,.history-combo-option:focus-visible{background:#f1f5fb;outline:none}.history-combo-option.active{background:#eef1ff;color:#1834b8;font-weight:800}.history-combo-empty{padding:10px;color:#65758a;font-weight:500}.history-search-input[aria-invalid="true"]{border-color:#b42318;box-shadow:0 0 0 2px rgba(180,35,24,.08)}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
+      .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.7fr) minmax(0,.92fr) minmax(0,.92fr);column-gap:14px;row-gap:10px;align-items:end}.history-toolbar label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-combo{position:relative;min-width:0;width:100%;max-width:100%}.history-combo .history-search-input{padding-right:40px}.history-combo-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:7px;background:transparent;color:#65758a;font:700 15px/1 sans-serif;cursor:pointer}.history-combo-toggle:hover,.history-combo-toggle:focus-visible{background:#eef3f8;color:#10233f;outline:none}.history-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:100;max-height:300px;overflow:auto;padding:5px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;box-shadow:0 10px 28px rgba(16,35,63,.16)}.history-combo-menu[hidden]{display:none}.history-combo-option{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:#fff;color:#10233f;text-align:left;font:inherit;line-height:1.25;cursor:pointer;white-space:normal}.history-combo-option:hover,.history-combo-option:focus-visible{background:#f1f5fb;outline:none}.history-combo-option.active{background:#eef1ff;color:#1834b8;font-weight:800}.history-combo-option.multi{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:7px}.history-combo-check{display:grid;place-items:center;width:18px;height:18px;margin-top:0;border:1px solid #b9c7d8;border-radius:4px;background:#fff;color:#1834b8;font-weight:900;line-height:1}.history-combo-option.multi.active .history-combo-check{border-color:#1834b8;background:#eef1ff}.history-combo-option.multi span:last-child{min-width:0;overflow-wrap:anywhere}.history-combo-empty{padding:10px;color:#65758a;font-weight:500}.history-search-input[aria-invalid="true"]{border-color:#b42318;box-shadow:0 0 0 2px rgba(180,35,24,.08)}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
       .history-data-note{margin:10px 0 0;padding:10px 12px;border-left:4px solid #b58232;border-radius:8px;background:#fffcf6;color:#10233f;font-size:12px;line-height:1.4}.history-data-note strong{margin-right:5px}.history-data-note-neutral{border-left-color:#8190a5;background:#f8fafc}
       @media(min-width:1400px){#historyContent .history-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:1100px){.history-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.history-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.history-grid{grid-template-columns:1fr}.history-detail-grid{grid-template-columns:1fr}.history-event{grid-template-columns:1fr}}
@@ -166,6 +194,10 @@
     if (clientId !== state.currentClient) return;
     state.holders = holders || [];
     state.supplies = supplies;
+    const validHolderIds = new Set(state.holders.map(h => h.id));
+    state.selectedHolders = state.selectedHolders.filter(id => validHolderIds.has(id));
+    const validSupplyIds = new Set(state.supplies.map(s => s.id));
+    state.selectedSupplies = state.selectedSupplies.filter(id => validSupplyIds.has(id));
     renderHolderOptions();
     renderSupplyOptions();
   }
@@ -183,8 +215,8 @@
     if (match.id === state.currentClient) return;
     const clientId = match.id;
     state.currentClient = clientId;
-    state.currentHolder = '';
-    state.currentSupply = '';
+    state.selectedHolders = [];
+    state.selectedSupplies = [];
     state.scopeLoading = true;
     state.loadedScope = null;
     updateExportButton();
@@ -255,15 +287,26 @@
     const input = $('#historyHolderSearch');
     const menu = $('#historyHolderMenu');
     if (!input || !menu) return;
-    const current = state.holders.find(h => h.id === state.currentHolder);
-    input.value = current?.legal_name || '';
+    const valid = new Set(state.holders.map(h => h.id));
+    state.selectedHolders = state.selectedHolders.filter(id => valid.has(id));
+    input.value = '';
+    if (!state.selectedHolders.length) input.placeholder = 'Todos los titulares · escribe para buscar';
+    else if (state.selectedHolders.length === 1) input.placeholder = holderById(state.selectedHolders[0])?.legal_name || '1 titular seleccionado';
+    else input.placeholder = state.selectedHolders.length + ' titulares seleccionados';
     markSearch(input, true);
-    closeSearchMenu(input, menu);
   }
 
   function visibleSupplies() {
-    if (!state.currentHolder) return state.supplies;
-    return state.supplies.filter(s => s.holder_id === state.currentHolder);
+    const selected = new Set(state.selectedHolders);
+    if (!selected.size) return state.supplies;
+    return state.supplies.filter(s => selected.has(s.holder_id));
+  }
+
+  function effectiveSupplies() {
+    const list = visibleSupplies();
+    const selected = new Set(state.selectedSupplies);
+    if (!selected.size) return list;
+    return list.filter(s => selected.has(s.id));
   }
 
   function renderSupplyOptions() {
@@ -271,50 +314,70 @@
     const menu = $('#historySupplyMenu');
     if (!input || !menu) return;
     const list = visibleSupplies();
-    if (state.currentSupply && !list.some(s => s.id === state.currentSupply)) state.currentSupply = '';
-    const current = list.find(s => s.id === state.currentSupply);
-    input.value = current ? supplySearchLabel(current) : '';
+    const valid = new Set(list.map(s => s.id));
+    state.selectedSupplies = state.selectedSupplies.filter(id => valid.has(id));
+    input.value = '';
+    if (!state.selectedSupplies.length) input.placeholder = 'Todos los CUPS · escribe para buscar';
+    else if (state.selectedSupplies.length === 1) {
+      const one = list.find(s => s.id === state.selectedSupplies[0]);
+      input.placeholder = one ? supplySearchLabel(one) : '1 CUPS seleccionado';
+    } else input.placeholder = state.selectedSupplies.length + ' CUPS seleccionados';
     markSearch(input, true);
-    closeSearchMenu(input, menu);
   }
 
-  async function applyHolderSearch(input) {
+  function toggleHolderSelection(id = '') {
+    if (!id) state.selectedHolders = [];
+    else {
+      const selected = new Set(state.selectedHolders);
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      state.selectedHolders = [...selected];
+    }
+    renderHolderOptions();
+    renderSupplyOptions();
+    void refreshRecords();
+  }
+
+  function toggleSupplySelection(id = '') {
+    if (!id) state.selectedSupplies = [];
+    else {
+      const selected = new Set(state.selectedSupplies);
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      state.selectedSupplies = [...selected];
+    }
+    renderSupplyOptions();
+    void refreshRecords();
+  }
+
+  function applyHolderSearch(input) {
     const value = String(input?.value || '').trim();
-    const all = !value || searchKey(value) === searchKey('Todos los titulares');
-    const match = all ? null : searchMatch(state.holders, value, h => h.legal_name);
-    if (!all && !match) {
-      const current = state.holders.find(h => h.id === state.currentHolder);
-      if (input) input.value = current?.legal_name || '';
-      markSearch(input, false, 'No hay una coincidencia única. Sigue escribiendo y selecciona un titular.');
+    if (!value) return;
+    if (searchKey(value) === searchKey('Todos los titulares')) {
+      toggleHolderSelection('');
+      return;
+    }
+    const match = searchMatch(state.holders, value, h => h.legal_name);
+    if (!match) {
+      markSearch(input, false, 'No hay una coincidencia única. Sigue escribiendo o selecciona un titular de la lista.');
       return;
     }
     markSearch(input, true);
-    const next = match?.id || '';
-    if (input) input.value = match?.legal_name || '';
-    if (next === state.currentHolder) return;
-    state.currentHolder = next;
-    state.currentSupply = '';
-    renderSupplyOptions();
-    await refreshRecords();
+    toggleHolderSelection(match.id);
   }
 
-  async function applySupplySearch(input) {
+  function applySupplySearch(input) {
     const value = String(input?.value || '').trim();
-    const list = visibleSupplies();
-    const all = !value || searchKey(value) === searchKey('Todos los CUPS');
-    const match = all ? null : searchMatch(list, value, supplySearchLabel);
-    if (!all && !match) {
-      const current = list.find(s => s.id === state.currentSupply);
-      if (input) input.value = current ? supplySearchLabel(current) : '';
+    if (!value) return;
+    if (searchKey(value) === searchKey('Todos los CUPS')) {
+      toggleSupplySelection('');
+      return;
+    }
+    const match = searchMatch(visibleSupplies(), value, supplySearchLabel);
+    if (!match) {
       markSearch(input, false, 'No hay una coincidencia única. Busca por CUPS, nombre, dirección o localidad.');
       return;
     }
     markSearch(input, true);
-    const next = match?.id || '';
-    if (input) input.value = match ? supplySearchLabel(match) : '';
-    if (next === state.currentSupply) return;
-    state.currentSupply = next;
-    await refreshRecords();
+    toggleSupplySelection(match.id);
   }
 
   async function fetchRecords(supplyIds) {
@@ -583,7 +646,7 @@
 
   function renderRecommendations(records) {
     try {
-      return window.IBTHistoryRecommendations?.render({ records, supplies:state.supplies, holders:state.holders }) || '';
+      return window.IBTHistoryRecommendations?.render({ records, supplies:effectiveSupplies(), holders:state.holders }) || '';
     } catch (error) {
       console.error('No se pudieron preparar las recomendaciones', error);
       return '<section class="card"><h2>Recomendaciones</h2><p class="history-scope">No se pudieron calcular las propuestas. El histórico sigue disponible.</p></section>';
@@ -594,17 +657,39 @@
     const host = $('#historyContent');
     if (!host) return;
     const monthly = chartMonthly(records, $('#historyFrom')?.value, $('#historyTo')?.value);
-    const expectedSupplies = state.currentSupply ? 1 : visibleSupplies().length;
+    const effective = effectiveSupplies();
+    const expectedSupplies = effective.length;
     const coverageView = chartCoverageView(monthly, expectedSupplies);
     const chartPoints = coverageView.points;
     const totalKwh = records.reduce((s,r)=>s+n(r.consumption_kwh),0);
     const totalEur = records.reduce((s,r)=>s+n(r.total_eur),0);
     const avg = totalKwh ? totalEur/totalKwh : 0;
-    const latest = [...records].sort((a,b)=>String(b.billing_end||b.billing_start).localeCompare(String(a.billing_end||a.billing_start)))[0];
-    const selectedSupply = state.currentSupply ? supplyById(state.currentSupply) : null;
-    const selectedHolder = state.currentHolder ? holderById(state.currentHolder) : null;
+    const latestBySupply = new Map();
+    for (const r of records) {
+      const stamp = String(r.billing_end || r.billing_start || '');
+      const previous = latestBySupply.get(r.supply_id);
+      if (!previous || stamp > String(previous.billing_end || previous.billing_start || '')) latestBySupply.set(r.supply_id, r);
+    }
+    const latestTariffs = [...new Set([...latestBySupply.values()].map(r => String(r.tariff || '').trim()).filter(Boolean))];
+    const latestTariff = latestTariffs.length === 1 ? latestTariffs[0] : latestTariffs.length > 1 ? 'Varias' : '—';
     const client = state.clients.find(c=>c.id===state.currentClient);
-    const scope = [client?.name, selectedHolder?.legal_name, selectedSupply?.cups].filter(Boolean).join(' → ') || 'Histórico';
+    const selectedHolderObjects = state.selectedHolders.map(holderById).filter(Boolean);
+    const selectedSupplyObjects = state.selectedSupplies.map(supplyById).filter(Boolean);
+    const scopeParts = [client?.name].filter(Boolean);
+    if (selectedSupplyObjects.length === 1) {
+      const supply = selectedSupplyObjects[0];
+      const holder = holderForSupply(supply);
+      if (holder?.legal_name) scopeParts.push(holder.legal_name);
+      scopeParts.push(supply.cups || supply.supply_name || '1 CUPS');
+    } else if (selectedSupplyObjects.length > 1) {
+      scopeParts.push(selectedSupplyObjects.length + ' CUPS seleccionados');
+    } else if (selectedHolderObjects.length === 1) {
+      scopeParts.push(selectedHolderObjects[0].legal_name);
+      if (expectedSupplies > 1) scopeParts.push(expectedSupplies + ' CUPS');
+    } else if (selectedHolderObjects.length > 1) {
+      scopeParts.push(selectedHolderObjects.length + ' titulares · ' + expectedSupplies + ' CUPS');
+    }
+    const scope = scopeParts.join(' → ') || 'Histórico';
     const events = detectedEvents(records);
 
     host.innerHTML = `
@@ -613,7 +698,7 @@
         <div class="history-kpi"><small>Consumo acumulado</small><strong>${qty(totalKwh,0)} kWh</strong></div>
         <div class="history-kpi"><small>Gasto acumulado</small><strong>${money(totalEur)} €</strong></div>
         <div class="history-kpi"><small>Coste total medio</small><strong>${avg?qty(avg,4):'—'} €/kWh</strong></div>
-        <div class="history-kpi"><small>Tarifa más reciente</small><strong>${esc(latest?.tariff || '—')}</strong></div>
+        <div class="history-kpi"><small>Tarifa(s) más reciente(s)</small><strong>${esc(latestTariff)}</strong></div>
       </section>
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
@@ -655,7 +740,7 @@
     const host = $('#historyContent');
     if (host) host.innerHTML = '<div class="history-loading">Cargando histórico…</div>';
     try {
-      const supplyIds = state.currentSupply ? [state.currentSupply] : visibleSupplies().map(s=>s.id);
+      const supplyIds = effectiveSupplies().map(s=>s.id);
       const records = await fetchRecords(supplyIds);
       if (requestScope !== exportScopeKey() || state.scopeLoading) { state.refreshPending = true; return; }
       state.records = records;
@@ -676,14 +761,14 @@
 
     const holder = $('#historyHolderSearch');
     const holderMenu = $('#historyHolderMenu');
-    const openHolderMenu = (showAll = false) => renderSearchMenu(holder, holderMenu, state.holders, h => h.legal_name, state.currentHolder, { allLabel:'Todos los titulares', showAll });
+    const openHolderMenu = (showAll = false) => renderMultiSearchMenu(holder, holderMenu, state.holders, h => h.legal_name, state.selectedHolders, { allLabel:'Todos los titulares', showAll });
+    holder?.addEventListener('focus', () => openHolderMenu(false));
     holder?.addEventListener('input', () => { markSearch(holder, true); openHolderMenu(false); });
-    holder?.addEventListener('change', () => { closeSearchMenu(holder, holderMenu); void applyHolderSearch(holder); });
     holder?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        closeSearchMenu(holder, holderMenu);
-        void applyHolderSearch(holder);
+        applyHolderSearch(holder);
+        openHolderMenu(true);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         openHolderMenu(true);
@@ -700,21 +785,21 @@
       const option = e.target.closest('.history-combo-option');
       if (!option) return;
       e.preventDefault();
-      holder.value = option.dataset.label || '';
-      closeSearchMenu(holder, holderMenu);
-      void applyHolderSearch(holder);
+      if (option.dataset.action === 'all') toggleHolderSelection('');
+      else if (option.dataset.id) toggleHolderSelection(option.dataset.id);
+      openHolderMenu(true);
     });
 
     const supply = $('#historySupplySearch');
     const supplyMenu = $('#historySupplyMenu');
-    const openSupplyMenu = (showAll = false) => renderSearchMenu(supply, supplyMenu, visibleSupplies(), supplySearchLabel, state.currentSupply, { allLabel:'Todos los CUPS', showAll });
+    const openSupplyMenu = (showAll = false) => renderMultiSearchMenu(supply, supplyMenu, visibleSupplies(), supplySearchLabel, state.selectedSupplies, { allLabel:'Todos los CUPS', showAll });
+    supply?.addEventListener('focus', () => openSupplyMenu(false));
     supply?.addEventListener('input', () => { markSearch(supply, true); openSupplyMenu(false); });
-    supply?.addEventListener('change', () => { closeSearchMenu(supply, supplyMenu); void applySupplySearch(supply); });
     supply?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        closeSearchMenu(supply, supplyMenu);
-        void applySupplySearch(supply);
+        applySupplySearch(supply);
+        openSupplyMenu(true);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         openSupplyMenu(true);
@@ -731,9 +816,9 @@
       const option = e.target.closest('.history-combo-option');
       if (!option) return;
       e.preventDefault();
-      supply.value = option.dataset.label || '';
-      closeSearchMenu(supply, supplyMenu);
-      void applySupplySearch(supply);
+      if (option.dataset.action === 'all') toggleSupplySelection('');
+      else if (option.dataset.id) toggleSupplySelection(option.dataset.id);
+      openSupplyMenu(true);
     });
 
     document.addEventListener('pointerdown', e => {
