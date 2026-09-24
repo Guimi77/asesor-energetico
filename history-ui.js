@@ -38,7 +38,7 @@
     if (input) input.setAttribute('aria-expanded', 'false');
   }
   function closeAllSearchMenus(except = null) {
-    $('.history-combo-menu').forEach(menu => {
+    $$('.history-combo-menu').forEach(menu => {
       if (menu === except) return;
       menu.hidden = true;
       const input = menu.closest('.history-combo')?.querySelector('.history-search-input');
