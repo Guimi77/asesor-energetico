@@ -282,7 +282,7 @@ el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
 if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
-const source=await readPdf(file),uenergia=window.IBTUenergiaParser,iberdrola=window.IBTIberdrolaParser,repsol=window.IBTRepsolParser,fallback=window.IBTFenieOcrFallback,prepared=(uenergia?.detect?.(source)||iberdrola?.detect?.(source)||repsol?.detect?.(source))?{data:source,attempted:false,error:null}:fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
+const source=await readPdf(file),uenergia=window.IBTUenergiaParser,iberdrola=window.IBTIberdrolaParser,repsol=window.IBTRepsolParser,fallback=window.IBTFenieOcrFallback;let prepared;if(uenergia?.detect?.(source))prepared={data:source,attempted:false,error:null};else prepared=(iberdrola?.detect?.(source)||repsol?.detect?.(source))?{data:source,attempted:false,error:null}:fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
 if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
 const x=extractHistory(prepared.data,file);
 if(!x?.cups)return {skipped:true,reason:'cups_missing'};
