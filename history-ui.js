@@ -264,6 +264,10 @@
       });
       $('#historyClientToggle')?.addEventListener('click', e => {
         e.preventDefault();
+        if (menu && !menu.hidden) {
+          closeSearchMenu(input, menu);
+          return;
+        }
         input?.focus();
         openMenu(true);
       });
@@ -778,6 +782,10 @@
     });
     $('#historyHolderToggle')?.addEventListener('click', e => {
       e.preventDefault();
+      if (holderMenu && !holderMenu.hidden) {
+        closeSearchMenu(holder, holderMenu);
+        return;
+      }
       holder?.focus();
       openHolderMenu(true);
     });
@@ -809,6 +817,10 @@
     });
     $('#historySupplyToggle')?.addEventListener('click', e => {
       e.preventDefault();
+      if (supplyMenu && !supplyMenu.hidden) {
+        closeSearchMenu(supply, supplyMenu);
+        return;
+      }
       supply?.focus();
       openSupplyMenu(true);
     });
@@ -822,7 +834,7 @@
     });
 
     document.addEventListener('pointerdown', e => {
-      if (!e.target.closest('.history-combo')) closeAllSearchMenus();
+      if (!e.target.closest('#historicoView .history-combo')) closeAllSearchMenus();
     });
     $('#historyFrom')?.addEventListener('change', refreshRecords);
     $('#historyTo')?.addEventListener('change', refreshRecords);
