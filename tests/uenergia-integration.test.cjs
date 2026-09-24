@@ -37,6 +37,20 @@ test('el maestro de suministros reutiliza el parser U Energia',()=>{
   assert.match(master,/format==='uenergia'\?parseUenergiaSupply\(pdfData,file\)/);
 });
 
+
+test('el cruce con la fila principal soporta la columna de diagnostico movida',()=>{
+  assert.match(history,/const offset=c\[1\]\?\.dataset\?\.validationReason\?1:0/);
+  assert.match(history,/c\[2\+offset\]/);
+  assert.match(history,/c\[12\+offset\]/);
+  assert.match(history,/c\[13\+offset\]/);
+});
+
+test('la factura de aprendizaje 26088471 queda excluida pero no el CUPS futuro',()=>{
+  assert.match(history,/HISTORY_EXCLUSIONS=\[\{source:'uenergia',invoiceNumber:'26088471',cups:'ES0031500608978003VH0F'/);
+  assert.match(history,/reason:'user_excluded_invoice'/);
+  assert.match(history,/excludedHistoryInvoice\(x\)/);
+});
+
 test('la regresion CI comprueba sintaxis y tests U Energia',()=>{
   assert.match(workflow,/node --check uenergia-parser\.js/);
   assert.match(workflow,/tests\/uenergia-parser\.test\.cjs/);
