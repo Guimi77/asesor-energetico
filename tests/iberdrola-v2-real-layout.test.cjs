@@ -20,9 +20,9 @@ const doc=(...pages)=>({pages,rawPages:rawFromPages(pages),text:pages.flat().joi
 
 function carla(){
   return doc([
-    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO','CARLA FERRERO MALOW',
-    'Titular Potencia: C/ DE LA LLUM, 5','CARLA FERRERO MALOW Potencia punta: 5,75 kW','Potencia valle: 5,75 kW',
-    'Dirección de suministro:','C/ DE LA LLUM, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 633501753',
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO','CLIENTE PRUEBA ALFA',
+    'Titular Potencia: C/ DE LA PRUEBA, 5','CLIENTE PRUEBA ALFA Potencia punta: 5,75 kW','Potencia valle: 5,75 kW',
+    'Dirección de suministro:','C/ DE LA PRUEBA, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 600000002',
     'RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: Nº FACTURA:','22/06/2026 - 19/07/2026 21260727010128461',
     'DIAS FACTURADOS: FECHA DE EMISIÓN:','27 27 de julio de 2026','ENERGÍA 101,36 €','DESCUENTOS ENERGÍA -10,84 €',
     'CARGOS NORMATIVOS 0,62 €','SERVICIOS Y OTROS CONCEPTOS 0,72 €','IVA 19,29 €','TOTAL 111,15 €'
@@ -34,9 +34,9 @@ function carla(){
     'Financiación bono social fijo (30/06/2026-19/07/2026) 19 días x 0,024688 €/día 0,47 €',
     'Impuesto sobre electricidad (*) 5,11269632 % s/86,71 € 4,43 €','TOTAL ENERGÍA 91,14 €',
     'Alquiler equipos medida 27 días x 0,02663014 €/día 0,72 €','IVA (*) 21 % s/91,86 € 19,29 €',
-    'TOTAL IMPORTE FACTURA 111,15 €','NIF titular del contrato: 47647341N','Peaje de acceso a la red (ATR): 2.0TD',
-    'Empresa distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.','Número de contrato de acceso: 500023491391',
-    'Identificación punto de suministro (CUPS): ES 0031 5001 6491 5001 GV',
+    'TOTAL IMPORTE FACTURA 111,15 €','NIF titular del contrato: 00000001R','Peaje de acceso a la red (ATR): 2.0TD',
+    'Empresa distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.','Número de contrato de acceso: 500000000007',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0002 AA',
     'Las lecturas desagregadas según la tarifa de acceso, tomadas el 19/07/2026 son: punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.',
     'Las potencias máximas demandadas en el último año han sido 3,48 kW en P1 (punta) y 3,59 kW en P2 (valle).'
   ]);
@@ -44,10 +44,10 @@ function carla(){
 
 function diana(){
   return doc([
-    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO','DIANA MARIA CHRISTINA VINCES CABADA',
-    'Titular C/ CAN GAMUNDI, 17-., LC 18','DIANA MARIA CHRISTINA VINCES','CABADA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
-    'Dirección de suministro:','C/ CAN GAMUNDI, 17-., LC 18','PALMA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
-    'Nº DE CONTRATO: 957890618','RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: Nº FACTURA:',
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CONTRATO','ALICIA PRUEBA SINTETICA CLIENTE ALFA',
+    'Titular C/ VIA PRUEBA, 17-., LC 18','ALICIA PRUEBA SINTETICA CLIENTE','ALFA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
+    'Dirección de suministro:','C/ VIA PRUEBA, 17-., LC 18','PALMA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
+    'Nº DE CONTRATO: 600000001','RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: Nº FACTURA:',
     '27/04/2026 - 31/05/2026 21260608010256253','DIAS FACTURADOS: FECHA DE EMISIÓN:','34 8 de junio de 2026',
     'ENERGÍA 81,80 €','DESCUENTOS ENERGÍA -1,71 €','CARGOS NORMATIVOS 0,65 €',
     'SERVICIOS Y OTROS CONCEPTOS 12,07 €','IVA 19,49 €','TOTAL 112,30 €'
@@ -62,33 +62,33 @@ function diana(){
     'Financiación bono social fijo 34 días x 0,019121 €/día 0,65 €','Impuesto sobre electricidad (*) 5,11269632 % s/76,81 € 3,93 €',
     'TOTAL ENERGÍA 80,74 €','Alquiler equipos medida 34 días x 0,35506849 €/día 12,07 €',
     'IVA 21 % s/92,81 € 19,49 €','TOTAL IMPORTE FACTURA 112,30 €',
-    '300209449 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
-    '300209449 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
-    '300209449 Energía activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
-    '300209449 Energía activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
-    '300209449 Energía activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
-    '300209449 Energía activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
+    '300000001 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
+    '300000001 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
+    '300000001 Energía activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
+    '300000001 Energía activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
+    '300000001 Energía activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
+    '300000001 Energía activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
   ],[
-    '300209449 Maxímetro P1 27/04/2026 0 31/05/2026 0 0 kW',
-    '300209449 Maxímetro P2 27/04/2026 0 31/05/2026 1 1 kW',
-    '300209449 Maxímetro P3 27/04/2026 0 31/05/2026 0 0 kW',
-    '300209449 Maxímetro P4 27/04/2026 0 31/05/2026 0 0 kW',
-    '300209449 Maxímetro P5 27/04/2026 0 31/05/2026 0 0 kW',
-    '300209449 Maxímetro P6 27/04/2026 0 31/05/2026 0 0 kW',
+    '300000001 Maxímetro P1 27/04/2026 0 31/05/2026 0 0 kW',
+    '300000001 Maxímetro P2 27/04/2026 0 31/05/2026 1 1 kW',
+    '300000001 Maxímetro P3 27/04/2026 0 31/05/2026 0 0 kW',
+    '300000001 Maxímetro P4 27/04/2026 0 31/05/2026 0 0 kW',
+    '300000001 Maxímetro P5 27/04/2026 0 31/05/2026 0 0 kW',
+    '300000001 Maxímetro P6 27/04/2026 0 31/05/2026 0 0 kW',
     'Última lectura: real','Peaje de acceso a la red (ATR): 3.0TD','Potencia contratada (kW): 16 / 16 / 16 / 16 / 16 / 16',
-    'Empresa distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.','Número de contrato de acceso: 500021702758',
-    'Identificación punto de suministro (CUPS): ES 0031 5007 4475 7001 LB'
+    'Empresa distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.','Número de contrato de acceso: 500000000006',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0001 AA'
   ]);
 }
 
 function assertCarla(r){
-  assert.equal(r.readOk,true); assert.equal(r.company,'CARLA FERRERO MALOW'); assert.equal(r.cups,'ES0031500164915001GV');
+  assert.equal(r.readOk,true); assert.equal(r.company,'CLIENTE PRUEBA ALFA'); assert.equal(r.cups,'ES0000000000000002AA');
   assert.equal(r.tariff,'2.0TD'); assert.equal(r.kwh,485.91); assert.equal(r.energy,72.27); assert.equal(r.power,24.66);
   assert.equal(r.tax,4.43); assert.equal(r.vat,19.29); assert.equal(r.total,111.15); assert.equal(r.diff,0);
   assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption],[175.87,137.31,172.73]);
 }
 function assertDiana(r){
-  assert.equal(r.readOk,true); assert.equal(r.company,'DIANA MARIA CHRISTINA VINCES CABADA'); assert.equal(r.cups,'ES0031500744757001LB');
+  assert.equal(r.readOk,true); assert.equal(r.company,'ALICIA PRUEBA SINTETICA CLIENTE ALFA'); assert.equal(r.cups,'ES0000000000000001AA');
   assert.equal(r.tariff,'3.0TD'); assert.equal(r.kwh,65); assert.equal(r.energy,11.37); assert.equal(r.power,66.5);
   assert.equal(r.tax,3.93); assert.equal(r.vat,19.49); assert.equal(r.total,112.30); assert.equal(r.diff,0);
   assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[0,28,14,6,2,15]);
@@ -153,12 +153,12 @@ test('v2 rescue reads energy from the exact Iberdrola document text when visual 
     'P5 2 kWh x 0,131956 €/kWh 0,26 €',
     'P6 15 kWh x 0,147973 €/kWh 2,22 €',
     'Total 65 kWh hasta 31/05/2026 11,37 €',
-    '300209449 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
-    '300209449 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
-    '300209449 Energía activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
-    '300209449 Energía activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
-    '300209449 Energía activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
-    '300209449 Energía activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
+    '300000001 Energía activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
+    '300000001 Energía activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
+    '300000001 Energía activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
+    '300000001 Energía activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
+    '300000001 Energía activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
+    '300000001 Energía activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
   ].join('\n');
   const de=api._test.rescueEnergyFromDocumentText(dianaText,'3.0TD');
   assert.equal(de.kwh,65);assert.equal(de.energy,11.37);assert.equal(de.consumptionReliable,true);assert.equal(de.costReliable,true);
