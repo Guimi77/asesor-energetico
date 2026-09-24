@@ -3,7 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const SCHEMA_VERSION = "1.0";
 const SERVICE_NAME = "xispa-energy-query";
-const MAX_LIMIT = 48;\nconst XISPA_KEY_SHA256 = "0088c50af1c5a91ab9ccb5f2085d952f2e39b6aaa79cad45bd36837a52072457";
+const MAX_LIMIT = 48;
+const XISPA_KEY_SHA256 = "0088c50af1c5a91ab9ccb5f2085d952f2e39b6aaa79cad45bd36837a52072457";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
