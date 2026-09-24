@@ -62,6 +62,58 @@ La persistencia histórica de cualquier nuevo parser sigue siendo *fail closed*:
 5. Comparar los resultados con la última referencia válida.
 6. Si alguna métrica empeora, el cambio se considera una regresión y debe corregirse o revertirse antes de continuar.
 
+
+## Actualización controlada de referencias de regresión
+
+Los tests de regresión deben permanecer **estrictos durante el desarrollo**. Un fallo de regresión no se resuelve modificando el resultado esperado únicamente para que el test vuelva a pasar.
+
+Las referencias, expectativas, snapshots, fixtures de referencia o baselines solo pueden actualizarse cuando se cumplan **todas** estas condiciones:
+
+1. El cambio funcional que motivó la actualización está terminado.
+2. Las regresiones relevantes están ejecutadas y cualquier fallo está explicado.
+3. Se ha realizado una auditoría funcional general del área afectada y no se han detectado regresiones reales.
+4. El responsable del proyecto ha dado una aceptación explícita equivalente a **“OK, todo funciona”**.
+5. La actualización de la referencia se realiza como cambio separado y trazable, preferiblemente en un PR específico.
+
+Hasta ese momento, la referencia anterior se considera la verdad de regresión y no debe moverse.
+
+### Qué sí puede actualizarse tras la aceptación
+
+Después de una aceptación explícita y una auditoría satisfactoria se pueden actualizar:
+
+- selectores o helpers de UI que representen la interfaz ya aceptada;
+- baselines que comparen contra una versión anterior ya sustituida;
+- expected values cuando el nuevo comportamiento haya sido verificado como correcto;
+- snapshots y fixtures sintéticas equivalentes;
+- documentación de regresión y referencias de commits;
+- contratos de prueba que hayan quedado obsoletos por un cambio funcional aprobado.
+
+### Qué no debe actualizarse automáticamente
+
+No se actualizarán automáticamente para hacer coincidir el test con la salida nueva:
+
+- CUPS;
+- NIF/CIF/NIE;
+- consumos;
+- potencias;
+- maxímetros;
+- importes;
+- impuestos;
+- totales;
+- periodos;
+- resultados de parsers;
+- estados de validación;
+- ni cualquier dato técnico cuyo cambio pueda ocultar una regresión real.
+
+Si uno de esos valores cambia, primero debe comprobarse por qué ha cambiado y validarse contra la factura o fixture sintética correspondiente.
+
+### Regla de oro
+
+**Primero se valida el comportamiento. Después, y solo después de aceptación explícita, se mueve la referencia. Nunca al revés.**
+
+La actualización de una baseline no debe convertirse en una forma de silenciar un test rojo. Su función es fijar como nueva referencia un comportamiento que ya ha sido auditado y aceptado.
+
+
 ## Principio de desarrollo
 
 No se debe resolver una excepción mediante reglas que oculten errores, inventen valores o trasladen diferencias a `Otros` sin identificar el concepto real cuando este exista en la factura.
