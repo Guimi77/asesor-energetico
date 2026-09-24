@@ -5,11 +5,11 @@ const api=require('../fenie-ocr-fallback.js');
 
 const special=()=>({
   pages:[[],[
-    'CUPS: ES0031500123456789AB0F',
+    'CUPS: ES0000000000000001AA0F',
     'Tarifa: 3.0TD',
     'Empresa Distribuidora: E-DISTRIBUCION REDES DIGITALES S.L.U.',
     'Maxímetro (kW) P1 P2 P3 P4 P5 P6',
-    'Contrato Acceso: 123456789',
+    'Contrato Acceso: 500000000009',
     'Dir. Suministro: CALLE DEMO 1',
     'Lectura 1.18.1 Consumo'
   ],['Detalle de lecturas']]
@@ -27,12 +27,12 @@ test('image-first-page FENIE with strong later-page evidence enters fallback',()
 
 test('Endesa is explicitly excluded even if page one is sparse',()=>{
   const d=special();
-  d.pages[1].push('Endesa Energía, S.A. Unipersonal','Nº factura: P26CON031576830');
+  d.pages[1].push('Endesa Energía, S.A. Unipersonal','Nº factura: P26CON000000010');
   assert.equal(api.shouldAttempt(d),false);
 });
 
 test('unknown PDF with only CUPS and tariff is not guessed as FENIE',()=>{
-  const d={pages:[[],['CUPS: ES0031500123456789AB0F','Tarifa: 3.0TD','Documento genérico']]};
+  const d={pages:[[],['CUPS: ES0000000000000001AA0F','Tarifa: 3.0TD','Documento genérico']]};
   assert.equal(api.shouldAttempt(d),false);
 });
 
@@ -47,7 +47,7 @@ test('OCR text only replaces first-page text and preserves later-page/raw data',
 });
 
 test('critical validation requires holder, CUPS, period, positive total and economic balance',()=>{
-  const row={company:'CLIENTE DEMO',cups:'ES0031500123456789AB0F',period:'01/07/2026 - 31/07/2026 (30 días)',total:120,balanced:true};
+  const row={company:'CLIENTE DEMO',cups:'ES0000000000000001AA0F',period:'01/07/2026 - 31/07/2026 (30 días)',total:120,balanced:true};
   assert.equal(api.criticalRowOk(row),true);
   for(const patch of [
     {company:'Por identificar'},
@@ -77,10 +77,10 @@ test('concurrent consumers share one OCR result for the same File object',async(
 
 test('OCR identity uses native later-page CUPS and tariff before parsing',()=>{
   const d=special();
-  const out=api.mergeOcrText(d,'FENIE ENERGIA\nCUPS: ES0031500123456789ABOF\nTarifa: 2.0TD\nTOTAL FACTURA 120,00 €');
+  const out=api.mergeOcrText(d,'FENIE ENERGIA\nCUPS: ES0000000000000001AAOF\nTarifa: 2.0TD\nTOTAL FACTURA 120,00 €');
   const first=out.pages[0].join(' ');
-  assert.match(first,/ES0031500123456789AB0F/);
-  assert.doesNotMatch(first,/ES0031500123456789ABOF/);
+  assert.match(first,/ES0000000000000001AA0F/);
+  assert.doesNotMatch(first,/ES0000000000000001AAOF/);
   assert.match(first,/Tarifa: 3\.0TD/);
 });
 
@@ -105,9 +105,9 @@ test('OCR invoice number can be recovered from the supplier filename when OCR tr
   const d=special();
   const out=api.mergeOcrText(
     d,
-    'FENIE ENERGIA\nFactura Nº: 9\nCUPS: ES0031500123456789AB0F\nTarifa: 3.0TD\nTOTAL FACTURA 120,00 €',
-    'FENIE ENERGIA SA FRA 2026073102923_ES0031500123456789AB.pdf'
+    'FENIE ENERGIA\nFactura Nº: 9\nCUPS: ES0000000000000001AA0F\nTarifa: 3.0TD\nTOTAL FACTURA 120,00 €',
+    'FENIE ENERGIA SA FRA 2026000000001_ES0000000000000001AA.pdf'
   );
-  assert.match(out.pages[0].join(' '),/Factura Nº: 2026073102923/);
+  assert.match(out.pages[0].join(' '),/Factura Nº: 2026000000001/);
   assert.doesNotMatch(out.pages[0].join(' '),/Factura Nº: 9\b/);
 });

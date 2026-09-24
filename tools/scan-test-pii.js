@@ -54,7 +54,7 @@ function scanText(text,file='<memory>'){
 
   const iberdrolaHolder=/['"]CONTRATO['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]Titular\b/gi;
   for(const m of src.matchAll(iberdrolaHolder)){
-    if(!looksSyntheticText(m[1])) add(findings,file,src,m.index,'HOLDER',m[1].trim(),'Nombre de titular no marcado como sintético');
+    if(!looksSyntheticText(m[1])&&!isSyntheticTaxId(m[1])) add(findings,file,src,m.index,'HOLDER',m[1].trim(),'Nombre de titular no marcado como sintético');
   }
 
   const addressSame=/Direcci[oó]n\s+de\s+suministro\s*:\s*([^'"\n,]{4,})/gi;
@@ -71,7 +71,8 @@ function scanText(text,file='<memory>'){
   const labelledNumber=/\b(N[ºO°.]?\s*(?:DE\s*)?(?:CONTRATO|FACTURA|CONTADOR)|CONTRATO\s+DE\s+ACCESO|Referencia\s+del\s+contrato(?:\s+de\s+acceso)?)\s*[:#]?\s*([A-Z0-9-]{6,30})/gi;
   for(const m of src.matchAll(labelledNumber)){
     const value=m[2].replace(/[^A-Za-z0-9]/g,'');
-    const allowed=/^(?:6000000\d+|5000000000\d+|2126000000000\d+|3000000\d+|TEST\d+)$/i.test(value);
+    if(!/\d/.test(value)) continue;
+    const allowed=/^(?:6000000\d+|5000000000\d+|2126000000000\d+|3000000\d+|TEST\d+|P\d{2}CON000000\d{3})$/i.test(value);
     if(!allowed) add(findings,file,src,m.index,'DOCUMENT_ID',m[2],`${m[1]} con apariencia real`);
   }
 

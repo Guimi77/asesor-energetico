@@ -13,7 +13,7 @@ function sample(){
     'NIF/CIF: 00000001R',
     'Periodo: 04/07/2026 a 04/08/2026',
     'Forma de pago: RECIBO_CSB',
-    'IBAN: ES00 0000 0000 0000 0000 ****',
+    'IBAN: **** **** **** **** **** ****',
     'CLIENTE PRUEBA, FACTURACION',
     'CL. EJEMPLO PRUEBA, 1 B',
     '07190 - ESPORLES',

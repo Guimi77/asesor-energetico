@@ -20,7 +20,7 @@ function html(baseline){return '<!doctype html><html><body><button id="probe">Pr
 (async()=>{
  const pdf=await PDFDocument.create();const page=pdf.addPage([595,842]);const font=await pdf.embedFont(StandardFonts.Helvetica);
  page.drawText('Razon Social: CLIENTE SINTETICO',{x:30,y:780,size:12,font});
- page.drawText('CUPS: ES0000000000000000TEST',{x:30,y:750,size:12,font});
+ page.drawText('CUPS: ES0000000000000001AA',{x:30,y:750,size:12,font});
  page.drawText('Documento sintetico para verificar liberacion de recursos',{x:30,y:720,size:10,font});
  pdf.addPage([595,842]).drawText('Pagina de prueba adicional',{x:30,y:780,size:12,font});
  const bytes=Array.from(await pdf.save());

@@ -53,7 +53,7 @@ test('Consumption change explains the exact comparison and data provenance',()=>
 });
 
 test('Consumption alert does not expose raw polluted supply address as its title',()=>{
-  const dirty={id:'s1',holder_id:'h1',cups:'ES_TEST',address:'CALLE 1, Referencia del contrato de acceso: 123'};
+  const dirty={id:'s1',holder_id:'h1',cups:'ES_TEST',address:'CALLE PRUEBA 1, Referencia del contrato de acceso: 500000000012'};
   const api=load([{type:'consumption-up',supplyId:'s1',title:'Aumento sostenido de consumo',confidence:'alta',changeRatio:0.5,baselineKwhDay:10,recentKwhDay:15,evidence:'x',action:'y',caveat:'z',sources:[],measurements:[]}]);
   const html=api.render({supplies:[dirty],holders:[holder]});
   assert.match(html,/Suministro eléctrico/);

@@ -44,7 +44,7 @@ test('normalizeData conserva rawPages para auditoria y normaliza pages/text para
 test('FENIE y Endesa se detectan tras pasar por la misma normalizacion comun',()=>{
   const fenie=normalizer.repair('FENIE ENERG Í A Raz ó n Social: TEST Periodo Facturaci ó n: T é rmino de potencia');
   assert.equal(formats.detect(fenie),'fenie');
-  const endesa=normalizer.repair('Endesa Energ í a, S.A. Nº factura: P26CON123456789');
+  const endesa=normalizer.repair('Endesa Energ í a, S.A. Nº factura: P26CON000000011');
   assert.equal(formats.detect(endesa),'endesa');
 });
 

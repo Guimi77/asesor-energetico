@@ -29,6 +29,7 @@ test('acepta una fixture inequívocamente sintética',()=>{
     'Dirección de suministro: C/ EJEMPLO, 1',
     'CUPS: ES0000000000000001AA',
     'Nº DE CONTRATO: 600000001',
+    'Nº factura: P26CON000000001',
     'cliente.prueba@example.com'
   ].join('\n');
   assert.deepEqual(scanText(src,'synthetic.test.cjs'),[]);

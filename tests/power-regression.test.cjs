@@ -62,7 +62,7 @@ test('3.0TD expected period count stays fail-closed when a billed power formula 
 test('FENIE 3.0TD restores missing contracted P4/P5 labels from six ordered formulas', () => {
   const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
   const powerRows=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} ${euro}`);
-  const page=['Razón Social: CLIENTE SINTETICO','CUPS: ES123456789012345678','Tarifa: 3.0TD','Periodo Facturación: 01/01/2026 - 13/01/2026 (13 días)','Término de energía','Término de potencia',...powerRows,'Excesos de Potencia',`TOTAL FACTURA 108,00 ${euro}`];
+  const page=['Razón Social: CLIENTE SINTETICO','CUPS: ES0000000000000002AA','Tarifa: 3.0TD','Periodo Facturación: 01/01/2026 - 13/01/2026 (13 días)','Término de energía','Término de potencia',...powerRows,'Excesos de Potencia',`TOTAL FACTURA 108,00 ${euro}`];
   const parsed=ctx.check.parseFenie({pages:[page],rawPages:[[],[]],text:page.join('\n')},{name:'synthetic.pdf'});
   assert.equal(parsed.powerDetail.reliable,true);
   assert.equal(parsed.power,108);

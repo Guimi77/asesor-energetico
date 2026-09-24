@@ -6,7 +6,7 @@ const parser=require('../iberdrola-parser-v3.js');
 const doc=(...pages)=>({pages,text:pages.flat().join('\n')});
 
 const carla=()=>doc([
-  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF A-95758389',
+  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF B00000009',
   'CLIENTE PRUEBA ALFA','Titular Potencia: C/ DE LA PRUEBA, 5','07190 ESPORLES (ILLES BALEARS)',
   'CLIENTE PRUEBA ALFA Potencia punta: 5,75 kW','Potencia valle: 5,75 kW',
   'Direcci ó n de suministro:','C/ DE LA PRUEBA, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 600000002',
@@ -43,7 +43,7 @@ const carla=()=>doc([
 ]);
 
 const diana=()=>doc([
-  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF A-95758389',
+  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF B00000009',
   'ALICIA PRUEBA SINTETICA CLIENTE ALFA','Titular C/ VIA PRUEBA, 17-., LC 18','PALMA',
   'ALICIA PRUEBA SINTETICA CLIENTE','ALFA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
   'Direcci ó n de suministro:','C/ VIA PRUEBA, 17-., LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)',

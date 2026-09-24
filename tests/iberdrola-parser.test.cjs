@@ -7,7 +7,7 @@ const d=(p1,p2,p3=[])=>({pages:[p1,p2,p3],text:[...p1,...p2,...p3].join('\n')});
 
 function realLayoutFixture(){
   const p1=[
-    'FACTURA DE ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF A-95758389','CONTRATO','Titular','CLIENTE PRUEBA','APELLIDO DOS',
+    'FACTURA DE ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF B00000009','CONTRATO','Titular','CLIENTE PRUEBA','APELLIDO DOS',
     'Dirección de suministro:','C/ EJEMPLO, 17, LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)','Nº DE CONTRATO: 600000001','RESUMEN DE FACTURA',
     'PERIODO DE FACTURACIÓN:','27/04/2026 - 31/05/2026','Nº FACTURA:','21260608010256253','DIAS FACTURADOS:','34','FECHA DE EMISIÓN:','8 de junio de 2026',
     'ENERGÍA 81,80 €','DESCUENTOS ENERGÍA -1,71 €','CARGOS NORMATIVOS 0,65 €','SERVICIOS Y OTROS CONCEPTOS 12,07 €','IVA 19,49 €','TOTAL 112,30 €'
@@ -44,7 +44,7 @@ function browserGroupedCarlaFixture(){
 
 test('Iberdrola detector is conservative and does not steal Endesa/FENIE/unknown invoices',()=>{
   assert.equal(api.detect(realLayoutFixture().text),true);
-  assert.equal(api.detect('Endesa Energía, S.A. Unipersonal Nº factura P26CON0001'),false);
+  assert.equal(api.detect('Endesa Energía, S.A. Unipersonal Nº factura P26CON000000009'),false);
   assert.equal(api.detect('FENIE ENERGIA Razón Social: DEMO Periodo Facturación: 01/01/2026 - 31/01/2026'),false);
   assert.equal(api.detect('IBERDROLA CLIENTES, S.A.U. publicidad sin factura'),false);
 });
