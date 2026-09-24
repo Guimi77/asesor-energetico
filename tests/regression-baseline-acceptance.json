@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "history": [
+    {
+      "version": 1,
+      "commit": "f584188189cac36d269ebf6ff6a49f4f3d4e0bea",
+      "previousCommit": null,
+      "acceptedAt": "2026-09-24",
+      "acceptedBy": "Guimi77",
+      "confirmation": "INITIAL_BASELINE_BOOTSTRAP",
+      "auditNote": "Estado posterior al PR #29: Parser, Privacy, cobertura histórica, export Excel, recomendaciones, refresco de gráficas, recursos PDF y Pages verificados en verde. Registro inicial; las promociones futuras exigirán la frase exacta OK TODO FUNCIONA."
+    }
+  ]
+}

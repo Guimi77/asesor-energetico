@@ -1,9 +1,9 @@
 name: History recommendations regression
 on:
   push:
-    paths: ['history-recommendations*', 'recommendation-resolution.js', 'consumption-anomalies.js', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', 'tests/consumption-anomalies*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'recommendation-resolution.js', 'consumption-anomalies.js', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', 'tests/consumption-anomalies*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-recommendations-regression.yml']
   pull_request:
-    paths: ['history-recommendations*', 'recommendation-resolution.js', 'consumption-anomalies.js', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', 'tests/consumption-anomalies*', '.github/workflows/history-recommendations-regression.yml']
+    paths: ['history-recommendations*', 'recommendation-resolution.js', 'consumption-anomalies.js', 'reading-status.js', 'history-ui.js', 'xtra-history.js', 'auth-bootstrap.js', 'index.html', 'tests/history-recommendations*', 'tests/history-reactive*', 'tests/reading-status*', 'tests/consumption-anomalies*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-recommendations-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read

@@ -3,12 +3,11 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const {execFileSync}=require('node:child_process');
-const BASE='1668d5ea2f8059d17e08502d83c6395db361c4bf';
-const PARSER_BASE='4cc8fe564bc0dd3921251b964c3cdde6d06cea14';
-const AUTH_BASE='2e0c8c67245efeb052c5ae727677e3ad779ee2ff';
+const {frozenCommit,at}=require('./helpers/regression-baseline.cjs');
+const BASE=frozenCommit('pdfLifecycleWorkerLeak');
+const PARSER_BASE=frozenCommit('fenieParserBeforePowerPeriodBoundary');
 const source=file=>fs.readFileSync(file,'utf8');
-const at=(rev,file)=>execFileSync('git',['show',rev+':'+file],{encoding:'utf8'});
+const REPSOL_ISOLATION_BASE=frozenCommit('repsolIsolationReference');
 const old=file=>at(BASE,file);
 const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j);};
 const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
@@ -62,11 +61,11 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
   .replace(/ const expected=Number\(expectedPeriods\)\|\|0;\s+const complete=entries\.length>0&&\(expected\?entries\.length===expected:entries\.length===uniqueLabels\.length\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')
   .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
  assert.equal(normalized,parserExpected);
- assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','app.js'),'function lines(items)','async function pdfData'));
- assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
+ assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(at(REPSOL_ISOLATION_BASE,'app.js'),'function lines(items)','async function pdfData'));
+ assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(at(REPSOL_ISOLATION_BASE,'supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
  // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
- assert.equal(source('auth.css'),at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','auth.css'),'auth.css must not change in this Repsol change');
- assert.equal(source('history-cost-chart.js'),at('b3c0da573d58fbb0163b3f4365b9bfb93070e2ca','history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
+ assert.equal(source('auth.css'),at(REPSOL_ISOLATION_BASE,'auth.css'),'auth.css must not change in this Repsol change');
+ assert.equal(source('history-cost-chart.js'),at(REPSOL_ISOLATION_BASE,'history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);

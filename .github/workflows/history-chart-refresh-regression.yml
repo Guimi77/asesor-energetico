@@ -2,7 +2,7 @@ name: History chart refresh regression
 on:
   push:
     branches: [main]
-    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
+    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-chart-refresh-regression.yml']
   pull_request:
     paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
 permissions:

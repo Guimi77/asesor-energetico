@@ -1,9 +1,9 @@
 name: PDF resources and history regression
 on:
   push:
-    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', '.github/workflows/pdf-lifecycle-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/pdf-lifecycle-regression.yml']
   pull_request:
-    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', '.github/workflows/pdf-lifecycle-regression.yml']
+    paths: ['app.js', 'xtra-history.js', 'supply-enricher-v2.js', 'history-ui.js', 'tests/pdf-lifecycle*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/pdf-lifecycle-regression.yml']
   workflow_dispatch:
 permissions:
   contents: read

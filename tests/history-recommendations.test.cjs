@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const {execFileSync}=require('node:child_process');
+const {frozenCommit,at}=require('./helpers/regression-baseline.cjs');
 const api=require('../history-recommendations.js');
 const supplies=[{id:'one',holder_id:'h1',cups:'TEST-CUPS-ONE',supply_name:'Local de prueba'},{id:'two',holder_id:'h2',cups:'TEST-CUPS-TWO',supply_name:'Otro local'}];
 function rec(i=0,patch={}){const windows=[['2026-01-01','2026-01-31'],['2026-02-01','2026-02-28'],['2026-03-01','2026-03-31']];return {id:'r'+i,invoice_number:'SYNTHETIC-'+i,supply_id:'one',billing_start:windows[i%3][0],billing_end:windows[i%3][1],validation_status:'valid',reading_status:'actual',tariff:'3.0TD',consumption_kwh:100,energy_cost_eur:15,total_eur:25,excess_cost_eur:0,reactive_cost_eur:0,invoice_power_periods:Array.from({length:6},(_,j)=>({period:j+1,contracted_kw:20})),invoice_maximeters:Array.from({length:6},(_,j)=>({period:j+1,maximeter_kw:8,reliable:true})),invoice_excesses:[],...patch};}
@@ -33,11 +33,11 @@ test('All external names and invoice references are escaped',()=>{const dangerou
 test('Building recommendations does not mutate historical data',()=>{const rows=[rec(2),rec(0),rec(1)];const before=JSON.stringify(rows);build(rows);assert.equal(JSON.stringify(rows),before);});
 test('No new background processing, network or storage in recommendations',()=>{const s=fs.readFileSync('history-recommendations.js','utf8');for(const re of [/new MutationObserver/,/setInterval\s*\(/,/setTimeout\s*\(/,/fetch\s*\(/,/\.rpc\s*\(/,/localStorage/,/getDocument\s*\(/])assert(!re.test(s),String(re));});
 test('Core recommendation dependencies remain locked while Endesa input adapters may evolve',()=>{
- const baseline='11922976361b2d74c0a5ad3449c15056d912cbc0';
+ const baseline=frozenCommit('historyRecommendationsCoreLock');
  // Authentication now has its own client-access regression suite; keep unrelated history sidecars locked here.
- for(const f of ['history-cost-chart.js'])assert.equal(fs.readFileSync(f,'utf8'),execFileSync('git',['show',baseline+':'+f],{encoding:'utf8'}),f);
+ for(const f of ['history-cost-chart.js'])assert.equal(fs.readFileSync(f,'utf8'),at(baseline,f),f);
  const part=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
- const currentEnricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=execFileSync('git',['show',baseline+':supply-enricher-v2.js'],{encoding:'utf8'});
+ const currentEnricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=at(baseline,'supply-enricher-v2.js');
  assert.equal(part(currentEnricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','async function waitForMaster'));
  assert(currentEnricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('const expectedEnergyPeriods='));assert(audit.includes('const hasAnyPeriodCost='));assert(audit.includes('if(consumption>0&&energy<=0)'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));

@@ -4,12 +4,12 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const http=require('node:http');
-const {execFileSync}=require('node:child_process');
+const {frozenCommit,at}=require('./helpers/regression-baseline.cjs');
 const {chromium}=require('playwright');
 const {PDFDocument,StandardFonts}=require('pdf-lib');
-const BASE='1668d5ea2f8059d17e08502d83c6395db361c4bf';
+const BASE=frozenCommit('pdfLifecycleWorkerLeak');
 const specs=[['main','app.js','pdfData','const find='],['history','xtra-history.js','readPdf','function extractFenie'],['master','supply-enricher-v2.js','inspect','async function inspectFiles']];
-const original=file=>execFileSync('git',['show',BASE+':'+file],{encoding:'utf8'});
+const original=file=>at(BASE,file);
 function readerCode(baseline){return specs.map(([key,file,name,end])=>{
  const all=baseline?original(file):fs.readFileSync(file,'utf8');
  const pos=all.indexOf(end);assert(pos>0);
