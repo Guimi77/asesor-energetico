@@ -23,6 +23,10 @@
     "repsolIsolationReference": {
       "commit": "b3c0da573d58fbb0163b3f4365b9bfb93070e2ca",
       "reason": "Referencia histórica fija usada para comprobar que cambios Repsol no alteran bloques ajenos."
+    },
+    "historyRecommendationsCoreLock": {
+      "commit": "11922976361b2d74c0a5ad3449c15056d912cbc0",
+      "reason": "Referencia histórica fija que protege dependencias centrales de recomendaciones mientras los adaptadores de entrada pueden evolucionar."
     }
   }
 }

@@ -21,7 +21,7 @@ test('accepted baseline is a real ancestor commit with a positive version',()=>{
 });
 
 test('frozen historical reproduction references are explicit and valid',()=>{
-  for(const key of ['historyChartRefreshLegacyTwoCharts','pdfLifecycleWorkerLeak','fenieParserBeforePowerPeriodBoundary','repsolIsolationReference']){
+  for(const key of ['historyChartRefreshLegacyTwoCharts','pdfLifecycleWorkerLeak','fenieParserBeforePowerPeriodBoundary','repsolIsolationReference','historyRecommendationsCoreLock']){
     assert(exists(frozenCommit(key)),key);
     assert.match(manifest.frozen[key].reason,/Referencia histórica fija/i);
   }
