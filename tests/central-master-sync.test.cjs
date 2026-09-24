@@ -22,53 +22,53 @@ function buildHarness(role = 'admin', options = {}) {
 
   const datasets = {
     clients: [
-      { id: 'client-xtra', name: 'GRUPO XTRA', tax_id: null, status: 'active' },
-      { id: 'client-guillem', name: 'GUILLEM MATEU MOREY', tax_id: '43156090V', status: 'active' },
-      { id: 'client-maria', name: 'MARIA ANTONIA MOREY ESTEVA', tax_id: '00000000T', status: 'active' },
-      { id: 'client-albert', name: 'ALBERT VIDAL EGEA', tax_id: '44326236S', status: 'active' },
+      { id: 'client-xtra', name: 'CLIENTE PRUEBA CENTRAL', tax_id: null, status: 'active' },
+      { id: 'client-guillem', name: 'CLIENTE PRUEBA UNO', tax_id: '00000001R', status: 'active' },
+      { id: 'client-maria', name: 'CLIENTE PRUEBA DOS', tax_id: '00000003A', status: 'active' },
+      { id: 'client-albert', name: 'CLIENTE PRUEBA TRES', tax_id: '00000002W', status: 'active' },
     ],
     holders: [
-      { id: 'holder-xtra-1', client_id: 'client-xtra', legal_name: 'CLICK & RENT SL', tax_id: 'B00000001', status: 'active' },
-      { id: 'holder-xtra-2', client_id: 'client-xtra', legal_name: 'CLICK BOXES', tax_id: 'B00000002', status: 'active' },
-      { id: 'holder-guillem', client_id: 'client-guillem', legal_name: 'GUILLEM MATEU MOREY', tax_id: '43156090V', status: 'active' },
-      { id: 'holder-maria', client_id: 'client-maria', legal_name: 'MARIA ANTONIA MOREY ESTEVA', tax_id: '00000000T', status: 'active' },
-      { id: 'holder-albert', client_id: 'client-albert', legal_name: 'ALBERT VIDAL EGEA', tax_id: '44326236S', status: 'active' },
+      { id: 'holder-xtra-1', client_id: 'client-xtra', legal_name: 'EMPRESA PRUEBA UNO SL', tax_id: 'B00000001', status: 'active' },
+      { id: 'holder-xtra-2', client_id: 'client-xtra', legal_name: 'EMPRESA PRUEBA DOS', tax_id: 'B00000002', status: 'active' },
+      { id: 'holder-guillem', client_id: 'client-guillem', legal_name: 'CLIENTE PRUEBA UNO', tax_id: '00000001R', status: 'active' },
+      { id: 'holder-maria', client_id: 'client-maria', legal_name: 'CLIENTE PRUEBA DOS', tax_id: '00000003A', status: 'active' },
+      { id: 'holder-albert', client_id: 'client-albert', legal_name: 'CLIENTE PRUEBA TRES', tax_id: '00000002W', status: 'active' },
     ],
     supplies: [
-      { id: 's-xtra-1', holder_id: 'holder-xtra-1', cups: 'ES000000000000000001', supply_name: 'XTRA 1', address: 'A', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X1', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
-      { id: 's-xtra-2', holder_id: 'holder-xtra-2', cups: 'ES000000000000000002', supply_name: 'XTRA 2', address: 'B', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X2', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
-      { id: 's-guillem', holder_id: 'holder-guillem', cups: 'ES0031500560405004PY0F', supply_name: 'Guillem', address: 'C', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '2.0TD', current_contract_number: 'G1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
-      { id: 's-maria', holder_id: 'holder-maria', cups: 'ES0031500560405002PG', supply_name: 'Maria', address: 'D', city: 'Esporles', province: 'Illes Balears', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'M1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
-      { id: 's-albert-nq', holder_id: 'holder-albert', cups: 'ES0031500164319001NQ', supply_name: 'SA PANSA 24', address: 'SA PANSA 24, 07190 ESPORLES (BALEARS)', city: 'ESPORLES', province: 'BALEARS', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'CO-2023-056992_7.0', current_retailer: 'FENIE ENERGIA', current_distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.', status: 'active' },
+      { id: 's-xtra-1', holder_id: 'holder-xtra-1', cups: 'ES0000000000000001AA', supply_name: 'XTRA 1', address: 'A', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X1', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
+      { id: 's-xtra-2', holder_id: 'holder-xtra-2', cups: 'ES0000000000000002AA', supply_name: 'XTRA 2', address: 'B', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X2', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
+      { id: 's-guillem', holder_id: 'holder-guillem', cups: 'ES0000000000000003AA0F', supply_name: 'Guillem', address: 'C', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '2.0TD', current_contract_number: 'G1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
+      { id: 's-maria', holder_id: 'holder-maria', cups: 'ES0000000000000004AA', supply_name: 'Maria', address: 'D', city: 'Esporles', province: 'Illes Balears', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'M1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
+      { id: 's-albert-nq', holder_id: 'holder-albert', cups: 'ES0000000000000005AA', supply_name: 'SUMINISTRO PRUEBA 24', address: 'SUMINISTRO PRUEBA 24, 07190 ESPORLES (BALEARS)', city: 'ESPORLES', province: 'BALEARS', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'CO-0000-000001_0.0', current_retailer: 'FENIE ENERGIA', current_distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.', status: 'active' },
     ],
   };
 
   const localRows = [
     {
-      client: 'ALBERT VIDAL EGEA', clientTaxId: '44326236S', company: 'ALBERT VIDAL EGEA', holderTaxId: '44326236S', cups: 'ES0031500692096001ZH',
-      name: 'SA PANSA 15', address: 'SA PANSA 15, 07190 ESPORLES (BALEARS)', city: 'ESPORLES', province: 'BALEARS', postalCode: '07190',
-      tariff: '2.0TD', contract: 'CO-2024-052466_6.0', retailer: 'FENIE ENERGIA', distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.',
+      client: 'CLIENTE PRUEBA TRES', clientTaxId: '00000002W', company: 'CLIENTE PRUEBA TRES', holderTaxId: '00000002W', cups: 'ES0000000000000006AA',
+      name: 'SUMINISTRO PRUEBA 15', address: 'SUMINISTRO PRUEBA 15, 07190 ESPORLES (BALEARS)', city: 'ESPORLES', province: 'BALEARS', postalCode: '07190',
+      tariff: '2.0TD', contract: 'CO-0000-000002_0.0', retailer: 'FENIE ENERGIA', distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.',
       status: 'ACTIVO', source: 'Aprendido de factura',
     },
     {
-      client: 'ALBERT VIDAL EGEA', clientTaxId: '44326236S', company: 'ALBERT VIDAL EGEA', holderTaxId: '44326236S', cups: 'ES0031500105358003WR',
-      name: 'GEORGE ORWELL', address: 'GEORGE ORWELL, 07004 PALMA (BALEARS)', city: 'PALMA', province: 'BALEARS', postalCode: '07004',
-      tariff: '2.0TD', contract: 'CO-2024-045035_5.0', retailer: 'FENIE ENERGIA', distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.',
+      client: 'CLIENTE PRUEBA TRES', clientTaxId: '00000002W', company: 'CLIENTE PRUEBA TRES', holderTaxId: '00000002W', cups: 'ES0000000000000007AA',
+      name: 'SUMINISTRO PRUEBA B', address: 'SUMINISTRO PRUEBA B, 07004 PALMA (BALEARS)', city: 'PALMA', province: 'BALEARS', postalCode: '07004',
+      tariff: '2.0TD', contract: 'CO-0000-000003_0.0', retailer: 'FENIE ENERGIA', distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.',
       status: 'ACTIVO', source: 'Aprendido de factura',
     },
     {
-      client: 'GUILLEM MATEU', company: 'G. MATEU', holderTaxId: '43156090V', cups: 'ES0031500560405005QA0A',
-      name: 'SEGUNDO GUILLEM', address: 'E', city: 'Palma', province: 'Illes Balears', postalCode: '07000',
+      client: 'CLIENTE PRUEBA CUATRO', company: 'CLIENTE P. CUATRO', holderTaxId: '00000001R', cups: 'ES0000000000000008AA0A',
+      name: 'SUMINISTRO PRUEBA C', address: 'E', city: 'Palma', province: 'Illes Balears', postalCode: '07000',
       tariff: '2.0TD', contract: 'G2', retailer: 'ENDESA', distributor: 'D2', status: 'ACTIVO', source: 'Aprendido de factura',
     },
     {
-      client: 'MARIA ANTONIA MOREY ESTEVA', clientTaxId: '00000000T', company: 'MARIA ANTONIA MOREY ESTEVA', holderTaxId: '00000000T', cups: 'ES0031500560405003PH0G',
-      name: 'SEGUNDO MARIA', address: 'F', city: 'Esporles', province: 'Illes Balears', postalCode: '07190',
+      client: 'CLIENTE PRUEBA DOS', clientTaxId: '00000003A', company: 'CLIENTE PRUEBA DOS', holderTaxId: '00000003A', cups: 'ES0000000000000009AA0G',
+      name: 'SUMINISTRO PRUEBA D', address: 'F', city: 'Esporles', province: 'Illes Balears', postalCode: '07190',
       tariff: '2.0TD', contract: 'M2', retailer: 'ENDESA', distributor: 'D2', status: 'ACTIVO', source: 'Aprendido de factura',
     },
     {
-      client: 'GRUPO XTRA', company: 'CLICK RENT SL', holderTaxId: 'B00000001', cups: 'ES0031500000000003AA0A',
-      name: 'XTRA HEREDADO', address: 'G', city: 'Palma', province: 'Illes Balears', postalCode: '07000',
+      client: 'CLIENTE PRUEBA CENTRAL', company: 'EMPRESA PRUEBA TRES SL', holderTaxId: 'B00000001', cups: 'ES0000000000000000AA0A',
+      name: 'SUMINISTRO PRUEBA E', address: 'G', city: 'Palma', province: 'Illes Balears', postalCode: '07000',
       tariff: '3.0TD', contract: 'X3', retailer: 'FENIE', distributor: 'D1', status: 'ACTIVO', source: 'Aprendido de factura',
     },
     ...(options.extraLocalRows || []),
@@ -155,17 +155,17 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.equal(window.CentralSupabaseMaster.mode, 'central-master-global-reconciliation-with-audit');
   assert.equal(added.length, 10);
   assert.deepEqual(new Set(added.map(({ item }) => item.client)), new Set([
-    'GRUPO XTRA',
-    'GUILLEM MATEU MOREY',
-    'MARIA ANTONIA MOREY ESTEVA',
-    'ALBERT VIDAL EGEA',
+    'CLIENTE PRUEBA CENTRAL',
+    'CLIENTE PRUEBA UNO',
+    'CLIENTE PRUEBA DOS',
+    'CLIENTE PRUEBA TRES',
   ]));
 
   const expectedCounts = new Map([
-    ['GRUPO XTRA', 3],
-    ['GUILLEM MATEU MOREY', 2],
-    ['MARIA ANTONIA MOREY ESTEVA', 2],
-    ['ALBERT VIDAL EGEA', 3],
+    ['CLIENTE PRUEBA CENTRAL', 3],
+    ['CLIENTE PRUEBA UNO', 2],
+    ['CLIENTE PRUEBA DOS', 2],
+    ['CLIENTE PRUEBA TRES', 3],
   ]);
   for (const [client, expected] of expectedCounts) {
     assert.equal(added.filter(({ item }) => item.client === client).length, expected, `${client} must preserve every distinct supply`);
@@ -174,10 +174,10 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   const recoveryCalls = calls.filter((call) => call.op === 'rpc' && call.name === 'ensure_supply_from_master');
   assert.equal(recoveryCalls.length, 5, 'every missing eligible CUPS across all clients must be promoted');
   assert.deepEqual(new Set(recoveryCalls.map((call) => call.args.p_client_name)), new Set([
-    'GRUPO XTRA',
-    'GUILLEM MATEU MOREY',
-    'MARIA ANTONIA MOREY ESTEVA',
-    'ALBERT VIDAL EGEA',
+    'CLIENTE PRUEBA CENTRAL',
+    'CLIENTE PRUEBA UNO',
+    'CLIENTE PRUEBA DOS',
+    'CLIENTE PRUEBA TRES',
   ]));
   assert.equal(datasets.holders.length, 5, 'reconciliation must never duplicate holders');
   assert.equal(datasets.supplies.length, 10, 'central master must contain all original and recovered supplies');
@@ -200,7 +200,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
 });
 
 test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of being silently omitted', async () => {
-  const pendingCups = 'ES0031500999999999ZZ0Z';
+  const pendingCups = 'ES0000000000000004AA0Z';
   const { window, status, dispatched } = buildHarness('admin', {
     extraLocalRows: [{
       client: 'CLIENTE DESCONOCIDO',
@@ -223,7 +223,7 @@ test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of
 });
 
 test('RPC failures cannot masquerade as a successful reconciliation', async () => {
-  const failedCups = 'ES0031500692096001ZH';
+  const failedCups = 'ES0000000000000006AA';
   const { window, status, dispatched } = buildHarness('admin', { rpcFailCups: [failedCups] });
   await window.CentralSupabaseMaster.reload();
 
