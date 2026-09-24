@@ -7,6 +7,7 @@ const root=path.join(__dirname,'..');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const history=fs.readFileSync(path.join(root,'xtra-history.js'),'utf8');
+const master=fs.readFileSync(path.join(root,'supply-enricher-v2.js'),'utf8');
 const workflow=fs.readFileSync(path.join(root,'.github/workflows/parser-regression.yml'),'utf8');
 
 test('U Energia se carga antes del runtime principal',()=>{
@@ -27,6 +28,13 @@ test('el historico usa el mismo parser portable y conserva ajustes',()=>{
   assert.match(history,/window\.IBTUenergiaParser/);
   assert.match(history,/adjustments=Array\.isArray\(row\.adjustments\)/);
   assert.match(history,/uenergia\?\.detect\?\.\(source\)/);
+});
+
+
+test('el maestro de suministros reutiliza el parser U Energia',()=>{
+  assert.match(master,/function parseUenergiaSupply\(/);
+  assert.match(master,/window\.IBTUenergiaParser/);
+  assert.match(master,/format==='uenergia'\?parseUenergiaSupply\(pdfData,file\)/);
 });
 
 test('la regresion CI comprueba sintaxis y tests U Energia',()=>{
