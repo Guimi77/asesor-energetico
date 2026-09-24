@@ -45,7 +45,7 @@ const server=http.createServer((req,res)=>{
    assert.equal(await page.evaluate(()=>!!window.costSidecarLoaded),false);
   }
   const jan=await page.locator('#historyCostChart circle[data-month="2026-01"]').getAttribute('data-cost');assert(Math.abs(Number(jan)-2366/6526)<1e-12);
-  await page.selectOption('#historySupply','s0');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===7);assert.equal(await page.locator('#historyCostChart circle').count(),7);
+  await page.fill('#historySupplySearch','TEST-CUPS-0');await page.press('#historySupplySearch','Enter');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===7);assert.equal(await page.locator('#historyCostChart circle').count(),7);
   await page.fill('#historyTo','2026-01-31');await page.locator('#historyTo').dispatchEvent('change');await page.waitForFunction(()=>document.querySelectorAll('.history-table tbody tr').length===1);
   assert.equal(await page.locator('#historyCostChart circle').count(),1);assert.equal(Number(await page.locator('#historyCostChart circle').getAttribute('data-cost')),.2);
   await page.locator('.history-detail-btn').first().click();assert((await page.locator('#historyDetailHost').innerText()).includes('Energía por periodos'));
