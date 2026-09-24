@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const SCHEMA_VERSION = "1.0";
 const SERVICE_NAME = "xispa-energy-query";
-const MAX_LIMIT = 48;
+const MAX_LIMIT = 48;\nconst XISPA_KEY_SHA256 = "0088c50af1c5a91ab9ccb5f2085d952f2e39b6aaa79cad45bd36837a52072457";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +36,12 @@ const isUuid = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0
 const clampLimit = (value: unknown, fallback = 24) => Math.min(MAX_LIMIT, Math.max(1, Number(value) || fallback));
 const ilikeTerm = (value: unknown) => "%" + norm(value).replace(/[%,()]/g, " ").slice(0, 120) + "%";
 
+async function sha256Hex(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function timingSafeEqual(a: string, b: string) {
   if (!a || !b || a.length !== b.length) return false;
   let diff = 0;
@@ -62,7 +68,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "GET" && (action === SERVICE_NAME || action === "health")) {
     return ok({
       status: "ok",
-      authConfigured: Boolean(Deno.env.get("XISPA_ENERGY_API_KEY")),
+      authConfigured: Boolean(Deno.env.get("XISPA_ENERGY_API_KEY") || XISPA_KEY_SHA256),
       capabilities: [
         "search-clients",
         "search-supplies",
@@ -93,7 +99,11 @@ Deno.serve(async (req: Request) => {
     let authMode: "xispa_key" | "internal_user" | null = null;
     let actorUserId: string | null = null;
 
-    if (expectedKey && timingSafeEqual(suppliedKey, expectedKey)) {
+    const suppliedHash = suppliedKey ? await sha256Hex(suppliedKey) : "";
+    if (
+      (expectedKey && timingSafeEqual(suppliedKey, expectedKey)) ||
+      (suppliedHash && timingSafeEqual(suppliedHash, XISPA_KEY_SHA256))
+    ) {
       authMode = "xispa_key";
     } else {
       const authHeader = req.headers.get("Authorization") || "";
