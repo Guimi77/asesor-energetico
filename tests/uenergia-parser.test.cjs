@@ -14,7 +14,7 @@ function sample(){
     'Periodo: 04/07/2026 a 04/08/2026',
     'Forma de pago: RECIBO_CSB',
     'IBAN: ES00 0000 0000 0000 0000 ****',
-    'CLIENTE PRUEBA FACTURACION',
+    'CLIENTE PRUEBA, FACTURACION',
     'CL. EJEMPLO PRUEBA, 1 B',
     '07190 - ESPORLES',
     'BALEARS, ILLES - ESPAÑA',
@@ -94,7 +94,7 @@ test('extrae la factura real U Energia, conserva la cuota y cuadra',()=>{
   assert.equal(r.invoiceNumber,'26000001');
   assert.equal(r.company,'CLIENTE PRUEBA TITULAR');
   assert.equal(r.taxId,'00000002W');
-  assert.equal(r.billingRecipient,'CLIENTE PRUEBA FACTURACION');
+  assert.equal(r.billingRecipient,'CLIENTE PRUEBA, FACTURACION');
   assert.equal(r.billingTaxId,'00000001R');
   assert.equal(r.cups,'ES0000000000000007AA0F');
   assert.equal(r.period,'04/07/2026 - 04/08/2026 (32 días)');
@@ -140,8 +140,8 @@ test('extrae la factura real U Energia, conserva la cuota y cuadra',()=>{
 
 test('tolera líneas PDF.js con columnas laterales unidas',()=>{
   const d=sample();
-  d.pages[0]=d.pages[0].filter(x=>!['CLIENTE PRUEBA FACTURACION','CL. EJEMPLO PRUEBA, 1 B','07190 - ESPORLES','BALEARS, ILLES - ESPAÑA'].includes(x));
-  d.pages[0]=d.pages[0].map(x=>x==='Número: 26000001'?'Número: 26000001 CLIENTE PRUEBA FACTURACION':x);
+  d.pages[0]=d.pages[0].filter(x=>!['CLIENTE PRUEBA, FACTURACION','CL. EJEMPLO PRUEBA, 1 B','07190 - ESPORLES','BALEARS, ILLES - ESPAÑA'].includes(x));
+  d.pages[0]=d.pages[0].map(x=>x==='Número: 26000001'?'Número: 26000001 CLIENTE PRUEBA, FACTURACION':x);
   d.pages[1]=d.pages[1].map(x=>({
     'Titular: CLIENTE PRUEBA TITULAR':'Titular: CLIENTE PRUEBA TITULAR CUPS: ES0000000000000007AA0F',
     'NIF/CIF Titular: 00000002W':'NIF/CIF Titular: 00000002W Potencia: 3,450 kW',
@@ -153,7 +153,7 @@ test('tolera líneas PDF.js con columnas laterales unidas',()=>{
   d.text=d.pages.flat().join('\n');
   const r=parser.parse(d,{name:'layout.pdf'});
   assert.equal(r.readOk,true,r.readMessage);
-  assert.equal(r.billingRecipient,'CLIENTE PRUEBA FACTURACION');
+  assert.equal(r.billingRecipient,'CLIENTE PRUEBA, FACTURACION');
   assert.equal(r.company,'CLIENTE PRUEBA TITULAR');
   assert.equal(r.supplyAddress,'CL EJEMPLO PRUEBA, DE 00003 BA 07190 (Esporles)');
   assert.equal(r.supplyCity,'ESPORLES');
