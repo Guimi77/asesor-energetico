@@ -49,7 +49,7 @@ function scanText(text,file='<memory>'){
 
   const holder=/Titular\s+del\s+contrato\s*:\s*([^'"\n,]+)/gi;
   for(const m of src.matchAll(holder)){
-    if(!looksSyntheticText(m[1])) add(findings,file,src,m.index,'HOLDER',m[1].trim(),'Titular no marcado como sintético');
+    if(!looksSyntheticText(m[1])&&!isSyntheticTaxId(m[1])) add(findings,file,src,m.index,'HOLDER',m[1].trim(),'Titular no marcado como sintético');
   }
 
   const iberdrolaHolder=/['"]CONTRATO['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]Titular\b/gi;

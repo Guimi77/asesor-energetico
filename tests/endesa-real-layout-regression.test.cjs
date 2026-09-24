@@ -5,7 +5,7 @@ const doc=(p1,p2,p3=[])=>({pages:[p1,p2,p3],text:[...p1,...p2,...p3].join('\n')}
 
 test('Real Endesa header cannot hide billed energy or invent reactive charges',()=>{
   const p1=[
-    'Endesa Energía, S.A. Unipersonal. CIF A81948077.',
+    'Endesa Energía, S.A. Unipersonal. CIF B00000008.',
     'Nº factura: P26CON000000001',
     'Periodo de facturación: del 11/05/2026 al 04/06/2026 (24 días)',
     'Potencia 52,14 €','Energía 525,89 €','Descuentos -71,36 €','Otros 8,98 €','Impuestos 139,66 €','Total 655,31 €','Consumo Total 2.853,101 kWh'

@@ -35,6 +35,10 @@ test('acepta una fixture inequívocamente sintética',()=>{
   assert.deepEqual(scanText(src,'synthetic.test.cjs'),[]);
 });
 
+test('tolera un NIF sintético cuando un layout fragmentado lo deja tras la etiqueta de titular',()=>{
+  assert.deepEqual(scanText('Titular del contrato: 00000001R','fragmented.test.cjs'),[]);
+});
+
 test('el sanitizador convierte identificadores de alta confianza a valores de prueba',()=>{
   const out=sanitizeText(realLookingFixture());
   assert.match(out,/CLIENTE PRUEBA ALFA/);
