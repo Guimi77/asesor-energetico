@@ -7,7 +7,7 @@ const api = require('../history-recommendations.js');
 const supplies = [{
   id: 'alconaser-supply',
   holder_id: 'alconaser-holder',
-  cups: 'ES0031500164216001LX0F',
+  cups: 'ES0000000000000009AA0F',
   supply_name: 'Suministro ALCONASER de prueba',
 }];
 

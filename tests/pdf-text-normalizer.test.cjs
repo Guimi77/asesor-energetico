@@ -21,13 +21,13 @@ test('repara de forma comun los acentos separados por PDF.js sin quitar acentos 
 });
 
 test('la normalizacion es idempotente y no altera cifras, CUPS, fechas ni importes',()=>{
-  const source='Energ í a consumida 485,91 kWh x 0,148729 €/kWh 72,27 € · ES0031500164915001GV · 22/06/2026';
+  const source='Energ í a consumida 485,91 kWh x 0,148729 €/kWh 72,27 € · ES0000000000000002AA · 22/06/2026';
   const once=normalizer.repair(source),twice=normalizer.repair(once);
   assert.equal(once,twice);
   assert.match(once,/485,91 kWh/);
   assert.match(once,/0,148729 €/);
   assert.match(once,/72,27 €/);
-  assert.match(once,/ES0031500164915001GV/);
+  assert.match(once,/ES0000000000000002AA/);
   assert.match(once,/22\/06\/2026/);
 });
 
