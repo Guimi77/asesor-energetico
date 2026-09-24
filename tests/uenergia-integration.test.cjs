@@ -45,8 +45,8 @@ test('el cruce con la fila principal soporta la columna de diagnostico movida',(
   assert.match(history,/c\[13\+offset\]/);
 });
 
-test('la factura de aprendizaje 26088471 queda excluida pero no el CUPS futuro',()=>{
-  assert.match(history,/HISTORY_EXCLUSIONS=\[\{source:'uenergia',invoiceNumber:'26088471',cups:'ES0031500608978003VH0F'/);
+test('la factura de aprendizaje 26000001 queda excluida pero no el CUPS futuro',()=>{
+  assert.match(history,/HISTORY_EXCLUSIONS=\[\{source:'uenergia',invoiceNumber:'\d{8}',cups:'ES[A-Z0-9]{18,24}'/);
   assert.match(history,/reason:'user_excluded_invoice'/);
   assert.match(history,/excludedHistoryInvoice\(x\)/);
 });

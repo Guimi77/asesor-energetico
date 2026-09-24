@@ -5,17 +5,17 @@ const parser=require('../uenergia-parser.js');
 function sample(){
   const p1=[
     'ELECTRICA SOLLERENSE SAU (ESA57048332) Registro mercantil de Mallorca',
-    'CL. SA MAR 146, 07100 - SOLLER BALEARS, ILLES - ESPAÑA oficines@uenergia.es',
+    'CL. EJEMPLO PRUEBA 146, 07100 - SOLLER BALEARS, ILLES - ESPAÑA oficines@example.com',
     'DATOS DE FACTURA',
-    'Número: 26088471',
+    'Número: 26000001',
     'Fecha: 15/09/2026',
     'Vencimiento: 05/10/2026',
-    'NIF/CIF: ES49776614Z',
+    'NIF/CIF: 00000001R',
     'Periodo: 04/07/2026 a 04/08/2026',
     'Forma de pago: RECIBO_CSB',
-    'IBAN: ES41 0049 6987 4423 1000 ****',
-    'MURABITO SANTANA, MARIANA',
-    'CL. JOANOT COLOM, 1 B',
+    'IBAN: ES00 0000 0000 0000 0000 ****',
+    'CLIENTE PRUEBA FACTURACION',
+    'CL. EJEMPLO PRUEBA, 1 B',
     '07190 - ESPORLES',
     'BALEARS, ILLES - ESPAÑA',
     'RESUMEN DE FACTURA',
@@ -27,22 +27,22 @@ function sample(){
     'Otros conceptos 7,89€',
     'IVA 21% 9,15€',
     'Total 52,73€',
-    'Datos recuperados del CUPS ES0031500608978003VH0F entre las fechas 4 jul. 2026 y 4 ago. 2026',
+    'Datos recuperados del CUPS ES0000000000000007AA0F entre las fechas 4 jul. 2026 y 4 ago. 2026',
     'CONTACTO AVERÍAS',
-    'EDISTRIBUCIÓN REDES DIGITALES S.L.U. CUPS ES0031500608978003VH0F contrato de acceso 500006192291'
+    'EDISTRIBUCIÓN REDES DIGITALES S.L.U. CUPS ES0000000000000007AA0F contrato de acceso 500000000008'
   ];
   const p2=[
     'DATOS DEL CONTRATO',
-    'Titular: NICOLAU RIERA, DAMIA',
-    'NIF/CIF Titular: ES78201752G',
-    'Dirección: CL JOANOT COLOM, DE 00003 BA 07190 (Esporles)',
+    'Titular: CLIENTE PRUEBA TITULAR',
+    'NIF/CIF Titular: 00000002W',
+    'Dirección: CL EJEMPLO PRUEBA, DE 00003 BA 07190 (Esporles)',
     'Población: ESPORLES',
     'Tarifa: Luz Finde (Mercado libre)',
     'Tarifa de acceso: 2.0TD - NT1',
-    'CUPS: ES0031500608978003VH0F',
+    'CUPS: ES0000000000000007AA0F',
     'Potencia: 3,450 kW',
-    'Contrato: C1008703',
-    'Contrato de acceso: 500006192291',
+    'Contrato: C0000001',
+    'Contrato de acceso: 500000000008',
     'Distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.',
     'Vigencia hasta: 21/05/2027',
     'DETALLE DE CONCEPTOS',
@@ -68,7 +68,7 @@ function sample(){
     'IVA 21% sobre 43,58€ 9,15€',
     'Importe total 52,73€',
     'LECTURAS',
-    'Lecturas del contador 304562744 entre el 03/07/2026 y el 04/08/2026 (Origen Real)',
+    'Lecturas del contador 300000003 entre el 03/07/2026 y el 04/08/2026 (Origen Real)',
     'P1 3391 3441 50',
     'P2 853 870 17',
     'P3 633 649 16',
@@ -87,25 +87,25 @@ test('detecta solo el formato U Energia',()=>{
 });
 
 test('extrae la factura real U Energia, conserva la cuota y cuadra',()=>{
-  const r=parser.parse(sample(),{name:'26088471.pdf'},{parserVersion:'test'});
+  const r=parser.parse(sample(),{name:'26000001.pdf'},{parserVersion:'test'});
   assert.ok(r);
   assert.equal(r.readOk,true,r.readMessage);
   assert.equal(r.sourceFormat,'uenergia');
-  assert.equal(r.invoiceNumber,'26088471');
-  assert.equal(r.company,'NICOLAU RIERA, DAMIA');
-  assert.equal(r.taxId,'ES78201752G');
-  assert.equal(r.billingRecipient,'MURABITO SANTANA, MARIANA');
-  assert.equal(r.billingTaxId,'ES49776614Z');
-  assert.equal(r.cups,'ES0031500608978003VH0F');
+  assert.equal(r.invoiceNumber,'26000001');
+  assert.equal(r.company,'CLIENTE PRUEBA TITULAR');
+  assert.equal(r.taxId,'00000002W');
+  assert.equal(r.billingRecipient,'CLIENTE PRUEBA FACTURACION');
+  assert.equal(r.billingTaxId,'00000001R');
+  assert.equal(r.cups,'ES0000000000000007AA0F');
   assert.equal(r.period,'04/07/2026 - 04/08/2026 (32 días)');
   assert.equal(r.tariff,'2.0TD');
   assert.equal(r.productName,'Luz Finde');
   assert.equal(r.contractType,'Mercado libre');
-  assert.equal(r.contract,'C1008703');
-  assert.equal(r.accessContract,'500006192291');
+  assert.equal(r.contract,'C0000001');
+  assert.equal(r.accessContract,'500000000008');
   assert.equal(r.distributor,'EDISTRIBUCIÓN REDES DIGITALES S.L.U.');
   assert.equal(r.renewalDate,'21/05/2027');
-  assert.equal(r.meterNumber,'304562744');
+  assert.equal(r.meterNumber,'300000003');
   assert.equal(r.kwh,83);
   assert.equal(r.energy,20.48);
   assert.equal(r.power,11.88);
@@ -140,22 +140,22 @@ test('extrae la factura real U Energia, conserva la cuota y cuadra',()=>{
 
 test('tolera líneas PDF.js con columnas laterales unidas',()=>{
   const d=sample();
-  d.pages[0]=d.pages[0].filter(x=>!['MURABITO SANTANA, MARIANA','CL. JOANOT COLOM, 1 B','07190 - ESPORLES','BALEARS, ILLES - ESPAÑA'].includes(x));
-  d.pages[0]=d.pages[0].map(x=>x==='Número: 26088471'?'Número: 26088471 MURABITO SANTANA, MARIANA':x);
+  d.pages[0]=d.pages[0].filter(x=>!['CLIENTE PRUEBA FACTURACION','CL. EJEMPLO PRUEBA, 1 B','07190 - ESPORLES','BALEARS, ILLES - ESPAÑA'].includes(x));
+  d.pages[0]=d.pages[0].map(x=>x==='Número: 26000001'?'Número: 26000001 CLIENTE PRUEBA FACTURACION':x);
   d.pages[1]=d.pages[1].map(x=>({
-    'Titular: NICOLAU RIERA, DAMIA':'Titular: NICOLAU RIERA, DAMIA CUPS: ES0031500608978003VH0F',
-    'NIF/CIF Titular: ES78201752G':'NIF/CIF Titular: ES78201752G Potencia: 3,450 kW',
-    'Dirección: CL JOANOT COLOM, DE 00003 BA 07190 (Esporles)':'Dirección: CL JOANOT COLOM, DE 00003 BA 07190 (Esporles) Contrato: C1008703',
-    'Población: ESPORLES':'Población: ESPORLES Contrato de acceso: 500006192291',
+    'Titular: CLIENTE PRUEBA TITULAR':'Titular: CLIENTE PRUEBA TITULAR CUPS: ES0000000000000007AA0F',
+    'NIF/CIF Titular: 00000002W':'NIF/CIF Titular: 00000002W Potencia: 3,450 kW',
+    'Dirección: CL EJEMPLO PRUEBA, DE 00003 BA 07190 (Esporles)':'Dirección: CL EJEMPLO PRUEBA, DE 00003 BA 07190 (Esporles) Contrato: C0000001',
+    'Población: ESPORLES':'Población: ESPORLES Contrato de acceso: 500000000008',
     'Tarifa: Luz Finde (Mercado libre)':'Tarifa: Luz Finde (Mercado libre) Distribuidora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.',
     'Tarifa de acceso: 2.0TD - NT1':'Tarifa de acceso: 2.0TD - NT1 (https://www.edistribucion.com/)'
   }[x]||x));
   d.text=d.pages.flat().join('\n');
   const r=parser.parse(d,{name:'layout.pdf'});
   assert.equal(r.readOk,true,r.readMessage);
-  assert.equal(r.billingRecipient,'MURABITO SANTANA, MARIANA');
-  assert.equal(r.company,'NICOLAU RIERA, DAMIA');
-  assert.equal(r.supplyAddress,'CL JOANOT COLOM, DE 00003 BA 07190 (Esporles)');
+  assert.equal(r.billingRecipient,'CLIENTE PRUEBA FACTURACION');
+  assert.equal(r.company,'CLIENTE PRUEBA TITULAR');
+  assert.equal(r.supplyAddress,'CL EJEMPLO PRUEBA, DE 00003 BA 07190 (Esporles)');
   assert.equal(r.supplyCity,'ESPORLES');
   assert.equal(r.productName,'Luz Finde');
   assert.equal(r.accessTariffRaw,'2.0TD - NT1');
