@@ -3,7 +3,7 @@
 **Proyecto:** Xispa · ELECTRICA BT MALLORCA SL  
 **Fecha:** 2026-09-24  
 **Versión del contrato:** `1.0`  
-**Estado:** BACKEND DE SOLO LECTURA IMPLEMENTADO · CONEXIÓN DIRECTA DESDE XISPA PENDIENTE
+**Estado:** BACKEND DE SOLO LECTURA IMPLEMENTADO · OPENAPI Y CREDENCIAL XISPA PREPARADOS · REGISTRO MANUAL DE ACTION PENDIENTE
 
 ## Objetivo
 
@@ -46,6 +46,7 @@ Las recomendaciones son señales para revisar; no equivalen a ahorro garantizado
 - Backend desplegado: sí.
 - Código versionado: sí.
 - Lecturas básicas implementadas: sí.
-- Credencial máquina-a-máquina configurada: pendiente.
-- Acción/conector registrado en Xispa: pendiente.
+- Credencial máquina-a-máquina preparada: sí (el secreto completo no se publica).
+- OpenAPI v1 creado y versionado: sí.
+- Action registrada en Xispa: pendiente.
 - Prueba extremo a extremo Xispa → API → Asesor: pendiente.
