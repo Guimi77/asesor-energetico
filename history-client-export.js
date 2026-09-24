@@ -29,8 +29,12 @@
     const client=input?.client,from=text(input?.from),to=text(input?.to);
     if(!client?.id)throw Error('Selecciona un cliente.');
     if((from&&!date(from))||(to&&!date(to))||(from&&to&&from>to))throw Error('Revisa el intervalo de fechas.');
-    const holders=new Map((input.holders||[]).filter(h=>h.client_id===client.id&&(!input.holderId||h.id===input.holderId)).map(h=>[h.id,h]));
-    const supplies=new Map((input.supplies||[]).filter(s=>holders.has(s.holder_id)&&(!input.supplyId||s.id===input.supplyId)).map(s=>[s.id,s]));
+    const holderIds=new Set((Array.isArray(input.holderIds)?input.holderIds:[]).filter(Boolean));
+    if(!holderIds.size&&input.holderId)holderIds.add(input.holderId);
+    const supplyIds=new Set((Array.isArray(input.supplyIds)?input.supplyIds:[]).filter(Boolean));
+    if(!supplyIds.size&&input.supplyId)supplyIds.add(input.supplyId);
+    const holders=new Map((input.holders||[]).filter(h=>h.client_id===client.id&&(!holderIds.size||holderIds.has(h.id))).map(h=>[h.id,h]));
+    const supplies=new Map((input.supplies||[]).filter(s=>holders.has(s.holder_id)&&(!supplyIds.size||supplyIds.has(s.id))).map(s=>[s.id,s]));
     const seen=new Map(),groups=new Map();
     for(const r of input.records||[]){
       const s=supplies.get(r.supply_id);if(!s)continue;
@@ -45,7 +49,7 @@
       const g=groups.get(s.holder_id);g.supplies.set(s.id,s);g.records.push(r);
     }
     if(!seen.size)throw Error('No hay periodos para exportar con estos filtros.');
-    return {client,from,to,holderId:input.holderId||'',supplyId:input.supplyId||'',groups:[...groups.values()].map(g=>({...g,records:g.records.sort((a,b)=>a.billing_start.localeCompare(b.billing_start)||String(a.id).localeCompare(String(b.id)))}))};
+    return {client,from,to,holderIds:[...holderIds],supplyIds:[...supplyIds],holderId:input.holderId||'',supplyId:input.supplyId||'',groups:[...groups.values()].map(g=>({...g,records:g.records.sort((a,b)=>a.billing_start.localeCompare(b.billing_start)||String(a.id).localeCompare(String(b.id)))}))};
   }
   function monthly(records){
     const bins=new Map();
