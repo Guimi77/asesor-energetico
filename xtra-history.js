@@ -276,8 +276,8 @@ return null;
 }
 async function waitForMainRow(cups,periodText){for(let i=0;i<600;i++){const r=rowSnapshot(cups,periodText);if(r)return r;await new Promise(r=>setTimeout(r,100))}return null}
 const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente'};
-const HISTORY_EXCLUSIONS=[{source:'uenergia',invoiceNumber:'26088471',cups:'ES0031500608978003VH0F',reason:'Cambio de titular · factura anterior no deseada en histórico'}];
-function excludedHistoryInvoice(x){return HISTORY_EXCLUSIONS.find(item=>item.source==='uenergia'&&cleanKey(item.invoiceNumber)===cleanKey(x?.invoiceNumber)&&cupsKey(item.cups)===cupsKey(x?.cups))||null;}
+const HISTORY_EXCLUSIONS=[{source:'uenergia',billingStart:'2026-07-04',billingEnd:'2026-08-04',kwh:83,power:11.88,total:52.73,reason:'Cambio de titular · factura anterior no deseada en histórico'}];
+function excludedHistoryInvoice(x){return HISTORY_EXCLUSIONS.find(item=>item.source==='uenergia'&&item.billingStart===x?.period?.start&&item.billingEnd===x?.period?.end&&same(item.kwh,x?.kwh,.02)&&same(item.power,x?.power,.02)&&same(item.total,x?.total,.02))||null;}
 function skipSummary(reasons){
 const entries=Object.entries(reasons||{}).filter(([,count])=>count>0);
 return entries.length?' · '+entries.map(([reason,count])=>`${HISTORY_SKIP_LABELS[reason]||reason}: ${count}`).join(' · '):'';
