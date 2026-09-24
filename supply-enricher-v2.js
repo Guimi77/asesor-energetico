@@ -201,6 +201,16 @@ function parseEndesaSupply(pages,file){
   return{company:row.company,taxId:row.taxId||'',cups:row.cups,tariff:row.tariff,contract,address,city:place.city,province:place.province,distributor,retailer:'Endesa Energía S.A.U.',accessContract,supplyName:address,invoiceNumber:row.invoiceNumber,periodEnd,contractType:row.contractType||'',renewalDate,...powers};
 }
 
+function parseUenergiaSupply(data,file){
+  const parser=window.IBTUenergiaParser;
+  const row=parser?.parse?.(data,file,{parserVersion:window.IBT_PARSER_VERSION||'UENERGIA',readingClassifier:window.IBTReadingStatus?.classify});
+  if(!row||row.unsupported||!row.cups)return{};
+  const address=clean(row.supplyAddress),contract=clean(row.contract||row.contractNumber),accessContract=clean(row.accessContract),distributor=clean(row.distributor),renewalDate=clean(row.renewalDate);
+  const periodEnd=(String(row.period||'').match(/-\s*(\d{2}\/\d{2}\/\d{4})/)||[])[1]||'';
+  const powers={};for(let p=1;p<=6;p++)if(Object.prototype.hasOwnProperty.call(row.contracted||{},`P${p}`))powers[`p${p}`]=row.contracted[`P${p}`];
+  return{company:row.company,taxId:row.taxId||'',cups:row.cups,tariff:row.tariff,contract,address,city:clean(row.supplyCity),province:clean(row.supplyProvince),distributor,retailer:row.retailer||'ELECTRICA SOLLERENSE SAU',accessContract,supplyName:address,invoiceNumber:row.invoiceNumber,periodEnd,contractType:row.contractType||'',renewalDate,...powers};
+}
+
 function parseIberdrolaSupply(data,file){
   const parser=window.IBTIberdrolaParser;
   const row=parser?.parse?.(data,file,{parserVersion:window.IBT_PARSER_VERSION||'IBERDROLA',readingClassifier:window.IBTReadingStatus?.classify});
@@ -244,11 +254,11 @@ async function inspect(file) {
   }
   let pdfData={pages,rawPages,text:pages.flat().join('\n')};
   pdfData=window.IBTPdfTextNormalizer?.normalizeData?.(pdfData)??pdfData;
-  const allLines=pdfData.pages.flat(),text=pdfData.text,iberdrola=window.IBTIberdrolaParser,repsol=window.IBTRepsolParser,formats=window.IBTInvoiceFormats;
-  const isIberdrola=!!iberdrola?.detect?.(pdfData),isRepsol=!!repsol?.detect?.(pdfData);
-  if(!isIberdrola&&!isRepsol&&!formats?.detect)return{read:false,changed:false,data:{},reason:'Detector de formato no disponible'};
-  const format=isIberdrola?'iberdrola':isRepsol?'repsol':formats.detect(text);
-  const data=format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{};
+  const allLines=pdfData.pages.flat(),text=pdfData.text,uenergia=window.IBTUenergiaParser,iberdrola=window.IBTIberdrolaParser,repsol=window.IBTRepsolParser,formats=window.IBTInvoiceFormats;
+  const isUenergia=!!uenergia?.detect?.(pdfData),isIberdrola=!!iberdrola?.detect?.(pdfData),isRepsol=!!repsol?.detect?.(pdfData);
+  if(!isUenergia&&!isIberdrola&&!isRepsol&&!formats?.detect)return{read:false,changed:false,data:{},reason:'Detector de formato no disponible'};
+  const format=isUenergia?'uenergia':isIberdrola?'iberdrola':isRepsol?'repsol':formats.detect(text);
+  const data=format==='uenergia'?parseUenergiaSupply(pdfData,file):format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{};
   if (!data.cups) return { read: false, changed: false, data, reason:format==='unknown'?'Formato no compatible todavía':'CUPS no identificado' };
   const master = await waitForMaster();
   const result = master.learnInvoice(data);
