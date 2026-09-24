@@ -14,7 +14,7 @@ const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0
 const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
 function reader(code,name,end,mode='ok'){
  let opened=0,closed=0,pages=0;
- const items=[{str:'FENIE ENERGIA',transform:[1,0,0,1,20,440]},{str:'CUPS: ES0000000000000000TEST',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
+ const items=[{str:'FENIE ENERGIA',transform:[1,0,0,1,20,440]},{str:'CUPS: ES0000000000000001AA',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
  const pdfjsLib={GlobalWorkerOptions:{},getDocument(){opened++;
   const pdf={numPages:4,async getPage(){pages++;if(mode==='page')throw Error('page');return {getViewport(){return {width:595.28,height:841.89};},async getTextContent(){if(mode==='text')throw Error('text');return {items};}};}};
   return {promise:mode==='load'?Promise.reject(Error('load')):Promise.resolve(pdf),async destroy(){await Promise.resolve();closed++;}};

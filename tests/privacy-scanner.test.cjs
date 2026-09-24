@@ -29,9 +29,14 @@ test('acepta una fixture inequívocamente sintética',()=>{
     'Dirección de suministro: C/ EJEMPLO, 1',
     'CUPS: ES0000000000000001AA',
     'Nº DE CONTRATO: 600000001',
+    'Nº factura: P26CON000000001',
     'cliente.prueba@example.com'
   ].join('\n');
   assert.deepEqual(scanText(src,'synthetic.test.cjs'),[]);
+});
+
+test('tolera un NIF sintético cuando un layout fragmentado lo deja tras la etiqueta de titular',()=>{
+  assert.deepEqual(scanText('Titular del contrato: 00000001R','fragmented.test.cjs'),[]);
 });
 
 test('el sanitizador convierte identificadores de alta confianza a valores de prueba',()=>{

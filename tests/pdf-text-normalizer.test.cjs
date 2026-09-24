@@ -21,13 +21,13 @@ test('repara de forma comun los acentos separados por PDF.js sin quitar acentos 
 });
 
 test('la normalizacion es idempotente y no altera cifras, CUPS, fechas ni importes',()=>{
-  const source='Energ í a consumida 485,91 kWh x 0,148729 €/kWh 72,27 € · ES0031500164915001GV · 22/06/2026';
+  const source='Energ í a consumida 485,91 kWh x 0,148729 €/kWh 72,27 € · ES0000000000000002AA · 22/06/2026';
   const once=normalizer.repair(source),twice=normalizer.repair(once);
   assert.equal(once,twice);
   assert.match(once,/485,91 kWh/);
   assert.match(once,/0,148729 €/);
   assert.match(once,/72,27 €/);
-  assert.match(once,/ES0031500164915001GV/);
+  assert.match(once,/ES0000000000000002AA/);
   assert.match(once,/22\/06\/2026/);
 });
 
@@ -44,7 +44,7 @@ test('normalizeData conserva rawPages para auditoria y normaliza pages/text para
 test('FENIE y Endesa se detectan tras pasar por la misma normalizacion comun',()=>{
   const fenie=normalizer.repair('FENIE ENERG Í A Raz ó n Social: TEST Periodo Facturaci ó n: T é rmino de potencia');
   assert.equal(formats.detect(fenie),'fenie');
-  const endesa=normalizer.repair('Endesa Energ í a, S.A. Nº factura: P26CON123456789');
+  const endesa=normalizer.repair('Endesa Energ í a, S.A. Nº factura: P26CON000000011');
   assert.equal(formats.detect(endesa),'endesa');
 });
 

@@ -16,7 +16,7 @@ delete global.IBTHistoricalExportEnrichment;
 vm.runInThisContext(source,{filename:'historical-export-enrichment.js'});
 const api=global.IBTHistoricalExportEnrichment;
 
-const ALCONASER='ES0031500164216001LX0F';
+const ALCONASER='ES0000000000000009AA0F';
 const OTHER='ES0000000000000000AA';
 const item=(cups,holder)=>({
   type:'power',cups,holderName:holder,supplyName:holder,title:'Estudiar un posible ajuste de potencia',amount:null,

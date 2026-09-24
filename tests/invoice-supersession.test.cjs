@@ -7,7 +7,7 @@ function invoice(number,issueDate,total=1995.14){
   return {
     invoiceNumber:number,
     issueDate,
-    cups:'ES0021000043629140LT0F',
+    cups:'ES0000000000000008AA0F',
     period:'18/06/2026 - 30/06/2026 (13 días)',
     tariff:'3.0TD',
     kwh:11048,

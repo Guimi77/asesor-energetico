@@ -9,15 +9,15 @@ const doc=(p1,p2)=>({pages:[p1,p2],text:[...p1,...p2].join('\n')});
 test('2.0TD power lines split by price dates are aggregated by power period, never by array position',()=>{
   const p1=[
     'Endesa Energía, S.A. Unipersonal.',
-    'Nº factura: P26CON003522686',
+    'Nº factura: P26CON000000006',
     'Periodo de facturación: del 19/12/2025 a 05/01/2026 (17 días)',
     'Potencia 13,12 €','Energía 96,57 €','Otros 0,70 €','Impuestos 29,98 €','Total 140,37 €','Consumo Total 936,362 kWh'
   ];
   const p2=[
-    'Titular del contrato: GUILLEM MATEU MOREY','NIF: 43156090V',
-    'Dirección de suministro: DE LA PAU FTE LLORENÇ VILL 29 1, 07190 ESPORLES, LES BALEARS',
+    'Titular del contrato: CLIENTE PRUEBA GAMMA','NIF: 00000003C',
+    'Dirección de suministro: C/ EJEMPLO PRUEBA 29 1, 07190 ESPORLES, LES BALEARS',
     'Potencias contratadas: punta-llano 5,600 kW; valle 5,600 kW',
-    'CUPS: ES0031500560405004PY0F','Peaje de transporte y distribución: 2.0TD',
+    'CUPS: ES0000000000000003AA0F','Peaje de transporte y distribución: 2.0TD',
     'Pot. Punta-Llano 5,600 kW x 0,103919 Eur/kW x 12 días 6,98 €',
     'Pot. Punta-Llano 5,600 kW x 0,109221 Eur/kW x 5 días 3,06 €',
     'Pot. Valle 5,600 kW x 0,032048 Eur/kW x 12 días 2,15 €',
@@ -28,7 +28,7 @@ test('2.0TD power lines split by price dates are aggregated by power period, nev
     'Facturación del Consumo 650,940 kWh x 0,101309 Eur/kWh 65,95 €',
     'Facturación del Consumo 285,422 kWh x 0,107286 Eur/kWh 30,62 €'
   ];
-  const r=api.parseEndesa(doc(p1,p2),{name:'P26CON003522686.pdf'});
+  const r=api.parseEndesa(doc(p1,p2),{name:'P26CON000000006.pdf'});
   assert.equal(r.power,13.12);
   assert.equal(r.excess,0);
   assert.equal(r.maximeters?Object.keys(r.maximeters).filter(k=>/^P/.test(k)).length:0,0);

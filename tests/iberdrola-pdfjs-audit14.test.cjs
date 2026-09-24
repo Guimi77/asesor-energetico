@@ -6,10 +6,10 @@ const parser=require('../iberdrola-parser-v3.js');
 const doc=(...pages)=>({pages,text:pages.flat().join('\n')});
 
 const carla=()=>doc([
-  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF A-95758389',
-  'CARLA FERRERO MALOW','Titular Potencia: C/ DE LA LLUM, 5','07190 ESPORLES (ILLES BALEARS)',
-  'CARLA FERRERO MALOW Potencia punta: 5,75 kW','Potencia valle: 5,75 kW',
-  'Direcci ó n de suministro:','C/ DE LA LLUM, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 633501753',
+  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF B00000009',
+  'CLIENTE PRUEBA ALFA','Titular Potencia: C/ DE LA PRUEBA, 5','07190 ESPORLES (ILLES BALEARS)',
+  'CLIENTE PRUEBA ALFA Potencia punta: 5,75 kW','Potencia valle: 5,75 kW',
+  'Direcci ó n de suministro:','C/ DE LA PRUEBA, 5 07190','ESPORLES (ILLES BALEARS)','Nº DE CONTRATO: 600000002',
   'RESUMEN DE FACTURA','PERIODO DE FACTURACI Ó N: Nº FACTURA:','22/06/2026 - 19/07/2026 21260727010128461',
   'DIAS FACTURADOS: FECHA DE EMISI Ó N:','27 27 de julio de 2026',
   'ENERG Í A............................................................................101,36 €',
@@ -34,20 +34,20 @@ const carla=()=>doc([
   'Alquiler equipos medida 27 d í as x 0,02663014 € /d í a 0,72 €',
   'TOTAL SERVICIOS Y OTROS CONCEPTOS 0,72 €','IMPORTE TOTAL 91,86 €',
   'IVA (*) 21 % s/91,86 € 19,29 €','TOTAL IMPORTE FACTURA 111,15 €',
-  'NIF titular del contrato: 47647341N','Nº contador: 202070048',
+  'NIF titular del contrato: 00000001R','Nº contador: 300000002',
   'Peaje de acceso a la red (ATR): 2.0TD','Fecha final del contrato: 19/02/2027',
-  'N ú mero de contrato de acceso: 500023491391',
-  'Identificaci ó n punto de suministro (CUPS): ES 0031 5001 6491 5001 GV',
+  'N ú mero de contrato de acceso: 500000000007',
+  'Identificaci ó n punto de suministro (CUPS): ES 0000 0000 0000 0002 AA',
   'Las lecturas desagregadas seg ú n la tarifa de acceso, tomadas el 19/07/2026 son: punta: 1.413,79 kWh; llano: 986,75 kWh; valle 1.564,68 kWh, siendo 16100092',
   'estas lecturas reales. Sus consumos desagregados han sido punta: 175,87 kWh; llano: 137,31 kWh; valle 172,73 kWh.'
 ]);
 
 const diana=()=>doc([
-  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF A-95758389',
-  'DIANA MARIA CHRISTINA VINCES CABADA','Titular C/ CAN GAMUNDI, 17-., LC 18','PALMA',
-  'DIANA MARIA CHRISTINA VINCES','CABADA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
-  'Direcci ó n de suministro:','C/ CAN GAMUNDI, 17-., LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)',
-  'Nº DE CONTRATO: 957890618 EMPRESA SOSTENIBLE,','RESUMEN DE FACTURA',
+  'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CIF B00000009',
+  'ALICIA PRUEBA SINTETICA CLIENTE ALFA','Titular C/ VIA PRUEBA, 17-., LC 18','PALMA',
+  'ALICIA PRUEBA SINTETICA CLIENTE','ALFA 07199 PALMA DE MALLORCA (ILLES BALEARS)',
+  'Direcci ó n de suministro:','C/ VIA PRUEBA, 17-., LC 18','PALMA 07199 PALMA DE','MALLORCA (ILLES BALEARS)',
+  'Nº DE CONTRATO: 600000001 EMPRESA SOSTENIBLE,','RESUMEN DE FACTURA',
   'PERIODO DE FACTURACI Ó N: Nº FACTURA:',
   'Calcula y reduce la huella de carbono',
   '27/04/2026 - 31/05/2026 21260608010256253',
@@ -78,19 +78,19 @@ const diana=()=>doc([
   'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 34 d í as x 0,35506849 € /d í a 12,07 €',
   'TOTAL SERVICIOS Y OTROS CONCEPTOS 12,07 €','IMPORTE TOTAL 92,81 €',
   'IVA 21 % s/92,81 € 19,49 €','TOTAL IMPORTE FACTURA 112,30 €',
-  '300209449 Energ í a activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
-  '300209449 Energ í a activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
-  '300209449 Energ í a activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
-  '300209449 Energ í a activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
-  '300209449 Energ í a activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
-  '300209449 Energ í a activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
+  '300000001 Energ í a activa P1 27/04/2026 4.648 31/05/2026 4.648 0 kWh',
+  '300000001 Energ í a activa P2 27/04/2026 4.783 31/05/2026 4.811 28 kWh',
+  '300000001 Energ í a activa P3 27/04/2026 3.125 31/05/2026 3.139 14 kWh',
+  '300000001 Energ í a activa P4 27/04/2026 3.902 31/05/2026 3.908 6 kWh',
+  '300000001 Energ í a activa P5 27/04/2026 1.846 31/05/2026 1.848 2 kWh',
+  '300000001 Energ í a activa P6 27/04/2026 15.845 31/05/2026 15.860 15 kWh'
 ],[
   'Ú ltima lectura: real','Peaje de acceso a la red (ATR): 3.0TD',
   'Potencia contratada (kW): 16 / 16 / 16 / 16 / 16 / 16',
   'Fecha final del contrato: 25/08/2027','Permanencia: Si (Fecha fin 05/09/2026)',
   'Empresa distribuidora: EDISTRIBUCI Ó N REDES DIGITALES S.L.U.',
-  'N ú mero de contrato de acceso: 500021702758',
-  'Identificaci ó n punto de suministro (CUPS): ES 0031 5007 4475 7001 LB',
+  'N ú mero de contrato de acceso: 500000000006',
+  'Identificaci ó n punto de suministro (CUPS): ES 0000 0000 0000 0001 AA',
   'Energ í a reactiva P1 0 kVArh','Energ í a reactiva P2 1 kVArh','Energ í a reactiva P3 1 kVArh',
   'Energ í a reactiva P4 0 kVArh','Energ í a reactiva P5 0 kVArh','Energ í a reactiva P6 3 kVArh',
   'Energ í a capacitiva P1 0 kVArh','Energ í a capacitiva P2 6 kVArh','Energ í a capacitiva P3 2 kVArh',
@@ -117,13 +117,13 @@ test('normaliza de forma central el artefacto real de acentos separados de PDF.j
 });
 
 test('entrada exacta de la auditoría PDF.js #14: Carla cierra a céntimo',()=>{
-  const r=parser.parse(carla(),{name:'FACTURA CARLA CARRER LLUM.pdf'});
+  const r=parser.parse(carla(),{name:'FACTURA CLIENTE PRUEBA ALFA.pdf'});
   assert.equal(r.readOk,true,JSON.stringify(r));
   assert.equal(r.invoiceNumber,'21260727010128461');
-  assert.equal(r.company,'CARLA FERRERO MALOW');
-  assert.equal(r.cups,'ES0031500164915001GV');
-  assert.equal(r.taxId,'47647341N');
-  assert.equal(r.accessContract,'500023491391');
+  assert.equal(r.company,'CLIENTE PRUEBA ALFA');
+  assert.equal(r.cups,'ES0000000000000002AA');
+  assert.equal(r.taxId,'00000001R');
+  assert.equal(r.accessContract,'500000000007');
   assert.equal(r.period,'22/06/2026 - 19/07/2026 (27 días)');
   assert.equal(r.tariff,'2.0TD');
   assert.equal(r.kwh,485.91);assert.equal(r.energy,72.27);assert.equal(r.power,24.66);
@@ -133,13 +133,13 @@ test('entrada exacta de la auditoría PDF.js #14: Carla cierra a céntimo',()=>{
 });
 
 test('entrada exacta de la auditoría PDF.js #14: Diana cierra a céntimo con P1=0 leído del contador',()=>{
-  const r=parser.parse(diana(),{name:'957890618_2026-06-08-170136007639_260720_153834.pdf'});
+  const r=parser.parse(diana(),{name:'600000001_2026-06-08-170136007639_260720_153834.pdf'});
   assert.equal(r.readOk,true,JSON.stringify(r));
   assert.equal(r.invoiceNumber,'21260608010256253','debe saltar las filas de marketing intercaladas entre cabecera y dato');
-  assert.equal(r.company,'DIANA MARIA CHRISTINA VINCES CABADA');
-  assert.equal(r.cups,'ES0031500744757001LB');
+  assert.equal(r.company,'ALICIA PRUEBA SINTETICA CLIENTE ALFA');
+  assert.equal(r.cups,'ES0000000000000001AA');
   assert.equal(r.distributor,'EDISTRIBUCION REDES DIGITALES S.L.U.');
-  assert.equal(r.accessContract,'500021702758');
+  assert.equal(r.accessContract,'500000000006');
   assert.equal(r.renewalDate,'25/08/2027');
   assert.equal(r.period,'27/04/2026 - 31/05/2026 (34 días)');
   assert.equal(r.tariff,'3.0TD');
