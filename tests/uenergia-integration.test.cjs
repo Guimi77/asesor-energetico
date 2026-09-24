@@ -45,8 +45,19 @@ test('el cruce con la fila principal soporta la columna de diagnostico movida',(
   assert.match(history,/c\[13\+offset\]/);
 });
 
-test('la factura de aprendizaje 26000001 queda excluida pero no el CUPS futuro',()=>{
-  assert.match(history,/HISTORY_EXCLUSIONS=\[\{source:'uenergia',invoiceNumber:'\d{8}',cups:'ES[A-Z0-9]{18,24}'/);
+test('la exclusión U Energia conserva la huella técnica sin CUPS ni nº factura identificativos',()=>{
+  const exclusionLine=history.split('\n').find(line=>line.includes('HISTORY_EXCLUSIONS='));
+  assert.ok(exclusionLine);
+  assert.match(exclusionLine,/billingStart:'2026-07-04'/);
+  assert.match(exclusionLine,/billingEnd:'2026-08-04'/);
+  assert.match(exclusionLine,/kwh:83/);
+  assert.match(exclusionLine,/power:11\.88/);
+  assert.match(exclusionLine,/total:52\.73/);
+  assert.doesNotMatch(exclusionLine,/invoiceNumber|cups:/);
+  assert.match(history,/item\.billingStart===x\?\.period\?\.start/);
+  assert.match(history,/same\(item\.kwh,x\?\.kwh,\.02\)/);
+  assert.match(history,/same\(item\.power,x\?\.power,\.02\)/);
+  assert.match(history,/same\(item\.total,x\?\.total,\.02\)/);
   assert.match(history,/reason:'user_excluded_invoice'/);
   assert.match(history,/excludedHistoryInvoice\(x\)/);
 });
