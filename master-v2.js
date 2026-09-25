@@ -529,7 +529,8 @@
     $('#clientType').value = supply.type || 'PENDIENTE';
     $('#clientName').value = supply.client || '';
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
-    $('#clientTaxId').value = supply.clientTaxId || supply.holderTaxId || '';
+    const sameLegalIdentity = key(supply.client) === key(supply.holder || supply.company);
+    $('#clientTaxId').value = supply.clientTaxId || (sameLegalIdentity ? (supply.holderTaxId || '') : '');
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
     if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
@@ -791,7 +792,7 @@
             continue;
           }
 
-          const result = upsertSupply(supply, { fillOnly: true, preserveIdentity: false });
+          const result = upsertSupply(supply, { allowMove: true, fillOnly: true, preserveIdentity: false });
           if (!result.ok) {
             blocked += 1;
             continue;
