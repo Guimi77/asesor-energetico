@@ -52,6 +52,16 @@ test('central writer is internal-only and uses the dedicated RPC', () => {
   assert.ok(!master.includes('Cambios guardados localmente; los alias centrales quedan pendientes'));
 });
 
+test('group clients never inherit a holder tax id as the client tax id', () => {
+  assert.ok(master.includes("const sameLegalIdentity = key(supply.client) === key(supply.holder || supply.company);"));
+  assert.ok(master.includes("supply.clientTaxId || (sameLegalIdentity ? (supply.holderTaxId || '') : '')"));
+  assert.ok(!master.includes("supply.clientTaxId || supply.holderTaxId || ''"));
+});
+
+test('a centrally accepted import may repair stale local ownership before the next reload', () => {
+  assert.ok(master.includes("upsertSupply(supply, { allowMove: true, fillOnly: true, preserveIdentity: false })"));
+});
+
 test('central sync treats Supabase values as authoritative for cached rows', () => {
   const marker = "source: 'Supabase · Base central'";
   const start = pilot.indexOf(marker);
