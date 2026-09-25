@@ -87,6 +87,18 @@ test('database write RPC is additive, canonical and ambiguity-safe', () => {
   assert.doesNotMatch(migration, /set\s+status\s*=\s*'archived'/i);
 });
 
+test('fill-only owner conflicts are rejected before any new hierarchy can be inserted', () => {
+  const guard = migration.indexOf("if v_existing.id is not null and v_mode = 'fill_only' then");
+  const conflict = migration.indexOf("return jsonb_build_object('ok', false, 'reason', 'owner_conflict')", guard);
+  const firstClientInsert = migration.indexOf('insert into public.clients', guard);
+  const firstHolderInsert = migration.indexOf('insert into public.holders', guard);
+
+  assert.ok(guard >= 0);
+  assert.ok(conflict > guard);
+  assert.ok(firstClientInsert > conflict);
+  assert.ok(firstHolderInsert > conflict);
+});
+
 test('browser cache markers force the new central-write code', () => {
   assert.match(index, /master-v2\.js\?v=20260925-centralwrite1/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central5/);
