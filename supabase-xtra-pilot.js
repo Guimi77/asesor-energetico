@@ -319,7 +319,7 @@
           source: 'Supabase · Base central',
         }, {
           allowMove: true,
-          fillOnly: true,
+          fillOnly: false,
           preserveIdentity: false,
         });
 
@@ -353,7 +353,7 @@
       }));
     } catch (error) {
       console.error('No se pudo sincronizar el maestro central desde Supabase', error);
-      setStatus(`no se ha podido leer el maestro central: ${String(error?.message || error)}. El maestro local continúa funcionando.`, 'error');
+      setStatus(`no se ha podido leer el maestro central: ${String(error?.message || error)}. La caché local continúa disponible temporalmente.`, 'error');
     } finally {
       syncing = false;
     }
