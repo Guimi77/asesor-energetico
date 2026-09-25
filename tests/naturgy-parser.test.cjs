@@ -10,7 +10,7 @@ N.º de factura: FE26000000000001
 Fecha de emisión: 24/03/2026
 Período electricidad:
 del 18/02/2026 al 16/03/2026
-N.º de referencia: 2000000000
+N.º de referencia: 600000001
 Nombre: CLIENTE DEMO                    CNAE: 9820
 Doc. Identidad: 00000000T
 3. Detalle: cómo calculamos tu factura
@@ -18,7 +18,7 @@ Período electricidad del 18/02/2026 al 16/03/2026
 Consumo electricidad 185 kWh x 0,144972 €/kWh 26,82 €
 Tarifa Por Uso Luz
 Contrato: Término potencia P1 5,750 kW x 27 días x 0,110283 €/kW día 17,12 €
-3007655309 Término potencia P2 5,750 kW x 27 días x 0,033469 €/kW día 5,20 €
+600000002 Término potencia P2 5,750 kW x 27 días x 0,033469 €/kW día 5,20 €
 27 días
 Financiación de Bono Social 27 días x 0,019121 €/día 0,52 €
 Subtotal 49,66 €
@@ -28,24 +28,24 @@ Total electricidad 50,63 €
 IVA (10%) 50,63 € x 10% 5,06 €
 Total a pagar 55,69 €
 N.º de contador:
-300765924 16/03/2026 Punta real 18.494 58 kWh
+600000003 16/03/2026 Punta real 18.494 58 kWh
 16/03/2026 Llano real 7.673 44 kWh
 16/03/2026 Valle real 5.860 83 kWh
 16/03/2026 Maxímetro P1 - 3,860 kW
 16/03/2026 Maxímetro P2 - 2,332 kW
 Las potencias máximas demandadas en el último año han sido 4,872 kW en P1 (punta) y 5,012 kW en P2 (valle).
-Código CUPS: ES0031500000000000AA Potencia contratada P1: 5,750 kW
+Código CUPS: ES0000000000000001AA Potencia contratada P1: 5,750 kW
 Distribuidora: EDISTRIBUCIÓN REDES DIGITALES, S.L.U. Potencia contratada P2: 5,750 kW
-N.º contrato de acceso: 500019568987 Segmento de cargos: 1
+N.º contrato de acceso: 600000004 Segmento de cargos: 1
 Peaje de transporte y distribución: 2.0TD Cuantía de peajes: 12,77 €
 Cuantía de cargos: 6,55 €
 Fecha final de contrato: 17/02/2027`;
 
 test('Naturgy detector is strict and isolated',()=>{
   assert.equal(parser.detect(sample),true);
-  assert.equal(parser.detect('IBERDROLA CLIENTES, S.A.U. RESUMEN DE FACTURA CUPS ES000000000000000000'),false);
-  assert.equal(parser.detect('Repsol Comercializadora de Electricidad y Gas, S.L.U. TOTAL FACTURA CUPS ES000000000000000000'),false);
-  assert.equal(parser.detect('Endesa Energía, S.A.U. Nº factura P26CON000001 CUPS ES000000000000000000'),false);
+  assert.equal(parser.detect('IBERDROLA CLIENTES, S.A.U. RESUMEN DE FACTURA CUPS ES0000000000000002AA'),false);
+  assert.equal(parser.detect('Repsol Comercializadora de Electricidad y Gas, S.L.U. TOTAL FACTURA CUPS ES0000000000000003AA'),false);
+  assert.equal(parser.detect('Endesa Energía, S.A.U. Nº factura P26CON000000001 CUPS ES0000000000000004AA'),false);
   assert.equal(parser.detect('FENIE ENERGÍA Razón Social DEMO Periodo Facturación Término potencia'),false);
 });
 
@@ -55,7 +55,7 @@ test('Naturgy 2.0TD maps to normalized energy model and balances',()=>{
   assert.equal(r.invoiceNumber,'FE26000000000001');
   assert.equal(r.company,'CLIENTE DEMO');
   assert.equal(r.taxId,'00000000T');
-  assert.equal(r.cups,'ES0031500000000000AA');
+  assert.equal(r.cups,'ES0000000000000001AA');
   assert.equal(r.period,'18/02/2026 - 16/03/2026 (27 días)');
   assert.equal(r.tariff,'2.0TD');
   assert.equal(r.kwh,185);
@@ -72,7 +72,7 @@ test('Naturgy 2.0TD maps to normalized energy model and balances',()=>{
   assert.deepEqual(r.contracted,{P1:5.75,P2:5.75});
   assert.equal(r.maximeters.P1,3.86);
   assert.equal(r.maximeters.P2,2.332);
-  assert.equal(r.accessContract,'500019568987');
+  assert.equal(r.accessContract,'600000004');
   assert.equal(r.distributor,'EDISTRIBUCIÓN REDES DIGITALES, S.L.U.');
 });
 
