@@ -361,6 +361,67 @@
     return removed;
   }
 
+  function replaceActiveFromCentral(rows = []) {
+    if (!Array.isArray(rows)) {
+      return { ok: false, reason: 'central_snapshot_invalid' };
+    }
+
+    const previousByKey = new Map(
+      supplies
+        .map((supply) => [cupsKey(supply.cups), supply])
+        .filter(([cups]) => cups)
+    );
+    const nextByKey = new Map();
+
+    let added = 0;
+    let enriched = 0;
+    let unchanged = 0;
+    let invalid = 0;
+
+    for (const raw of rows) {
+      const incoming = normalizeSupply(raw);
+      const wanted = cupsKey(incoming.cups);
+      if (!wanted || !wanted.startsWith('ES')) {
+        invalid += 1;
+        continue;
+      }
+
+      const existing = previousByKey.get(wanted);
+      const merged = existing
+        ? mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })
+        : incoming;
+
+      if (!existing) {
+        added += 1;
+      } else if (JSON.stringify(existing) !== JSON.stringify(merged)) {
+        enriched += 1;
+      } else {
+        unchanged += 1;
+      }
+
+      nextByKey.set(wanted, merged);
+    }
+
+    const nextKeys = new Set(nextByKey.keys());
+    const pruned = [...previousByKey.keys()].filter((cups) => !nextKeys.has(cups)).length;
+
+    supplies = [...nextByKey.values()];
+    save();
+    publish();
+    renderClients();
+    renderCups($('#cupsSearch')?.value || '');
+
+    return {
+      ok: true,
+      count: supplies.length,
+      added,
+      enriched,
+      unchanged,
+      pruned,
+      invalid,
+    };
+  }
+
   function archiveLocal(cups) {
     const wanted = cupsKey(cups);
     if (!wanted) return { ok: false, reason: 'cups_missing' };
@@ -458,6 +519,7 @@
       },
       learnInvoice,
       removeLocal,
+      replaceActiveFromCentral,
       archiveLocal,
       refresh: () => refresh(),
       __v2: true,
