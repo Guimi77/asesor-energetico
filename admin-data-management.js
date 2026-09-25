@@ -308,9 +308,12 @@
       if (code === 'supply_has_history') throw new Error('No se puede eliminar este CUPS porque tiene histórico o registros relacionados. Archívalo en su lugar.');
       if (code === 'holder_has_active_supplies') throw new Error(`No se puede archivar este titular porque todavía tiene ${deps?.active_supplies || 0} CUPS activo(s). Cambia primero el titular de esos suministros.`);
       if (code === 'holder_has_supplies') throw new Error(`No se puede eliminar este titular porque todavía tiene ${deps?.supplies || 0} suministro(s) asociado(s).`);
-      if (code === 'holder_tax_conflict') throw new Error('Ese NIF/CIF ya pertenece a otro titular. Revisa si debes cambiar el CUPS a ese titular en lugar de duplicarlo.');
+      if (code === 'holder_tax_conflict') throw new Error('Ese NIF/CIF/DNI/NIE ya pertenece a otro titular. Revisa si debes cambiar el CUPS a ese titular en lugar de duplicarlo.');
       if (code === 'holder_name_conflict') throw new Error('Ya existe otro titular con ese nombre dentro del mismo cliente.');
-      if (code === 'target_holder_not_active') throw new Error('El titular de destino no está activo.');
+      if (code === 'current_holder_tax_missing') throw new Error('El titular actual no tiene CIF/NIF/DNI/NIE. Corrige primero su identificación fiscal.');
+      if (code === 'latest_holder_identity_missing') throw new Error('La última factura válida no contiene nombre e identificación fiscal suficientes para cambiar el titular.');
+      if (code === 'latest_valid_invoice_not_found') throw new Error('No hay una factura válida reciente que permita determinar el nuevo titular.');
+      if (code === 'same_legal_identity') throw new Error('La identificación fiscal no ha cambiado. Es la misma persona o empresa; corrige el nombre si procede.');
       if (code === 'target_client_not_active') throw new Error('El cliente del titular de destino no está activo.');
       if (code === 'cannot_delete_self') throw new Error('No puedes eliminar la cuenta con la que estás conectado.');
       if (code === 'last_admin') throw new Error('No se puede eliminar el último administrador activo.');
