@@ -160,41 +160,53 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, holder: updated, client_synced: clientSynced });
     }
 
-    if (action === "reassign_supply_holder") {
-      const targetHolderId = body?.target_holder_id;
-      if (!validUuid(targetHolderId)) return json({ error: "invalid_target_holder" }, 400);
-
-      const [{ data: supply, error: supplyError }, { data: targetHolder, error: targetError }] = await Promise.all([
-        admin.from("supplies")
-          .select("id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status")
-          .eq("id", id)
-          .maybeSingle(),
-        admin.from("holders").select("id,client_id,legal_name,tax_id,status").eq("id", targetHolderId).maybeSingle(),
-      ]);
+    if (action === "apply_latest_invoice_holder") {
+      const { data: supply, error: supplyError } = await admin
+        .from("supplies")
+        .select("id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status")
+        .eq("id", id)
+        .maybeSingle();
       if (supplyError) throw supplyError;
-      if (targetError) throw targetError;
       if (!supply) return json({ error: "supply_not_found" }, 404);
-      if (!targetHolder) return json({ error: "target_holder_not_found" }, 404);
-      if (targetHolder.status !== "active") return json({ error: "target_holder_not_active" }, 409);
-      if (supply.holder_id === targetHolderId) return json({ ok: true, mode: "unchanged", supply_id: id });
 
-      const [{ data: oldHolder, error: oldHolderError }, { data: targetClient, error: targetClientError }] = await Promise.all([
-        admin.from("holders").select("id,client_id,legal_name,tax_id").eq("id", supply.holder_id).maybeSingle(),
-        admin.from("clients").select("id,name,tax_id,status").eq("id", targetHolder.client_id).maybeSingle(),
+      const [{ data: oldHolder, error: oldHolderError }, { data: invoiceRows, error: invoiceError }] = await Promise.all([
+        admin.from("holders").select("id,client_id,legal_name,tax_id,status").eq("id", supply.holder_id).maybeSingle(),
+        admin.from("invoices")
+          .select("id,billing_start,billing_end,issue_date,created_at,source_holder_name,source_holder_tax_id,validation_status,superseded_by")
+          .eq("supply_id", id)
+          .eq("validation_status", "valid")
+          .is("superseded_by", null),
       ]);
       if (oldHolderError) throw oldHolderError;
-      if (targetClientError) throw targetClientError;
-      if (!targetClient || targetClient.status !== "active") return json({ error: "target_client_not_active" }, 409);
+      if (invoiceError) throw invoiceError;
+      if (!oldHolder) return json({ error: "current_holder_not_found" }, 404);
+
+      const effectiveDate = (row: any) => String(row?.issue_date || row?.billing_end || row?.billing_start || row?.created_at || "");
+      const latest = (invoiceRows || [])
+        .filter((row: any) => String(row?.source_holder_name || "").trim())
+        .sort((a: any, b: any) => effectiveDate(b).localeCompare(effectiveDate(a)))[0];
+
+      if (!latest) return json({ error: "latest_valid_invoice_not_found" }, 409);
+
+      const taxKey = (value: unknown) => String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const currentTax = taxKey(oldHolder.tax_id);
+      const nextTax = taxKey(latest.source_holder_tax_id);
+      const nextName = String(latest.source_holder_name || "").trim();
+      const nextTaxRaw = String(latest.source_holder_tax_id || "").trim();
+
+      if (!currentTax) return json({ error: "current_holder_tax_missing" }, 409);
+      if (!nextTax || !nextName) return json({ error: "latest_holder_identity_missing" }, 409);
+      if (currentTax === nextTax) return json({ error: "same_legal_identity" }, 409);
 
       const { data: saved, error: saveError } = await userClient.rpc("save_master_supply", {
         p_payload: {
           mode: "manual",
           original_cups: supply.cups,
           cups: supply.cups,
-          client_name: targetClient.name,
-          client_tax_id: targetClient.tax_id,
-          holder_name: targetHolder.legal_name,
-          holder_tax_id: targetHolder.tax_id,
+          client_name: nextName,
+          client_tax_id: nextTaxRaw,
+          holder_name: nextName,
+          holder_tax_id: nextTaxRaw,
           supply_name: supply.supply_name,
           address: supply.address,
           city: supply.city,
@@ -209,39 +221,44 @@ Deno.serve(async (req: Request) => {
       if (saveError) throw saveError;
       if (!saved?.ok) return json({ error: saved?.reason || "holder_reassignment_rejected", details: saved }, 409);
 
+      const eventDate = String(latest.billing_start || latest.issue_date || latest.billing_end || new Date().toISOString().slice(0, 10)).slice(0, 10);
       const { error: eventError } = await admin.from("supply_events").insert({
         supply_id: id,
-        event_date: new Date().toISOString().slice(0, 10),
+        event_date: eventDate,
         event_type: "holder_change",
         title: "Cambio de titular",
-        description: "Titular actual del CUPS reasignado desde la gestión administrativa.",
-        before_value: oldHolder ? {
+        description: "Cambio de titular aplicado por identificación fiscal distinta en la última factura validada.",
+        before_value: {
           holder_id: oldHolder.id,
           client_id: oldHolder.client_id,
           legal_name: oldHolder.legal_name,
           tax_id: oldHolder.tax_id,
-        } : null,
+        },
         after_value: {
-          holder_id: targetHolder.id,
-          client_id: targetHolder.client_id,
-          legal_name: targetHolder.legal_name,
-          tax_id: targetHolder.tax_id,
+          holder_id: saved.holder_id || null,
+          client_id: saved.client_id || null,
+          legal_name: nextName,
+          tax_id: nextTaxRaw,
+          source_invoice_id: latest.id,
         },
         created_by: user.id,
       });
       if (eventError) console.warn("holder_change event", eventError);
 
-      const { count: oldActive, error: oldActiveError } = oldHolder
-        ? await admin.from("supplies").select("id", { head: true, count: "exact" }).eq("holder_id", oldHolder.id).eq("status", "active")
-        : { count: 0, error: null };
+      const { count: oldActive, error: oldActiveError } = await admin
+        .from("supplies")
+        .select("id", { head: true, count: "exact" })
+        .eq("holder_id", oldHolder.id)
+        .eq("status", "active");
       if (oldActiveError) console.warn("old holder active supply count", oldActiveError);
 
       return json({
         ok: true,
-        mode: "reassigned",
+        mode: "reassigned_from_latest_invoice",
         supply_id: id,
-        old_holder_id: oldHolder?.id || null,
-        new_holder_id: targetHolder.id,
+        old_holder_id: oldHolder.id,
+        new_holder_id: saved.holder_id || null,
+        new_client_id: saved.client_id || null,
         old_holder_active_supplies: oldActive || 0,
       });
     }
