@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: Xispa - Asesor Energetico
+  version: 1.0.0
+  description: API de solo lectura para consultar datos reales del Asesor Energetico de ELECTRICA BT MALLORCA.
+servers:
+  - url: https://rxvowuswudutuaajkcky.supabase.co/functions/v1/xispa-energy-query
+components:
+  securitySchemes:
+    XispaApiKey:
+      type: apiKey
+      in: header
+      name: x-xispa-key
+  schemas:
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 48
+      required: [query]
+    SupplyRequest:
+      type: object
+      properties:
+        supply_id:
+          type: string
+          format: uuid
+        cups:
+          type: string
+      description: Debe indicarse supply_id o cups.
+    HistoryRequest:
+      allOf:
+        - $ref: '#/components/schemas/SupplyRequest'
+        - type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 48
+    ClientRequest:
+      type: object
+      properties:
+        client_id:
+          type: string
+          format: uuid
+      required: [client_id]
+    InvoiceRequest:
+      type: object
+      properties:
+        invoice_id:
+          type: string
+          format: uuid
+      required: [invoice_id]
+security:
+  - XispaApiKey: []
+paths:
+  /health:
+    get:
+      operationId: energyHealth
+      summary: Comprobar disponibilidad de la API energetica
+      responses:
+        '200':
+          description: API disponible
+  /search-clients:
+    post:
+      operationId: searchEnergyClients
+      summary: Buscar clientes por nombre, referencia o identificador fiscal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Clientes encontrados
+        '401':
+          description: Credencial no valida
+  /search-supplies:
+    post:
+      operationId: searchEnergySupplies
+      summary: Buscar suministros por CUPS, nombre o direccion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Suministros encontrados
+  /client:
+    post:
+      operationId: getEnergyClient
+      summary: Obtener cliente, titulares y suministros
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRequest'
+      responses:
+        '200':
+          description: Detalle del cliente
+  /supply:
+    post:
+      operationId: getEnergySupply
+      summary: Obtener datos actuales de un suministro y su ultima factura
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplyRequest'
+      responses:
+        '200':
+          description: Detalle del suministro
+  /history:
+    post:
+      operationId: getEnergyHistory
+      summary: Obtener historico de facturas y periodos de un suministro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoryRequest'
+      responses:
+        '200':
+          description: Historico estructurado del suministro
+  /invoice:
+    post:
+      operationId: getEnergyInvoice
+      summary: Obtener detalle estructurado de una factura
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceRequest'
+      responses:
+        '200':
+          description: Detalle de la factura
+  /opportunities:
+    post:
+      operationId: getEnergyOpportunities
+      summary: Obtener recomendaciones e incidencias existentes de un suministro
+      description: Las recomendaciones son senales para revision y no deben presentarse como ahorro garantizado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplyRequest'
+      responses:
+        '200':
+          description: Recomendaciones e incidencias registradas

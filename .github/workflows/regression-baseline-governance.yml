@@ -1,0 +1,38 @@
+name: Regression baseline governance
+on:
+  pull_request:
+    paths:
+      - 'tests/regression-baselines.json'
+      - 'tests/regression-baseline-acceptance.json'
+      - 'tests/helpers/regression-baseline.cjs'
+      - 'tests/regression-baseline-governance.test.cjs'
+      - 'tools/promote-regression-baseline.js'
+      - 'REGRESSION_POLICY.md'
+      - '.github/workflows/regression-baseline-governance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/regression-baselines.json'
+      - 'tests/regression-baseline-acceptance.json'
+      - 'tests/helpers/regression-baseline.cjs'
+      - 'tests/regression-baseline-governance.test.cjs'
+      - 'tools/promote-regression-baseline.js'
+      - 'REGRESSION_POLICY.md'
+      - '.github/workflows/regression-baseline-governance.yml'
+permissions:
+  contents: read
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate central regression baseline
+        run: |
+          node --check tools/promote-regression-baseline.js
+          node --check tests/helpers/regression-baseline.cjs
+          node --test tests/regression-baseline-governance.test.cjs

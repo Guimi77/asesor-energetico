@@ -1,0 +1,47 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {acceptedCommit,at}=require('./helpers/regression-baseline.cjs');
+const ui=fs.readFileSync('history-ui.js','utf8'),base=acceptedCommit();
+const ctx={Map,Set,Number,Math,JSON,String,CHART_MIN_COVERAGE_RATIO:0.8,n:v=>Number(v)||0,monthKey:v=>String(v||'').slice(0,7),monthLabel:v=>v,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),money:v=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))};
+vm.createContext(ctx);vm.runInContext(ui.slice(ui.indexOf('  function aggregateMonthly'),ui.indexOf('  function powerSignature'))+'\nglobalThis.monthly=chartMonthly;globalThis.view=chartCoverageView;globalThis.coverage=renderChartCoverage;globalThis.plot=svgChart;globalThis.cost=svgCostChart;',ctx);
+const row=(s,m,k=100,e=20)=>({supply_id:s,billing_start:m+'-01',billing_end:m+'-28',consumption_kwh:k,total_eur:e});
+const plain=v=>JSON.parse(JSON.stringify(v));
+const part=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
+test('Counts distinct CUPS, not invoice count, with stable numerical totals',()=>{const r=[row('a','2026-01',3,1),row('a','2026-01',7,1),row('b','2026-01',10,2)];const copy=JSON.stringify(r);const p=ctx.monthly(r)[0];assert.equal(p.supplies,2);assert.equal(p.records,3);assert.equal(p.kwh,20);assert.equal(p.eur,4);assert.equal(JSON.stringify(r),copy);});
+test('Missing calendar month is a gap; explicit zero keeps its zero point',()=>{const p=ctx.monthly([row('a','2026-01',0,9),row('a','2026-03',10,2)]);assert.deepEqual(plain(p.map(x=>[x.key,x.kwh,x.eur,x.supplies])),[['2026-01',0,9,1],['2026-02',null,null,0],['2026-03',10,2,1]]);const h=ctx.plot(p,'kwh',v=>ctx.qty(v,0)+' kWh');assert.equal((h.match(/<circle /g)||[]).length,2);assert(h.includes('data-value="0"'));const path=h.match(/<path d="([^"]*)"/)[1];assert.equal((path.match(/M /g)||[]).length,2);assert(!path.includes('L '));});
+test('Missing and invalid totals never turn into a measured zero',()=>{for(const value of [null,undefined,'',' ',NaN,Infinity,false]){const p=ctx.monthly([{...row('a','2026-01'),consumption_kwh:value,total_eur:value}]);assert.equal(p[0].kwh,null);assert.equal(p[0].eur,null);assert(!ctx.plot(p,'kwh',String).includes('<circle'));assert(!ctx.cost(p).includes('<circle'));}});
+test('A partial numeric month is not plotted as if all values were known',()=>{const p=ctx.monthly([row('a','2026-01'),row('b','2026-01',null,40)]);assert.equal(p[0].kwh,null);assert.equal(p[0].eur,60);assert.equal(p[0].missingKwh,1);assert(!ctx.cost(p).includes('<circle'));});
+test('Portfolio charts retain old low-coverage months with their stored totals',()=>{const p=[{key:'2026-01',kwh:100,eur:20,supplies:1,records:1,supplySet:'["a"]',missingKwh:0,missingEur:0},{key:'2026-02',kwh:4200,eur:900,supplies:42,records:42,supplySet:'[]',missingKwh:0,missingEur:0}];const v=ctx.view(p,52);assert.equal(v.excluded,0);assert.deepEqual(plain(v.points.map(x=>[x.key,x.kwh,x.eur])),[['2026-01',100,20],['2026-02',4200,900]]);});
+test('A low-coverage month inside a range remains a real plotted point',()=>{const p=[{key:'2026-01',kwh:100,eur:20,supplies:42,records:42,supplySet:'a',missingKwh:0,missingEur:0},{key:'2026-02',kwh:5,eur:2,supplies:10,records:10,supplySet:'b',missingKwh:0,missingEur:0},{key:'2026-03',kwh:120,eur:24,supplies:44,records:44,supplySet:'c',missingKwh:0,missingEur:0}];const v=ctx.view(p,52);assert.equal(v.points.length,3);assert.equal(v.points[1].chartExcluded,false);assert.equal(v.points[1].kwh,5);const h=ctx.plot(v.points,'kwh',String);assert.equal((h.match(/<circle /g)||[]).length,3);});
+test('Latest partial portfolio month gets one plain-language note and no technical table',()=>{const p=[{key:'2026-07',kwh:200624.72,eur:55499.71,supplies:49,records:51,supplySet:'a',missingKwh:0,missingEur:0},{key:'2026-08',kwh:174077.40,eur:43720.70,supplies:28,records:28,supplySet:'b',missingKwh:0,missingEur:0}];const v=ctx.view(p,52),h=ctx.coverage(p,52,v);assert(h.includes('2026-08: datos parciales.'));assert(h.includes('28 de 52 suministros'));assert(h.includes('todavía no se compara'));assert(!h.includes('174077'));assert(!h.includes('<table'));assert(!h.includes('<details'));});
+test('Variable coverage is explained briefly instead of as a long technical warning',()=>{const p=ctx.monthly([row('a','2026-01'),row('b','2026-02')]),v=ctx.view(p,2),h=ctx.coverage(p,2,v);assert(h.includes('2026-02: datos parciales.'));assert(h.includes('1 de 2 suministros'));assert(!h.includes('Una subida o bajada del total no demuestra'));assert(!h.includes('<table'));});
+test('Complete single-CUPS coverage needs no warning card',()=>{const p=ctx.monthly([row('a','2026-01'),row('a','2026-02')]);assert.equal(ctx.coverage(p,1,ctx.view(p,1)),'');});
+test('Explicit filter bounds include missing months without losing overlapping bills',()=>{const p=ctx.monthly([row('a','2026-02')],'2026-01-12','2026-03-05');assert.deepEqual(plain(p.map(x=>x.key)),['2026-01','2026-02','2026-03']);assert.equal(p[0].records,0);assert.deepEqual(plain(ctx.monthly([])),[]);assert.equal(ctx.coverage([],2),'');});
+test('Cross-year months remain distinct and ordered',()=>{assert.deepEqual(plain(ctx.monthly([row('a','2025-12'),row('a','2026-02')]).map(p=>p.key)),['2025-12','2026-01','2026-02']);});
+test('Large synthetic numbers stay complete in SVG and point tooltips carry coverage',()=>{const p=ctx.monthly([row('a','2026-01',345678.25,56000.99)]);const h=ctx.plot(p,'kwh',v=>ctx.qty(v,0)+' kWh');assert(h.includes('345.678 kWh'));assert(h.includes('1 CUPS con registros'));assert(h.includes('data-value="345678.25"'));assert(h.includes('history-axis-value'));});
+test('Negative charges and actual zero cost are retained without invalid coordinates',()=>{const p=ctx.monthly([row('a','2026-01',10,-4),row('a','2026-02',10,0)]);const h=ctx.plot(p,'eur',String);assert(h.includes('data-value="-4"'));assert(h.includes('data-value="0"'));assert(!/NaN|Infinity/.test(h));assert(ctx.cost(p).includes('data-cost="0"'));});
+test('No work is scheduled by coverage or plot code',()=>{const src=ui.slice(ui.indexOf('  // Coverage presentation'),ui.indexOf('  function powerSignature'));assert(!/MutationObserver|setInterval\s*\(|setTimeout\s*\(|fetch\s*\(|localStorage|\.from\s*\(/.test(src));});
+test('Coverage changes stay isolated from authentication, history data and FENIE extraction',()=>{
+ assert(!/supabase\.auth\.|signInWithPassword|signUp\s*\(/.test(ui),'history-ui.js must stay independent from authentication logic');
+ assert(ui.includes('const supplyIds = effectiveSupplies().map(s=>s.id);'));
+ assert(ui.includes("const holder = $('#historyHolderSearch');"));
+ assert(ui.includes("const supply = $('#historySupplySearch');"));
+ assert(ui.includes("$('.history-combo-menu').forEach(menu => {"));
+ assert(!ui.includes("$('#historyHolder')?.addEventListener('change'"));
+ assert(!ui.includes("$('#historySupply')?.addEventListener('change'"));
+ const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=at(base,'supply-enricher-v2.js');
+ assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
+ for(const token of [
+  "format==='uenergia'?parseUenergiaSupply(pdfData,file)",
+  "format==='iberdrola'?parseIberdrolaSupply(pdfData,file)",
+  "format==='repsol'?parseRepsolSupply(pdfData,file)",
+  "format==='naturgy'?parseNaturgySupply(pdfData,file)",
+  "format==='fenie'?parseSupply(allLines)",
+  "format==='endesa'?parseEndesaSupply(pdfData.pages,file)"
+ ]) assert(enricher.includes(token),token);
+ // A missing energy breakdown must never be reinterpreted as a legitimate zero merely because the invoice total exists.
+ const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));assert(audit.includes('if(consumption>0&&energy<=0)'));
+ const historyExport=fs.readFileSync('history-client-export.js','utf8'),clientExport=fs.readFileSync('client-report-export.js','utf8');
+ for(const code of [historyExport,clientExport]){assert(!/getDocument\s*\(|arrayBuffer\s*\(/.test(code));}
+ assert(historyExport.includes('reportCoverage'));assert(historyExport.includes('readingLabel'));
+});

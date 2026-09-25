@@ -1,0 +1,27 @@
+name: Users directory regression
+
+on:
+  push:
+    paths:
+      - 'client-search.js'
+      - '.github/workflows/users-directory-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax and user directory checks
+        run: |
+          node --check client-search.js
+          grep -q "id='userSearch'\|id=\"userSearch\"\|input.id='userSearch'" client-search.js
+          grep -q "localeCompare" client-search.js
+          grep -q "cliente asignado" client-search.js
+          grep -q "user-client-assign-search" client-search.js
+          grep -q "Buscar cliente para asignar" client-search.js
+          grep -q "Sin coincidencias" client-search.js
+          grep -q "matches.slice(0,q?25:15)" client-search.js

@@ -1,0 +1,55 @@
+name: Parser regression
+on:
+  push:
+    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'iberdrola-parser.js', 'iberdrola-parser-hardening.js', 'iberdrola-parser-v2.js', 'iberdrola-parser-v3.js', 'repsol-parser.js', 'uenergia-parser.js', 'naturgy-parser.js', 'pdf-text-normalizer.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'master-v2.js', 'tests/**', '.github/workflows/parser-regression.yml']
+  pull_request:
+    paths: ['index.html', 'app.js', 'invoice-supersession.js', 'fenie-ocr-fallback.js', 'client-report-export.js', 'invoice-formats.js', 'iberdrola-parser.js', 'iberdrola-parser-hardening.js', 'iberdrola-parser-v2.js', 'iberdrola-parser-v3.js', 'repsol-parser.js', 'uenergia-parser.js', 'naturgy-parser.js', 'pdf-text-normalizer.js', 'endesa-source-validation.js', 'endesa-power-period-fix.js', 'endesa-status-consistency.js', 'reading-status.js', 'xtra-history.js', 'parser-audit.js', 'bulk-performance.js', 'folder-upload.js', 'supply-enricher-v2.js', 'supply-source-guard.js', 'supply-lifecycle.js', 'lifecycle-analysis-guard.js', 'analysis-ui.js', 'alerts-ui.js', 'human-language.js', 'auth-bootstrap.js', 'tests/**', '.github/workflows/parser-regression.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  power-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check app.js
+          node --check invoice-supersession.js
+          node --check fenie-ocr-fallback.js
+          node --check fenie-supply-location.js
+          node --check client-report-export.js
+          node --check invoice-formats.js
+          node --check pdf-text-normalizer.js
+          node --check iberdrola-parser.js
+          node --check iberdrola-parser-v2.js
+          node --check iberdrola-parser-v3.js
+          node --check repsol-parser.js
+          node --check uenergia-parser.js
+          node --check naturgy-parser.js
+          node --check iberdrola-parser-hardening.js
+          node --check endesa-source-validation.js
+          node --check endesa-power-period-fix.js
+          node --check endesa-status-consistency.js
+          node --check reading-status.js
+          node --check xtra-history.js
+          node --check parser-audit.js
+          node --check bulk-performance.js
+          node --check folder-upload.js
+          node --check supply-enricher-v2.js
+          node --check master-v2.js
+          node --check supply-source-guard.js
+          node --check supply-lifecycle.js
+          node --check lifecycle-analysis-guard.js
+          node --check analysis-ui.js
+          node --check alerts-ui.js
+          node --check human-language.js
+          node --check auth-bootstrap.js
+      - name: Run synthetic and real-layout regression cases
+        run: node --test tests/invoice-supersession.test.cjs tests/power-regression.test.cjs tests/fenie-ocr-fallback.test.cjs tests/fenie-supply-location.test.cjs tests/client-report-export.test.cjs tests/xtra-completeness.test.cjs tests/supply-lifecycle.test.cjs tests/lifecycle-analysis-guard.test.cjs tests/alerts-ui.test.cjs tests/invoice-formats.test.cjs tests/iberdrola-parser.test.cjs tests/iberdrola-browser-layout-regression.test.cjs tests/iberdrola-hardening-regression.test.cjs tests/iberdrola-v2-real-layout.test.cjs tests/iberdrola-v3-runtime-regression.test.cjs tests/iberdrola-pdfjs-audit14.test.cjs tests/iberdrola-integration.test.cjs tests/repsol-parser.test.cjs tests/repsol-integration.test.cjs tests/uenergia-parser.test.cjs tests/uenergia-integration.test.cjs tests/naturgy-parser.test.cjs tests/naturgy-integration.test.cjs tests/endesa-real-layout-regression.test.cjs tests/endesa-source-validation.test.cjs tests/endesa-power-period-fix.test.cjs tests/endesa-runtime-cache.test.cjs tests/endesa-status-consistency.test.cjs tests/reading-status.test.cjs tests/pdf-text-normalizer.test.cjs tests/parser-diagnostic-export.test.cjs tests/runtime-cache-bust.test.cjs

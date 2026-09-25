@@ -1,0 +1,31 @@
+name: Central master write regression
+
+on:
+  push:
+    paths:
+      - 'master-v2.js'
+      - 'supabase-xtra-pilot.js'
+      - 'auth-bootstrap.js'
+      - 'index.html'
+      - 'supabase/migrations/20260925094000_central_master_writes.sql'
+      - 'tests/central-master-write.test.cjs'
+      - '.github/workflows/central-master-write-regression.yml'
+  pull_request:
+    paths:
+      - 'master-v2.js'
+      - 'supabase-xtra-pilot.js'
+      - 'auth-bootstrap.js'
+      - 'index.html'
+      - 'supabase/migrations/20260925094000_central_master_writes.sql'
+      - 'tests/central-master-write.test.cjs'
+      - '.github/workflows/central-master-write-regression.yml'
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/central-master-write.test.cjs

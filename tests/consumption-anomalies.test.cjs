@@ -1,0 +1,27 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const api=require('../consumption-anomalies.js');
+const supplies=[{id:'s1',holder_id:'h1',cups:'ES_TEST',status:'active',supply_name:'Local'}];
+function rec(i,kwh,patch={}){const starts=['2026-01-01','2026-02-01','2026-03-01','2026-04-01','2026-05-01','2026-06-01'];const ends=['2026-02-01','2026-03-01','2026-04-01','2026-05-01','2026-06-01','2026-07-01'];const days=[31,28,31,30,31,30];return {id:'r'+i,invoice_number:'INV-'+i,supply_id:'s1',billing_start:starts[i],billing_end:ends[i],billing_days:days[i],validation_status:'valid',reading_status:'actual',consumption_kwh:kwh,...patch};}
+const analyze=(records,scope=supplies)=>api.analyze({records,supplies:scope});
+test('Requires five consecutive comparable periods',()=>{assert.equal(analyze([rec(0,300),rec(1,300),rec(2,300),rec(3,600)]).length,0);});
+test('Detects sustained increase using kWh per day, not raw kWh',()=>{const rows=[rec(0,310),rec(1,280),rec(2,310),rec(3,620),rec(4,620)];const x=analyze(rows)[0];assert(x);assert.equal(x.type,'consumption-up');assert.equal(x.confidence,'alta');assert(x.changeRatio>0.9);assert.match(x.evidence,/kWh\/día/);});
+test('Detects sustained decrease only when both recent periods move together',()=>{const rows=[rec(0,620),rec(1,560),rec(2,620),rec(3,250),rec(4,250)];const x=analyze(rows)[0];assert(x);assert.equal(x.type,'consumption-down');assert(x.changeRatio<-0.5);});
+test('Single spike does not create a sustained signal',()=>{const rows=[rec(0,310),rec(1,280),rec(2,310),rec(3,650),rec(4,310)];assert.equal(analyze(rows).length,0);});
+test('Estimated or missing distributor readings break the comparison window',()=>{const base=[rec(0,310),rec(1,300),rec(2,320),rec(3,650),rec(4,650)];for(const status of ['estimated','no_distributor_reading']){const rows=base.map(x=>({...x}));rows[2].reading_status=status;assert.equal(analyze(rows).length,0,status);}});
+test('Unknown positive readings are allowed only with medium confidence',()=>{const rows=[rec(0,310),rec(1,300),rec(2,320),rec(3,650,{reading_status:'unknown'}),rec(4,650,{reading_status:'unknown'})];const x=analyze(rows)[0];assert(x);assert.equal(x.confidence,'media');assert.match(x.caveat,/no determinada/);});
+test('Zero kWh does not become trend evidence even when reading is unknown',()=>{const rows=[rec(0,310),rec(1,300),rec(2,320),rec(3,0,{reading_status:'unknown'}),rec(4,0,{reading_status:'unknown'})];assert.equal(analyze(rows).length,0);});
+test('Small absolute changes are ignored even with a large percentage',()=>{const rows=[rec(0,70),rec(1,60),rec(2,65),rec(3,130),rec(4,130)];assert.equal(analyze(rows).length,0);});
+test('Inactive supplies never generate current consumption signals',()=>{const rows=[rec(0,310),rec(1,300),rec(2,320),rec(3,650),rec(4,650)];assert.equal(analyze(rows,[{...supplies[0],status:'inactive'}]).length,0);});
+test('Uses billed days and reproduces the verified Guillem +40.14 percent signal',()=>{
+  const rows=[
+    {id:'g1',invoice_number:'P26CON018283155',supply_id:'s1',billing_start:'2026-03-18',billing_end:'2026-04-21',billing_days:34,validation_status:'valid',reading_status:'actual',consumption_kwh:928.428},
+    {id:'g2',invoice_number:'P26CON022498493',supply_id:'s1',billing_start:'2026-04-21',billing_end:'2026-05-19',billing_days:28,validation_status:'valid',reading_status:'actual',consumption_kwh:395.048},
+    {id:'g3',invoice_number:'P26CON027006982',supply_id:'s1',billing_start:'2026-05-19',billing_end:'2026-06-17',billing_days:29,validation_status:'valid',reading_status:'actual',consumption_kwh:469.309},
+    {id:'g4',invoice_number:'P26CON031576830',supply_id:'s1',billing_start:'2026-06-17',billing_end:'2026-07-19',billing_days:32,validation_status:'valid',reading_status:'actual',consumption_kwh:691.128},
+    {id:'g5',invoice_number:'P26CON036026175',supply_id:'s1',billing_start:'2026-07-19',billing_end:'2026-08-19',billing_days:31,validation_status:'valid',reading_status:'actual',consumption_kwh:736.563},
+  ];
+  const x=analyze(rows)[0];assert(x);assert.equal(x.confidence,'alta');assert(Math.abs(x.changeRatio-0.4014)<0.0002);assert(Math.abs(x.baselineKwhDay-16.18307)<0.0002);assert(Math.abs(x.recentKwhDay-22.67892)<0.0002);assert.match(x.evidence,/mediana de los 3 periodos anteriores/);assert.match(x.evidence,/días de facturación guardados/);assert.equal(x.sources[3].days,32);assert.equal(x.sources[4].days,31);
+});
+test('Render explains confidence and does not claim savings',()=>{const rows=[rec(0,310),rec(1,300),rec(2,320),rec(3,650,{reading_status:'unknown'}),rec(4,650,{reading_status:'unknown'})];const html=api.render({records:rows,supplies,holders:[{id:'h1',legal_name:'Titular'}]});assert.match(html,/Cambios sostenidos de consumo/);assert.match(html,/Confianza media/);assert.match(html,/No es una estimación de ahorro/);assert.match(html,/kWh\/día/);assert.match(html,/Qué cambio se ha detectado/);});
+test('No background processing, network or storage is introduced',()=>{const s=fs.readFileSync('consumption-anomalies.js','utf8');for(const re of [/MutationObserver/,/setInterval\s*\(/,/setTimeout\s*\(/,/fetch\s*\(/,/\.rpc\s*\(/,/localStorage/,/getDocument\s*\(/])assert(!re.test(s),String(re));});

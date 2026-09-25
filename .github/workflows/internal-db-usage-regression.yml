@@ -1,0 +1,32 @@
+name: Internal database usage regression
+
+on:
+  push:
+    paths:
+      - 'internal-db-usage.js'
+      - 'internal-db-usage.css'
+      - 'index.html'
+      - 'supabase/migrations/20260921142500_internal_database_usage.sql'
+      - 'tests/internal-db-usage.test.cjs'
+      - '.github/workflows/internal-db-usage-regression.yml'
+  pull_request:
+    paths:
+      - 'internal-db-usage.js'
+      - 'internal-db-usage.css'
+      - 'index.html'
+      - 'supabase/migrations/20260921142500_internal_database_usage.sql'
+      - 'tests/internal-db-usage.test.cjs'
+      - '.github/workflows/internal-db-usage-regression.yml'
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and access regression
+        run: |
+          node --check internal-db-usage.js
+          node --test tests/internal-db-usage.test.cjs
