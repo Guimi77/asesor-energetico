@@ -10,7 +10,8 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'supabase-xtra-pilot.j
 const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'auth-bootstrap.js'), 'utf8');
 
 function cupsKey(value) {
-  return String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const compact = String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return compact.startsWith('ES') && compact.length >= 20 ? compact.slice(0, 20) : compact;
 }
 
 function buildHarness(role = 'admin', options = {}) {
@@ -39,7 +40,6 @@ function buildHarness(role = 'admin', options = {}) {
       { id: 's-xtra-2', holder_id: 'holder-xtra-2', cups: 'ES0000000000000002AA', supply_name: 'XTRA 2', address: 'B', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X2', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
       { id: 's-guillem', holder_id: 'holder-guillem', cups: 'ES0000000000000003AA0F', supply_name: 'Guillem', address: 'C', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '2.0TD', current_contract_number: 'G1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
       { id: 's-maria', holder_id: 'holder-maria', cups: 'ES0000000000000004AA', supply_name: 'Maria', address: 'D', city: 'Esporles', province: 'Illes Balears', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'M1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
-      { id: 's-albert-nq', holder_id: 'holder-albert', cups: 'ES0000000000000005AA', supply_name: 'SUMINISTRO PRUEBA 24', address: 'SUMINISTRO PRUEBA 24, 07190 ESPORLES (BALEARS)', city: 'ESPORLES', province: 'BALEARS', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'CO-0000-000001_0.0', current_retailer: 'FENIE ENERGIA', current_distributor: 'E-DISTRIBUCION REDES DIGITALES, S.L.U.', status: 'active' },
     ],
   };
 
@@ -62,7 +62,7 @@ function buildHarness(role = 'admin', options = {}) {
       tariff: '2.0TD', contract: 'G2', retailer: 'ENDESA', distributor: 'D2', status: 'ACTIVO', source: 'Aprendido de factura',
     },
     {
-      client: 'CLIENTE PRUEBA DOS', clientTaxId: '00000003A', company: 'CLIENTE PRUEBA DOS', holderTaxId: '00000003A', cups: 'ES0000000000000009AA0G',
+      client: 'CLIENTE PRUEBA DOS', clientTaxId: '00000003A', company: 'CLIENTE PRUEBA DOS', holderTaxId: '00000003A', cups: 'ES0000000000000005AA0G',
       name: 'SUMINISTRO PRUEBA D', address: 'F', city: 'Esporles', province: 'Illes Balears', postalCode: '07190',
       tariff: '2.0TD', contract: 'M2', retailer: 'ENDESA', distributor: 'D2', status: 'ACTIVO', source: 'Aprendido de factura',
     },
@@ -230,7 +230,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
 
   assert.equal(window.CentralSupabaseMaster.scope, 'all-active-clients');
   assert.equal(window.CentralSupabaseMaster.mode, 'central-master-global-reconciliation-with-audit');
-  assert.equal(added.length, 10);
+  assert.equal(added.length, 9);
   assert.deepEqual(new Set(added.map(({ item }) => item.client)), new Set([
     'CLIENTE PRUEBA CENTRAL',
     'CLIENTE PRUEBA UNO',
@@ -242,7 +242,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
     ['CLIENTE PRUEBA CENTRAL', 3],
     ['CLIENTE PRUEBA UNO', 2],
     ['CLIENTE PRUEBA DOS', 2],
-    ['CLIENTE PRUEBA TRES', 3],
+    ['CLIENTE PRUEBA TRES', 2],
   ]);
   for (const [client, expected] of expectedCounts) {
     assert.equal(added.filter(({ item }) => item.client === client).length, expected, `${client} must preserve every distinct supply`);
@@ -257,7 +257,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
     'CLIENTE PRUEBA TRES',
   ]));
   assert.equal(datasets.holders.length, 5, 'reconciliation must never duplicate holders');
-  assert.equal(datasets.supplies.length, 10, 'central master must contain all original and recovered supplies');
+  assert.equal(datasets.supplies.length, 9, 'central master must contain all original and recovered supplies');
 
   assert.ok(calls.some((call) => call.table === 'clients' && call.op === 'eq' && call.column === 'status' && call.value === 'active'));
   assert.ok(calls.some((call) => call.table === 'holders' && call.op === 'in' && call.column === 'client_id'));
@@ -266,7 +266,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
 
   assert.equal(status.dataset.remoteStatus, 'ok');
   assert.match(status.innerHTML, /4 clientes/);
-  assert.match(status.innerHTML, /10 CUPS activos leídos/);
+  assert.match(status.innerHTML, /9 CUPS activos leídos/);
   assert.match(status.innerHTML, /5 CUPS heredados recuperados en central/);
   assert.doesNotMatch(status.innerHTML, /sigue[n]? fuera de la base central/);
 
@@ -276,10 +276,39 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.equal(centralEvent.detail.legacyIdentityUnresolved, 0);
 });
 
+test('CUPS extensions share the same canonical supply identity', async () => {
+  const { window, calls, datasets, dispatched } = buildHarness('admin', {
+    extraLocalRows: [{
+      client: 'CLIENTE PRUEBA DOS',
+      clientTaxId: '00000003A',
+      company: 'CLIENTE PRUEBA DOS',
+      holderTaxId: '00000003A',
+      cups: 'ES0000000000000004AA0Z',
+      status: 'ACTIVO',
+      source: 'Aprendido de factura',
+    }],
+  });
+
+  await window.CentralSupabaseMaster.reload();
+
+  const extensionCalls = calls.filter((call) =>
+    call.op === 'rpc' &&
+    (
+      (call.args?.p_cups && cupsKey(call.args.p_cups) === cupsKey('ES0000000000000004AA')) ||
+      (call.args?.p_payload?.cups && cupsKey(call.args.p_payload.cups) === cupsKey('ES0000000000000004AA'))
+    )
+  );
+  assert.equal(extensionCalls.length, 0, 'a suffix variant of an existing CUPS must not be promoted as a new supply');
+  assert.equal(datasets.supplies.filter((item) => cupsKey(item.cups) === cupsKey('ES0000000000000004AA')).length, 1);
+
+  const centralEvent = dispatched.find((event) => event.type === 'central-supabase-synced');
+  assert.ok(centralEvent);
+  assert.equal(centralEvent.detail.legacyPending, 0);
+});
+
 test('a tax-identified legacy client and holder missing from Supabase are promoted without losing the CUPS', async () => {
-  const recoveredCups = 'ES0000000000000000AA';
+  const recoveredCups = 'ES0000000000000009AA';
   const { window, calls, added, status, datasets, dispatched } = buildHarness('admin', {
-    excludeLocalCups: ['ES0000000000000000AA0A'],
     extraLocalRows: [{
       client: 'CLIENTE PRUEBA NUEVO',
       clientTaxId: '00000004G',
@@ -325,7 +354,7 @@ test('a tax-identified legacy client and holder missing from Supabase are promot
 });
 
 test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of being silently omitted', async () => {
-  const pendingCups = 'ES0000000000000004AA0Z';
+  const pendingCups = 'ES0000000000000009AA0Z';
   const { window, status, dispatched } = buildHarness('admin', {
     extraLocalRows: [{
       client: 'CLIENTE DESCONOCIDO',
