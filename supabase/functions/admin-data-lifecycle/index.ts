@@ -88,40 +88,213 @@ Deno.serve(async (req: Request) => {
       const taxId = body?.tax_id == null ? null : String(body.tax_id).trim() || null;
       if (!legalName) return json({ error: "invalid_holder_name" }, 400);
 
-      const { data, error } = await admin.rpc("admin_update_holder", {
-        p_holder_id: id,
-        p_legal_name: legalName,
-        p_tax_id: taxId,
-        p_actor: user.id,
+      const { data: holder, error: holderError } = await admin
+        .from("holders")
+        .select("id,client_id,legal_name,tax_id,status")
+        .eq("id", id)
+        .maybeSingle();
+      if (holderError) throw holderError;
+      if (!holder) return json({ error: "holder_not_found" }, 404);
+
+      const [{ data: peers, error: peersError }, { data: client, error: clientError }, { data: clientHolders, error: clientHoldersError }] = await Promise.all([
+        admin.from("holders").select("id,client_id,legal_name,tax_id").neq("id", id),
+        admin.from("clients").select("id,name,tax_id,status").eq("id", holder.client_id).maybeSingle(),
+        admin.from("holders").select("id,legal_name,tax_id").eq("client_id", holder.client_id),
+      ]);
+      if (peersError) throw peersError;
+      if (clientError) throw clientError;
+      if (clientHoldersError) throw clientHoldersError;
+
+      const clean = (value: unknown) => String(value ?? "").trim().toLowerCase();
+      const taxKey = (value: unknown) => String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const nextTaxKey = taxKey(taxId);
+      if (nextTaxKey && (peers || []).some((row: any) => taxKey(row.tax_id) === nextTaxKey)) {
+        return json({ error: "holder_tax_conflict" }, 409);
+      }
+      if ((peers || []).some((row: any) => row.client_id === holder.client_id && clean(row.legal_name) === clean(legalName))) {
+        return json({ error: "holder_name_conflict" }, 409);
+      }
+
+      const oldHolderTax = taxKey(holder.tax_id);
+      const clientTax = taxKey(client?.tax_id);
+      const mirrorClient = Boolean(
+        client &&
+        (clientHolders || []).length === 1 &&
+        clean(client.name) === clean(holder.legal_name) &&
+        (!oldHolderTax || !clientTax || oldHolderTax === clientTax)
+      );
+
+      const now = new Date().toISOString();
+      const { data: updated, error: updateError } = await admin
+        .from("holders")
+        .update({ legal_name: legalName, tax_id: taxId, updated_at: now })
+        .eq("id", id)
+        .select("id,client_id,legal_name,tax_id,status")
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!updated) return json({ error: "holder_not_found" }, 404);
+
+      let clientSynced = false;
+      if (mirrorClient && client) {
+        const { error: syncError } = await admin
+          .from("clients")
+          .update({ name: legalName, tax_id: taxId, updated_at: now })
+          .eq("id", client.id);
+        if (syncError) throw syncError;
+        clientSynced = true;
+      }
+
+      const { error: auditError } = await admin.from("audit_log").insert({
+        actor_user_id: user.id,
+        action: "holder_updated",
+        entity_type: "holder",
+        entity_id: id,
+        details: {
+          before: { legal_name: holder.legal_name, tax_id: holder.tax_id },
+          after: { legal_name: legalName, tax_id: taxId },
+          client_synced: clientSynced,
+        },
       });
-      if (error) throw error;
-      if (!data?.ok) return json(data || { error: "holder_update_rejected" }, 409);
-      return json(data);
+      if (auditError) console.warn("holder_updated audit", auditError);
+
+      return json({ ok: true, holder: updated, client_synced: clientSynced });
     }
 
     if (action === "reassign_supply_holder") {
       const targetHolderId = body?.target_holder_id;
       if (!validUuid(targetHolderId)) return json({ error: "invalid_target_holder" }, 400);
 
-      const { data, error } = await admin.rpc("admin_reassign_supply_holder", {
-        p_supply_id: id,
-        p_target_holder_id: targetHolderId,
-        p_actor: user.id,
+      const [{ data: supply, error: supplyError }, { data: targetHolder, error: targetError }] = await Promise.all([
+        admin.from("supplies")
+          .select("id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status")
+          .eq("id", id)
+          .maybeSingle(),
+        admin.from("holders").select("id,client_id,legal_name,tax_id,status").eq("id", targetHolderId).maybeSingle(),
+      ]);
+      if (supplyError) throw supplyError;
+      if (targetError) throw targetError;
+      if (!supply) return json({ error: "supply_not_found" }, 404);
+      if (!targetHolder) return json({ error: "target_holder_not_found" }, 404);
+      if (targetHolder.status !== "active") return json({ error: "target_holder_not_active" }, 409);
+      if (supply.holder_id === targetHolderId) return json({ ok: true, mode: "unchanged", supply_id: id });
+
+      const [{ data: oldHolder, error: oldHolderError }, { data: targetClient, error: targetClientError }] = await Promise.all([
+        admin.from("holders").select("id,client_id,legal_name,tax_id").eq("id", supply.holder_id).maybeSingle(),
+        admin.from("clients").select("id,name,tax_id,status").eq("id", targetHolder.client_id).maybeSingle(),
+      ]);
+      if (oldHolderError) throw oldHolderError;
+      if (targetClientError) throw targetClientError;
+      if (!targetClient || targetClient.status !== "active") return json({ error: "target_client_not_active" }, 409);
+
+      const { data: saved, error: saveError } = await userClient.rpc("save_master_supply", {
+        p_payload: {
+          mode: "manual",
+          original_cups: supply.cups,
+          cups: supply.cups,
+          client_name: targetClient.name,
+          client_tax_id: targetClient.tax_id,
+          holder_name: targetHolder.legal_name,
+          holder_tax_id: targetHolder.tax_id,
+          supply_name: supply.supply_name,
+          address: supply.address,
+          city: supply.city,
+          province: supply.province,
+          postal_code: supply.postal_code,
+          tariff: supply.current_tariff,
+          contract_number: supply.current_contract_number,
+          retailer: supply.current_retailer,
+          distributor: supply.current_distributor,
+        },
       });
-      if (error) throw error;
-      if (!data?.ok) return json(data || { error: "holder_reassignment_rejected" }, 409);
-      return json(data);
+      if (saveError) throw saveError;
+      if (!saved?.ok) return json({ error: saved?.reason || "holder_reassignment_rejected", details: saved }, 409);
+
+      const { error: eventError } = await admin.from("supply_events").insert({
+        supply_id: id,
+        event_date: new Date().toISOString().slice(0, 10),
+        event_type: "holder_change",
+        title: "Cambio de titular",
+        description: "Titular actual del CUPS reasignado desde la gestión administrativa.",
+        before_value: oldHolder ? {
+          holder_id: oldHolder.id,
+          client_id: oldHolder.client_id,
+          legal_name: oldHolder.legal_name,
+          tax_id: oldHolder.tax_id,
+        } : null,
+        after_value: {
+          holder_id: targetHolder.id,
+          client_id: targetHolder.client_id,
+          legal_name: targetHolder.legal_name,
+          tax_id: targetHolder.tax_id,
+        },
+        created_by: user.id,
+      });
+      if (eventError) console.warn("holder_change event", eventError);
+
+      const { count: oldActive, error: oldActiveError } = oldHolder
+        ? await admin.from("supplies").select("id", { head: true, count: "exact" }).eq("holder_id", oldHolder.id).eq("status", "active")
+        : { count: 0, error: null };
+      if (oldActiveError) console.warn("old holder active supply count", oldActiveError);
+
+      return json({
+        ok: true,
+        mode: "reassigned",
+        supply_id: id,
+        old_holder_id: oldHolder?.id || null,
+        new_holder_id: targetHolder.id,
+        old_holder_active_supplies: oldActive || 0,
+      });
     }
 
     if (["archive_holder", "restore_holder", "delete_holder"].includes(action)) {
-      const { data, error } = await admin.rpc("admin_holder_lifecycle", {
-        p_action: action,
-        p_holder_id: id,
-        p_actor: user.id,
+      const { data: holder, error: holderError } = await admin
+        .from("holders")
+        .select("id,client_id,legal_name,tax_id,status")
+        .eq("id", id)
+        .maybeSingle();
+      if (holderError) throw holderError;
+      if (!holder) return json({ error: "holder_not_found" }, 404);
+
+      const [{ count: supplyCount, error: supplyCountError }, { count: activeSupplyCount, error: activeSupplyCountError }] = await Promise.all([
+        admin.from("supplies").select("id", { head: true, count: "exact" }).eq("holder_id", id),
+        admin.from("supplies").select("id", { head: true, count: "exact" }).eq("holder_id", id).eq("status", "active"),
+      ]);
+      if (supplyCountError) throw supplyCountError;
+      if (activeSupplyCountError) throw activeSupplyCountError;
+
+      const dependencies = { supplies: supplyCount || 0, active_supplies: activeSupplyCount || 0 };
+      if (action === "archive_holder" && dependencies.active_supplies > 0) {
+        return json({ error: "holder_has_active_supplies", dependencies }, 409);
+      }
+      if (action === "delete_holder" && dependencies.supplies > 0) {
+        return json({ error: "holder_has_supplies", dependencies }, 409);
+      }
+
+      if (action === "restore_holder") {
+        const { data: client, error: clientError } = await admin.from("clients").select("id,status").eq("id", holder.client_id).maybeSingle();
+        if (clientError) throw clientError;
+        if (!client || client.status !== "active") return json({ error: "target_client_not_active" }, 409);
+      }
+
+      if (action === "delete_holder") {
+        const { error: deleteError } = await admin.from("holders").delete().eq("id", id);
+        if (deleteError) throw deleteError;
+      } else {
+        const status = action === "archive_holder" ? "archived" : "active";
+        const { error: statusError } = await admin.from("holders").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+        if (statusError) throw statusError;
+      }
+
+      const { error: auditError } = await admin.from("audit_log").insert({
+        actor_user_id: user.id,
+        action,
+        entity_type: "holder",
+        entity_id: id,
+        details: { legal_name: holder.legal_name, client_id: holder.client_id, ...dependencies },
       });
-      if (error) throw error;
-      if (!data?.ok) return json(data || { error: "holder_lifecycle_rejected" }, 409);
-      return json(data);
+      if (auditError) console.warn("holder lifecycle audit", auditError);
+
+      return json({ ok: true, action, holder_id: id, ...dependencies });
     }
 
     if (action === "archive_client" || action === "restore_client") {
