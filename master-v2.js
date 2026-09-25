@@ -403,7 +403,30 @@
     }
 
     const nextKeys = new Set(nextByKey.keys());
-    const pruned = [...previousByKey.keys()].filter((cups) => !nextKeys.has(cups)).length;
+    const prunedRows = supplies.filter((supply) => !nextKeys.has(cupsKey(supply.cups)));
+    const pruned = prunedRows.length;
+
+    if (prunedRows.length) {
+      try {
+        const archived = JSON.parse(localStorage.getItem(LEGACY_ARCHIVE_STORAGE) || '[]');
+        const currentArchive = Array.isArray(archived) ? archived : [];
+        const prunedKeys = new Set(prunedRows.map((supply) => cupsKey(supply.cups)).filter(Boolean));
+        const keptArchive = currentArchive.filter((supply) => !prunedKeys.has(cupsKey(supply?.cups)));
+        const archivedAt = new Date().toISOString();
+        for (const supply of prunedRows) {
+          keptArchive.push({
+            ...supply,
+            status: 'ARCHIVADO',
+            archivedAt,
+            archiveReason: 'central_cache_alignment',
+          });
+        }
+        localStorage.setItem(LEGACY_ARCHIVE_STORAGE, JSON.stringify(keptArchive));
+      } catch (error) {
+        console.warn('No se pudo conservar la copia local antes de alinear la caché central', error);
+        return { ok: false, reason: 'legacy_archive_failed', error };
+      }
+    }
 
     supplies = [...nextByKey.values()];
     save();
