@@ -126,12 +126,15 @@
     return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
 
-  function sameHolderIdentity(holder, invoice) {
-    if (!holder || !invoice) return true;
-    if (norm(holder.legal_name) && norm(holder.legal_name) === norm(invoice.source_holder_name)) return true;
+  function holderInvoiceRelation(holder, invoice) {
+    if (!holder || !invoice) return { kind: 'unknown', sameName: false, sameTax: false };
+    const sameName = Boolean(norm(holder.legal_name) && norm(holder.legal_name) === norm(invoice.source_holder_name));
     const holderTax = taxKey(holder.tax_id);
     const invoiceTax = taxKey(invoice.source_holder_tax_id);
-    return Boolean(holderTax && invoiceTax && holderTax === invoiceTax);
+    const sameTax = Boolean(holderTax && invoiceTax && holderTax === invoiceTax);
+    if (sameName) return { kind: 'coherent', sameName, sameTax };
+    if (sameTax) return { kind: 'rename', sameName, sameTax };
+    return { kind: 'holder_change', sameName, sameTax };
   }
 
   function invoiceEffectiveDate(invoice) {
@@ -216,14 +219,18 @@
       const archived = supply.status === 'archived';
       const latest = state.latestInvoiceBySupply.get(supply.id);
       const currentHolder = holders.get(supply.holder_id);
-      const mismatch = Boolean(latest && !sameHolderIdentity(currentHolder, latest));
-      const matchingHolder = mismatch ? matchingHolderForInvoice(latest) : null;
-      const holderNotice = mismatch
-        ? `<span class="db-mismatch">⚠ Última factura: ${esc(latest.source_holder_name || 'titular distinto')}${latest.source_holder_tax_id ? ` · ${esc(latest.source_holder_tax_id)}` : ''}</span>`
-        : (latest ? '<span class="db-mismatch-ok">Titular coherente con la última factura</span>' : '');
-      const holderAction = !archived && mismatch && matchingHolder && matchingHolder.id !== supply.holder_id
-        ? `<button class="secondary db-warning" data-db-action="reassign_supply_holder" data-id="${esc(supply.id)}" data-target-holder="${esc(matchingHolder.id)}" data-name="${esc(supply.cups)}">Aplicar titular de última factura</button>`
-        : (!archived && mismatch ? '<span class="db-locked">Titular nuevo no identificado de forma unívoca</span>' : '');
+      const relation = holderInvoiceRelation(currentHolder, latest);
+      const matchingHolder = relation.kind === 'holder_change' ? matchingHolderForInvoice(latest) : null;
+      const holderNotice = relation.kind === 'rename'
+        ? `<span class="db-mismatch">⚠ Misma identidad fiscal, nombre más reciente: ${esc(latest.source_holder_name)} · ${esc(latest.source_holder_tax_id || '')}</span>`
+        : relation.kind === 'holder_change'
+          ? `<span class="db-mismatch">⚠ Cambio de titular en la última factura: ${esc(latest.source_holder_name || 'titular distinto')}${latest.source_holder_tax_id ? ` · ${esc(latest.source_holder_tax_id)}` : ''}</span>`
+          : (latest ? '<span class="db-mismatch-ok">Titular coherente con la última factura</span>' : '');
+      const holderAction = !archived && relation.kind === 'rename' && currentHolder
+        ? `<button class="secondary db-warning" data-db-action="sync_holder_identity" data-id="${esc(currentHolder.id)}" data-supply-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Actualizar nombre desde última factura</button>`
+        : !archived && relation.kind === 'holder_change' && matchingHolder && matchingHolder.id !== supply.holder_id
+          ? `<button class="secondary db-warning" data-db-action="reassign_supply_holder" data-id="${esc(supply.id)}" data-target-holder="${esc(matchingHolder.id)}" data-name="${esc(supply.cups)}">Aplicar titular de última factura</button>`
+          : (!archived && relation.kind === 'holder_change' ? '<span class="db-locked">Titular nuevo no identificado de forma unívoca</span>' : '');
       const actions = archived
         ? `<button class="secondary db-restore" data-db-action="restore_supply" data-id="${esc(supply.id)}">Restaurar</button>${dependencyTotal === 0 ? `<button class="secondary db-danger" data-db-action="delete_supply" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Eliminar definitivamente</button>` : '<span class="db-locked">Con histórico: no se puede borrar</span>'}`
         : `${holderAction}<button class="secondary db-warning" data-db-action="archive_supply" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Archivar</button>`;
@@ -345,6 +352,32 @@
     const name = button.dataset.name || '';
     if (!action || !id) return;
 
+    if (action === 'sync_holder_identity') {
+      const holder = state.holders.find((item) => item.id === id);
+      const supplyId = button.dataset.supplyId;
+      const latest = state.latestInvoiceBySupply.get(supplyId);
+      if (!holder || !latest?.source_holder_name) return;
+      if (!confirm(`¿Actualizar el nombre del titular de “${holder.legal_name}” a “${latest.source_holder_name}” según la última factura validada? Las facturas anteriores conservarán el nombre que figuraba en cada documento.`)) return;
+      button.disabled = true;
+      setMessage('#centralSuppliesMsg', 'Actualizando titular…');
+      try {
+        await invoke('update_holder', id, {
+          legal_name: String(latest.source_holder_name).trim(),
+          tax_id: String(latest.source_holder_tax_id || holder.tax_id || '').trim() || null,
+        });
+        setMessage('#centralSuppliesMsg', 'Nombre actual del titular actualizado. El histórico anterior se conserva.', 'ok');
+        await window.CentralSupabaseMaster?.reload?.();
+        await loadState();
+        window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action: 'update_holder', id } }));
+      } catch (error) {
+        console.error('sync_holder_identity', error);
+        setMessage('#centralSuppliesMsg', error?.message || String(error), 'error');
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
     if (action === 'edit_holder') {
       const holder = state.holders.find((item) => item.id === id);
       if (!holder) return;
@@ -391,7 +424,8 @@
 
     button.disabled = true;
     const isClientAction = action.endsWith('_client');
-    const isHolderAction = action.endsWith('_holder') || action === 'reassign_supply_holder';
+    const isHolderAction = action.endsWith('_holder');
+    const needsMasterReload = isHolderAction || action === 'reassign_supply_holder';
     const msgTarget = isClientAction ? '#centralClientsMsg' : (isHolderAction ? '#centralHoldersMsg' : '#centralSuppliesMsg');
     setMessage(msgTarget, 'Aplicando cambio…');
     try {
@@ -399,11 +433,14 @@
       const supplyCups = action === 'archive_supply' || action === 'delete_supply'
         ? [state.supplies.find((item) => item.id === id)?.cups].filter(Boolean)
         : [];
-      await invoke(action, id, extra);
+      const result = await invoke(action, id, extra);
       localMasterRemoveCups(clientCups);
       localMasterRemoveCups(supplyCups);
-      setMessage(msgTarget, 'Cambio guardado correctamente.', 'ok');
-      if (isHolderAction) await window.CentralSupabaseMaster?.reload?.();
+      const successMessage = action === 'reassign_supply_holder' && result?.old_holder_active_supplies === 0
+        ? 'Cambio guardado. El titular anterior ya no tiene CUPS activos y puede archivarse.'
+        : 'Cambio guardado correctamente.';
+      setMessage(msgTarget, successMessage, 'ok');
+      if (needsMasterReload) await window.CentralSupabaseMaster?.reload?.();
       await loadState();
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action, id } }));
       if (window.ibtCurrentProfile) window.dispatchEvent(new CustomEvent('ibt-role-changed', { detail: { profile: window.ibtCurrentProfile } }));
