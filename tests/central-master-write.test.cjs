@@ -101,5 +101,5 @@ test('fill-only owner conflicts are rejected before any new hierarchy can be ins
 
 test('browser cache markers force the new central-write code', () => {
   assert.match(index, /master-v2\.js\?v=20260925-centralwrite1/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central5/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
 });
