@@ -32,7 +32,11 @@ test('master and history reuse the portable Naturgy parser',()=>{
   assert(history.includes('function extractNaturgy(d,file)'));
   assert(history.includes('window.IBTNaturgyParser'));
   assert(history.includes("if(naturgy?.detect?.(d))return extractNaturgy(d,file)"));
-  assert(history.includes("prepared=(iberdrola?.detect?.(source)||repsol?.detect?.(source)||naturgy?.detect?.(source))?{data:source,attempted:false,error:null}"));
+  assert(history.includes('naturgy=window.IBTNaturgyParser'));
+  assert(history.includes('naturgy?.detect?.(source)'));
+  const naturgyDetect=history.indexOf('naturgy?.detect?.(source)');
+  const fallback=history.indexOf('fallback?.prepare',naturgyDetect);
+  assert(naturgyDetect>=0&&fallback>naturgyDetect);
 });
 
 test('Naturgy history remains behind the validated main-row crosscheck',()=>{
