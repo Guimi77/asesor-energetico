@@ -99,7 +99,15 @@ test('fill-only owner conflicts are rejected before any new hierarchy can be ins
   assert.ok(firstHolderInsert > conflict);
 });
 
-test('browser cache markers force the new central-write code', () => {
-  assert.match(index, /master-v2\.js\?v=20260925-centralwrite1/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
+test('central cache alignment preserves a local archive before pruning', () => {
+  assert.ok(master.includes('function replaceActiveFromCentral(rows = [])'));
+  assert.ok(master.includes("archiveReason: 'central_cache_alignment'"));
+  assert.ok(master.includes("localStorage.setItem(LEGACY_ARCHIVE_STORAGE"));
+  assert.ok(master.includes("return { ok: false, reason: 'legacy_archive_failed', error }"));
+  assert.ok(master.includes('mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })'));
+});
+
+test('browser cache markers force the central-authoritative code', () => {
+  assert.match(index, /master-v2\.js\?v=20260925-centralcache1/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central7/);
 });
