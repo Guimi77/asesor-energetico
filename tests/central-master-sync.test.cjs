@@ -374,6 +374,9 @@ test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of
   assert.equal(centralEvent.detail.legacyPending, 1);
   assert.equal(centralEvent.detail.legacyIdentityUnresolved, 1);
   assert.deepEqual(Array.from(centralEvent.detail.legacyPendingKeys), [cupsKey(pendingCups)]);
+  assert.equal(centralEvent.detail.legacyPendingDetails[cupsKey(pendingCups)], 'new_client_requires_tax_id');
+  assert.match(status.innerHTML, /Pendiente:/);
+  assert.match(status.innerHTML, /falta NIF\/CIF para crear el cliente con seguridad/);
 });
 
 test('RPC failures cannot masquerade as a successful reconciliation', async () => {
@@ -388,6 +391,7 @@ test('RPC failures cannot masquerade as a successful reconciliation', async () =
   assert.equal(centralEvent.detail.legacyMigrationFailed, 1);
   assert.equal(centralEvent.detail.legacyPending, 1);
   assert.ok(centralEvent.detail.legacyPendingKeys.includes(cupsKey(failedCups)));
+  assert.equal(centralEvent.detail.legacyPendingDetails[cupsKey(failedCups)], 'rpc_error');
 });
 
 test('client accounts do not read or reconcile the internal central master', async () => {
@@ -398,8 +402,8 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central5/);
-  assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central4/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
+  assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central5/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
   assert.match(source, /legacyPendingKeys/);
