@@ -91,32 +91,106 @@ function buildHarness(role = 'admin', options = {}) {
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
         if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
-        if (name !== 'ensure_supply_from_master') return { data: null, error: new Error('unexpected_rpc') };
-        if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
-          return { data: null, error: new Error('forced_rpc_failure') };
+
+        if (name === 'ensure_supply_from_master') {
+          if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
+            return { data: null, error: new Error('forced_rpc_failure') };
+          }
+          const existing = datasets.supplies.find((item) => cupsKey(item.cups) === cupsKey(args.p_cups));
+          if (existing) return { data: { ok: true, mode: 'existing', id: existing.id, cups: existing.cups }, error: null };
+          const client = datasets.clients.find((item) => item.name === args.p_client_name);
+          const holder = datasets.holders.find((item) => item.client_id === client?.id && item.legal_name === args.p_holder_name);
+          if (!client || !holder) return { data: { ok: false, reason: 'identity_not_found' }, error: null };
+          const supply = {
+            id: `recovered-${datasets.supplies.length}`,
+            holder_id: holder.id,
+            cups: args.p_cups,
+            supply_name: args.p_supply_name,
+            address: args.p_address,
+            city: args.p_city,
+            province: args.p_province,
+            postal_code: args.p_postal_code,
+            current_tariff: args.p_tariff,
+            current_contract_number: args.p_contract_number,
+            current_retailer: args.p_retailer,
+            current_distributor: args.p_distributor,
+            status: 'active',
+          };
+          datasets.supplies.push(supply);
+          return { data: { ok: true, mode: 'inserted', id: supply.id, cups: supply.cups }, error: null };
         }
-        const existing = datasets.supplies.find((item) => cupsKey(item.cups) === cupsKey(args.p_cups));
-        if (existing) return { data: { ok: true, mode: 'existing', id: existing.id, cups: existing.cups }, error: null };
-        const client = datasets.clients.find((item) => item.name === args.p_client_name);
-        const holder = datasets.holders.find((item) => item.client_id === client?.id && item.legal_name === args.p_holder_name);
-        if (!client || !holder) return { data: { ok: false, reason: 'identity_not_found' }, error: null };
-        const supply = {
-          id: `recovered-${datasets.supplies.length}`,
-          holder_id: holder.id,
-          cups: args.p_cups,
-          supply_name: args.p_supply_name,
-          address: args.p_address,
-          city: args.p_city,
-          province: args.p_province,
-          postal_code: args.p_postal_code,
-          current_tariff: args.p_tariff,
-          current_contract_number: args.p_contract_number,
-          current_retailer: args.p_retailer,
-          current_distributor: args.p_distributor,
-          status: 'active',
-        };
-        datasets.supplies.push(supply);
-        return { data: { ok: true, mode: 'inserted', id: supply.id, cups: supply.cups }, error: null };
+
+        if (name === 'ensure_master_hierarchy_from_local') {
+          const payload = args.p_payload || {};
+          if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(payload.cups))) {
+            return { data: null, error: new Error('forced_rpc_failure') };
+          }
+
+          const existing = datasets.supplies.find((item) => cupsKey(item.cups) === cupsKey(payload.cups));
+          if (existing) return { data: { ok: true, mode: 'existing', id: existing.id, cups: existing.cups }, error: null };
+
+          let client = datasets.clients.find((item) =>
+            (payload.client_tax_id && item.tax_id === payload.client_tax_id) ||
+            item.name === payload.client_name
+          );
+
+          if (!client) {
+            if (!payload.client_tax_id) return { data: { ok: false, reason: 'new_client_requires_tax_id' }, error: null };
+            client = {
+              id: `client-recovered-${datasets.clients.length}`,
+              name: payload.client_name,
+              tax_id: payload.client_tax_id,
+              status: 'active',
+            };
+            datasets.clients.push(client);
+          }
+
+          let holder = datasets.holders.find((item) =>
+            item.client_id === client.id &&
+            ((payload.holder_tax_id && item.tax_id === payload.holder_tax_id) || item.legal_name === payload.holder_name)
+          );
+
+          if (!holder) {
+            holder = {
+              id: `holder-recovered-${datasets.holders.length}`,
+              client_id: client.id,
+              legal_name: payload.holder_name,
+              tax_id: payload.holder_tax_id || null,
+              status: 'active',
+            };
+            datasets.holders.push(holder);
+          }
+
+          const supply = {
+            id: `recovered-${datasets.supplies.length}`,
+            holder_id: holder.id,
+            cups: payload.cups,
+            supply_name: payload.supply_name,
+            address: payload.address,
+            city: payload.city,
+            province: payload.province,
+            postal_code: payload.postal_code,
+            current_tariff: payload.tariff,
+            current_contract_number: payload.contract_number,
+            current_retailer: payload.retailer,
+            current_distributor: payload.distributor,
+            status: 'active',
+          };
+          datasets.supplies.push(supply);
+          return {
+            data: {
+              ok: true,
+              mode: 'inserted',
+              id: supply.id,
+              cups: supply.cups,
+              client_id: client.id,
+              holder_id: holder.id,
+            },
+            error: null,
+          };
+        }
+
+        return { data: null, error: new Error('unexpected_rpc') };
       },
     },
     ibtCurrentProfile: { id: `user-${role}`, role },
@@ -191,6 +265,53 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.match(status.innerHTML, /4 clientes/);
   assert.match(status.innerHTML, /10 CUPS activos leídos/);
   assert.match(status.innerHTML, /5 CUPS heredados recuperados en central/);
+  assert.doesNotMatch(status.innerHTML, /sigue[n]? fuera de la base central/);
+
+  const centralEvent = dispatched.find((event) => event.type === 'central-supabase-synced');
+  assert.ok(centralEvent);
+  assert.equal(centralEvent.detail.legacyPending, 0);
+  assert.equal(centralEvent.detail.legacyIdentityUnresolved, 0);
+});
+
+test('a tax-identified legacy client and holder missing from Supabase are promoted without losing the CUPS', async () => {
+  const recoveredCups = 'ES0000000000000010AA0F';
+  const { window, calls, added, status, datasets, dispatched } = buildHarness('admin', {
+    extraLocalRows: [{
+      client: 'CLIENTE PRUEBA NUEVO',
+      clientTaxId: '00000004G',
+      company: 'CLIENTE PRUEBA NUEVO',
+      holderTaxId: '00000004G',
+      cups: recoveredCups,
+      name: 'SUMINISTRO PRUEBA NUEVO',
+      address: 'H',
+      city: 'Palma',
+      province: 'Illes Balears',
+      postalCode: '07000',
+      tariff: '2.0TD',
+      contract: 'N1',
+      retailer: 'ENDESA',
+      distributor: 'D2',
+      status: 'ACTIVO',
+      source: 'Aprendido de factura',
+    }],
+  });
+
+  await window.CentralSupabaseMaster.reload();
+
+  const hierarchyCall = calls.find((call) =>
+    call.op === 'rpc' &&
+    call.name === 'ensure_master_hierarchy_from_local' &&
+    cupsKey(call.args?.p_payload?.cups) === cupsKey(recoveredCups)
+  );
+  assert.ok(hierarchyCall, 'missing client/holder must use the safe hierarchy promotion RPC');
+
+  assert.ok(datasets.clients.some((item) => item.name === 'CLIENTE PRUEBA NUEVO' && item.tax_id === '00000004G'));
+  const recoveredClient = datasets.clients.find((item) => item.name === 'CLIENTE PRUEBA NUEVO');
+  assert.ok(datasets.holders.some((item) => item.client_id === recoveredClient.id && item.legal_name === 'CLIENTE PRUEBA NUEVO'));
+  assert.ok(datasets.supplies.some((item) => cupsKey(item.cups) === cupsKey(recoveredCups)));
+  assert.ok(added.some(({ item }) => cupsKey(item.cups) === cupsKey(recoveredCups)), 'reloaded central hierarchy must repopulate the local cache');
+
+  assert.equal(status.dataset.remoteStatus, 'ok');
   assert.doesNotMatch(status.innerHTML, /sigue[n]? fuera de la base central/);
 
   const centralEvent = dispatched.find((event) => event.type === 'central-supabase-synced');
