@@ -64,9 +64,12 @@ jobs:
             BASE="$(git rev-parse HEAD^ 2>/dev/null || true)"
           fi
 
-          if [ -n "$BASE" ]; then
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             git diff --name-only -z --diff-filter=ACMR "$BASE" HEAD -- tests > /tmp/privacy-files.bin
           else
+            # A force-push/history rewrite can make github.event.before unreachable.
+            # In that case scan the complete current test tree instead of failing
+            # before the privacy scanner gets a chance to run.
             find tests -type f \( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' -o -name '*.json' -o -name '*.txt' -o -name '*.md' -o -name '*.html' \) -print0 > /tmp/privacy-files.bin
           fi
 
