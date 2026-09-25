@@ -10,7 +10,7 @@
 
   const views = {
     facturas: ['Facturas procesadas', 'Carga, valida y analiza las facturas eléctricas de tus clientes.', 'Panel de análisis energético'],
-    clientes: ['Clientes', 'Gestiona grupos, empresas y particulares desde un único maestro local.', 'Cartera energética'],
+    clientes: ['Clientes', 'Gestiona grupos, empresas y particulares desde el maestro central.', 'Cartera energética'],
     cups: ['Suministros / CUPS', 'Consulta y edita todos los puntos de suministro de tus clientes.', 'Maestro energético'],
     historico: ['Histórico energético', 'Memoria de facturas, análisis, recomendaciones y actuaciones por cliente y CUPS.', 'Memoria energética'],
   };
@@ -198,12 +198,12 @@
       return;
     }
     if (!supplies.length) {
-      element.textContent = 'No hay maestro guardado en este navegador.';
+      element.textContent = 'No hay datos de maestro disponibles en la caché de este navegador.';
       return;
     }
     const clients = new Set(supplies.map((item) => key(item.client)));
     const holders = new Set(supplies.map((item) => key(item.holder)));
-    element.innerHTML = `<strong>${clients.size} cliente${clients.size === 1 ? '' : 's'} · ${holders.size} titular${holders.size === 1 ? '' : 'es'} · ${supplies.length} CUPS</strong> ${source ? `actualizados desde <strong>${esc(source)}</strong> y ` : ''}guardados localmente en este navegador.`;
+    element.innerHTML = `<strong>${clients.size} cliente${clients.size === 1 ? '' : 's'} · ${holders.size} titular${holders.size === 1 ? '' : 'es'} · ${supplies.length} CUPS</strong> ${source ? `actualizados desde <strong>${esc(source)}</strong> y ` : ''}disponibles en la caché local. Fuente principal: Supabase.`;
   }
 
   function displaySupplyCity(supply = {}) {
@@ -605,6 +605,65 @@
     }
   }
 
+  function centralWriteMessage(reason = '') {
+    const messages = {
+      not_authorized: 'Tu sesión no tiene permisos internos para modificar el maestro.',
+      invalid_mode: 'Modo de guardado no válido.',
+      invalid_cups: 'El CUPS no es válido.',
+      client_name_required: 'Falta el nombre del cliente.',
+      duplicate_cups: 'Ese CUPS ya existe en otro suministro.',
+      duplicate_or_conflicting_identity: 'Hay un conflicto de identidad o un CUPS duplicado en la base central.',
+      client_tax_ambiguous: 'El NIF/CIF del cliente coincide con más de un registro. Revisa la base central.',
+      client_name_ambiguous: 'El nombre del cliente coincide con más de un registro. Añade o revisa el NIF/CIF.',
+      holder_tax_ambiguous: 'El NIF/CIF del titular coincide con más de un titular del mismo cliente.',
+      holder_name_ambiguous: 'El nombre del titular coincide con más de un registro del mismo cliente.',
+      holder_belongs_to_other_client: 'Ese titular ya está vinculado a otro cliente. No se ha duplicado ni movido automáticamente.',
+      owner_conflict: 'El CUPS ya pertenece a otro cliente/titular en la base central.',
+    };
+    return messages[reason] || 'No se ha podido guardar el cambio en la base central.';
+  }
+
+  async function persistCentralSupply(supply, { originalCups = '', mode = 'manual' } = {}) {
+    const supabase = window.ibtSupabase;
+    const role = window.ibtCurrentProfile?.role;
+    if (!supabase || !['admin', 'staff'].includes(role)) {
+      return { ok: false, reason: 'not_authorized' };
+    }
+
+    const holderName = norm(supply.holder || supply.company || supply.client);
+    const sameLegalIdentity = key(holderName) === key(supply.client);
+    const holderTaxId = norm(supply.holderTaxId) || (sameLegalIdentity ? norm(supply.clientTaxId) : '');
+
+    try {
+      const { data, error } = await supabase.rpc('save_master_supply', {
+        p_payload: {
+          mode,
+          original_cups: originalCups || null,
+          client_name: norm(supply.client) || null,
+          client_tax_id: norm(supply.clientTaxId) || null,
+          holder_name: holderName || null,
+          holder_tax_id: holderTaxId || null,
+          cups: norm(supply.cups) || null,
+          supply_name: norm(supply.name) || null,
+          address: norm(supply.address) || null,
+          city: norm(supply.city) || null,
+          province: norm(supply.province) || null,
+          postal_code: norm(supply.postalCode) || null,
+          tariff: norm(supply.tariff) || null,
+          contract_number: norm(supply.contract) || null,
+          retailer: norm(supply.retailer) || null,
+          distributor: norm(supply.distributor) || null,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) return { ok: false, reason: data?.reason || 'central_write_rejected', data };
+      return { ok: true, data };
+    } catch (error) {
+      console.error('No se pudo guardar el maestro central', error);
+      return { ok: false, reason: 'central_write_failed', error };
+    }
+  }
+
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
@@ -642,20 +701,42 @@
         status: 'ACTIVO',
       };
 
+      const wasEditing = Boolean(editingCups);
+      const existingBefore = editingCups
+        ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
+        : null;
+      const candidate = normalizeSupply({ ...(existingBefore || {}), ...data });
+
+      $('#clientFormMsg').textContent = 'Guardando en la base central…';
+      const centralSave = await persistCentralSupply(candidate, {
+        originalCups: editingCups,
+        mode: 'manual',
+      });
+
+      if (!centralSave.ok) {
+        $('#clientFormMsg').textContent = centralWriteMessage(centralSave.reason);
+        return;
+      }
+
       let result;
       if (editingCups) {
         const idx = supplies.findIndex((supply) => cupsKey(supply.cups) === cupsKey(editingCups));
-        if (idx < 0) return;
+        if (idx < 0) {
+          $('#clientFormMsg').textContent = 'El suministro se guardó en Supabase, pero la caché local estaba desactualizada. Recargando…';
+          await window.CentralSupabaseMaster?.reload?.();
+          return;
+        }
         const old = supplies[idx];
         supplies.splice(idx, 1);
         result = upsertSupply({ ...old, ...data }, { allowMove: true });
         if (!result.ok) supplies.splice(idx, 0, old);
       } else {
-        result = upsertSupply(data);
+        result = upsertSupply(data, { allowMove: true });
       }
 
       if (!result.ok) {
-        $('#clientFormMsg').textContent = result.reason;
+        await window.CentralSupabaseMaster?.reload?.();
+        $('#clientFormMsg').textContent = 'El cambio está guardado en Supabase. Se ha recargado la caché local para evitar inconsistencias.';
         return;
       }
 
@@ -665,7 +746,6 @@
         if (itemIdentity === clientIdentity) item.clientAlias = norm(data.clientAlias);
       });
 
-      const wasEditing = Boolean(editingCups);
       const aliasSave = await persistAliases({
         cups,
         client,
@@ -674,7 +754,12 @@
         supplyAlias: data.alias,
       });
       closeForm();
-      refresh({ message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'}.</strong> ${aliasSave.ok ? 'Alias guardados en la base central.' : 'Cambios guardados localmente; los alias centrales quedan pendientes.'}` });
+      refresh({
+        message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'} en Supabase.</strong> ${aliasSave.ok ? 'Alias centrales guardados.' : 'Los datos principales están guardados; los alias internos quedan pendientes.'}`,
+      });
+      window.dispatchEvent(new CustomEvent('ibt-central-data-changed', {
+        detail: { action: wasEditing ? 'master_supply_updated' : 'master_supply_inserted', cups },
+      }));
     };
 
     const masterInput = $('#masterInput');
@@ -700,16 +785,29 @@
         let blocked = 0;
 
         for (const supply of parsed) {
+          const centralSave = await persistCentralSupply(supply, { mode: 'fill_only' });
+          if (!centralSave.ok) {
+            blocked += 1;
+            continue;
+          }
+
           const result = upsertSupply(supply, { fillOnly: true, preserveIdentity: false });
-          if (!result.ok) blocked += 1;
-          else if (!result.updated) added += 1;
-          else if (result.enriched) enriched += 1;
+          if (!result.ok) {
+            blocked += 1;
+            continue;
+          }
+
+          if (centralSave.data?.mode === 'inserted') added += 1;
+          else if (centralSave.data?.mode === 'enriched') enriched += 1;
           else unchanged += 1;
         }
 
         refresh({
-          message: `<strong>Maestro combinado:</strong> ${added} CUPS nuevos · ${enriched} suministros completados · ${unchanged} sin cambios · ${blocked} conflictos bloqueados.`,
+          message: `<strong>Maestro importado en Supabase:</strong> ${added} CUPS nuevos · ${enriched} suministros completados · ${unchanged} sin cambios · ${blocked} conflictos bloqueados.`,
         });
+        window.dispatchEvent(new CustomEvent('ibt-central-data-changed', {
+          detail: { action: 'master_import', added, enriched, unchanged, blocked },
+        }));
       } catch (error) {
         status('', `No se ha podido leer el maestro: ${esc(error.message)}`);
       }
