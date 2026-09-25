@@ -74,6 +74,9 @@ function buildHarness(role = 'admin', options = {}) {
     ...(options.extraLocalRows || []),
   ];
 
+  const excludedLocalKeys = new Set((options.excludeLocalCups || []).map(cupsKey));
+  const effectiveLocalRows = localRows.filter((row) => !excludedLocalKeys.has(cupsKey(row.cups)));
+
   function query(table) {
     const chain = {
       select(columns) { calls.push({ table, op: 'select', value: columns }); return chain; },
@@ -196,7 +199,7 @@ function buildHarness(role = 'admin', options = {}) {
     ibtCurrentProfile: { id: `user-${role}`, role },
     EnergyMaster: {
       __v2: true,
-      all() { return localRows.map((row) => ({ ...row })); },
+      all() { return effectiveLocalRows.map((row) => ({ ...row })); },
       add(item, optionsArg) {
         added.push({ item, options: optionsArg });
         return { ok: true, updated: false, enriched: true, supply: item };
@@ -274,8 +277,9 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
 });
 
 test('a tax-identified legacy client and holder missing from Supabase are promoted without losing the CUPS', async () => {
-  const recoveredCups = 'ES0000000000000010AA0F';
+  const recoveredCups = 'ES0000000000000000AA';
   const { window, calls, added, status, datasets, dispatched } = buildHarness('admin', {
+    excludeLocalCups: ['ES0000000000000000AA0A'],
     extraLocalRows: [{
       client: 'CLIENTE PRUEBA NUEVO',
       clientTaxId: '00000004G',
