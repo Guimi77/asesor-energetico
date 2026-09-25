@@ -46,10 +46,10 @@ test('workbook import persists each row centrally in fill-only mode before cachi
 });
 
 test('central writer is internal-only and uses the dedicated RPC', () => {
-  assert.match(master, /['admin', 'staff'].includes(role)/);
-  assert.match(master, /supabase.rpc('save_master_supply'/);
-  assert.match(master, /centralWriteMessage/);
-  assert.doesNotMatch(master, /Cambios guardados localmente; los alias centrales quedan pendientes/);
+  assert.ok(master.includes("['admin', 'staff'].includes(role)"));
+  assert.ok(master.includes("supabase.rpc('save_master_supply'"));
+  assert.ok(master.includes('centralWriteMessage'));
+  assert.ok(!master.includes('Cambios guardados localmente; los alias centrales quedan pendientes'));
 });
 
 test('central sync treats Supabase values as authoritative for cached rows', () => {
