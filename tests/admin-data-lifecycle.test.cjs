@@ -69,26 +69,34 @@ test('latest validated invoice distinguishes legal-name updates from true holder
   assert.match(adminUi, /validation_status !== 'valid'/);
   assert.match(adminUi, /invoice\.superseded_by/);
   assert.match(adminUi, /holderInvoiceRelation/);
+  assert.match(adminUi, /kind: 'review'/);
+  assert.match(adminUi, /holderTax === invoiceTax/);
   assert.match(adminUi, /kind: 'rename'/);
   assert.match(adminUi, /kind: 'holder_change'/);
   assert.match(adminUi, /Actualizar nombre desde última factura/);
   assert.match(adminUi, /sync_holder_identity/);
-  assert.match(adminUi, /Aplicar titular de última factura/);
-  assert.match(adminUi, /reassign_supply_holder/);
+  assert.match(adminUi, /Aplicar nuevo titular de última factura/);
+  assert.match(adminUi, /apply_latest_invoice_holder/);
+  assert.doesNotMatch(adminUi, /matchingHolderForInvoice/);
 });
 
 test('holder lifecycle edge actions stay behind the existing admin gate', () => {
   assert.match(edgeLifecycle, /callerProfile\.role !== "admin"/);
   assert.match(edgeLifecycle, /action === "update_holder"/);
-  assert.match(edgeLifecycle, /action === "reassign_supply_holder"/);
+  assert.match(edgeLifecycle, /action === "apply_latest_invoice_holder"/);
   assert.match(edgeLifecycle, /\["archive_holder", "restore_holder", "delete_holder"\]/);
-  assert.match(edgeLifecycle, /invalid_target_holder/);
+  assert.match(edgeLifecycle, /latest_holder_identity_missing/);
+  assert.match(edgeLifecycle, /same_legal_identity/);
 });
 
-test('current-owner reassignment reuses the existing central master writer and preserves invoice evidence', () => {
+test('current-owner reassignment uses the latest validated invoice fiscal identity and preserves invoice evidence', () => {
+  assert.match(edgeLifecycle, /from\("invoices"\)/);
+  assert.match(edgeLifecycle, /validation_status", "valid"/);
+  assert.match(edgeLifecycle, /source_holder_tax_id/);
+  assert.match(edgeLifecycle, /currentTax === nextTax/);
   assert.match(edgeLifecycle, /userClient\.rpc\("save_master_supply"/);
-  assert.match(edgeLifecycle, /mode: "manual"/);
-  assert.match(edgeLifecycle, /original_cups: supply\.cups/);
+  assert.match(edgeLifecycle, /client_tax_id: nextTaxRaw/);
+  assert.match(edgeLifecycle, /holder_tax_id: nextTaxRaw/);
   assert.match(edgeLifecycle, /event_type: "holder_change"/);
   assert.match(edgeLifecycle, /before_value:/);
   assert.match(edgeLifecycle, /after_value:/);
@@ -113,4 +121,23 @@ test('holder edits reject duplicate identity and only mirror one-to-one client i
 
 test('browser cache marker forces holder lifecycle UI refresh', () => {
   assert.match(auth, /admin-data-management\.js\?v=20260925-holderlifecycle1/);
+});
+
+test('fiscal identity dominates name when deciding whether ownership changed', () => {
+  const relationStart = adminUi.indexOf('function holderInvoiceRelation');
+  const relationEnd = adminUi.indexOf('function invoiceEffectiveDate', relationStart);
+  const relationSource = adminUi.slice(relationStart, relationEnd);
+  assert.match(relationSource, /if \(!holderTax \|\| !invoiceTax\)/);
+  assert.match(relationSource, /if \(holderTax === invoiceTax\)/);
+  assert.match(relationSource, /kind: sameName \? 'coherent' : 'rename'/);
+  assert.match(relationSource, /return \{ kind: 'holder_change'/);
+  assert.ok(relationSource.indexOf('holderTax === invoiceTax') < relationSource.indexOf("kind: sameName ? 'coherent' : 'rename'"));
+});
+
+test('new holder can be created from latest invoice tax identity without pre-existing holder record', () => {
+  assert.match(edgeLifecycle, /client_name: nextName/);
+  assert.match(edgeLifecycle, /client_tax_id: nextTaxRaw/);
+  assert.match(edgeLifecycle, /holder_name: nextName/);
+  assert.match(edgeLifecycle, /holder_tax_id: nextTaxRaw/);
+  assert.doesNotMatch(edgeLifecycle, /target_holder_id/);
 });
