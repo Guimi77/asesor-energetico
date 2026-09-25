@@ -71,7 +71,7 @@ test('latest validated invoice distinguishes legal-name updates from true holder
   assert.match(adminUi, /holderInvoiceRelation/);
   assert.match(adminUi, /kind: 'review'/);
   assert.match(adminUi, /holderTax === invoiceTax/);
-  assert.match(adminUi, /kind: 'rename'/);
+  assert.match(adminUi, /kind: sameName \? 'coherent' : 'rename'/);
   assert.match(adminUi, /kind: 'holder_change'/);
   assert.match(adminUi, /Actualizar nombre desde última factura/);
   assert.match(adminUi, /sync_holder_identity/);
