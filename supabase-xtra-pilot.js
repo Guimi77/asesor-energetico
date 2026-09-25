@@ -137,38 +137,65 @@
       const key = cupsKey(row.cups);
       candidateKeys.add(key);
       const identity = resolveLegacyIdentity(row, indexes);
-      if (!identity.ok) {
-        unresolved += 1;
-        console.warn('Suministro heredado pendiente: no se ha podido resolver cliente/titular', {
-          cups: row.cups,
-          client: row.client,
-          company: row.company || row.holder,
-          reason: identity.reason,
-        });
-        continue;
-      }
-
       attempted += 1;
+
       try {
-        const { data, error } = await supabase.rpc('ensure_supply_from_master', {
-          p_client_name: identity.client.name,
-          p_holder_name: identity.holder.legal_name,
-          p_cups: row.cups,
-          p_supply_name: row.name || row.address || null,
-          p_address: row.address || null,
-          p_city: row.city || null,
-          p_province: row.province || null,
-          p_postal_code: row.postalCode || null,
-          p_tariff: row.tariff || null,
-          p_contract_number: row.contract || null,
-          p_retailer: row.retailer || null,
-          p_distributor: row.distributor || null,
-        });
-        if (error || !data?.ok) {
+        let data;
+        let error;
+
+        if (identity.ok) {
+          ({ data, error } = await supabase.rpc('ensure_supply_from_master', {
+            p_client_name: identity.client.name,
+            p_holder_name: identity.holder.legal_name,
+            p_cups: row.cups,
+            p_supply_name: row.name || row.address || null,
+            p_address: row.address || null,
+            p_city: row.city || null,
+            p_province: row.province || null,
+            p_postal_code: row.postalCode || null,
+            p_tariff: row.tariff || null,
+            p_contract_number: row.contract || null,
+            p_retailer: row.retailer || null,
+            p_distributor: row.distributor || null,
+          }));
+        } else {
+          ({ data, error } = await supabase.rpc('ensure_master_hierarchy_from_local', {
+            p_payload: {
+              client_name: row.client || null,
+              client_tax_id: row.clientTaxId || null,
+              holder_name: row.company || row.holder || row.client || null,
+              holder_tax_id: row.holderTaxId || null,
+              cups: row.cups,
+              supply_name: row.name || row.address || null,
+              address: row.address || null,
+              city: row.city || null,
+              province: row.province || null,
+              postal_code: row.postalCode || null,
+              tariff: row.tariff || null,
+              contract_number: row.contract || null,
+              retailer: row.retailer || null,
+              distributor: row.distributor || null,
+            },
+          }));
+        }
+
+        if (error) {
           failed += 1;
-          console.warn('No se pudo migrar un suministro local al maestro central', row.cups, error || data);
+          console.warn('No se pudo migrar un suministro local al maestro central', row.cups, error);
           continue;
         }
+
+        if (!data?.ok) {
+          unresolved += 1;
+          console.warn('Suministro heredado pendiente: no se ha podido resolver de forma segura', {
+            cups: row.cups,
+            client: row.client,
+            company: row.company || row.holder,
+            reason: data?.reason || identity.reason || 'unknown',
+          });
+          continue;
+        }
+
         centralKeys.add(key);
         if (data.mode === 'inserted') migrated += 1;
       } catch (error) {
@@ -200,36 +227,45 @@
     try {
       setStatus('sincronizando todos los clientes activos…', 'loading');
 
-      const { data: clients, error: clientError } = await supabase
-        .from('clients')
-        .select('id,name,tax_id,status')
-        .eq('status', 'active')
-        .order('name');
-      if (clientError) throw clientError;
+      async function loadHierarchy() {
+        const { data: clients, error: clientError } = await supabase
+          .from('clients')
+          .select('id,name,tax_id,status')
+          .eq('status', 'active')
+          .order('name');
+        if (clientError) throw clientError;
 
-      const activeClients = clients || [];
+        const activeClients = clients || [];
+        const clientIds = activeClients.map((client) => client.id);
+
+        let holders = [];
+        if (clientIds.length) {
+          const { data, error } = await supabase
+            .from('holders')
+            .select('id,client_id,legal_name,tax_id,status')
+            .in('client_id', clientIds)
+            .eq('status', 'active')
+            .order('legal_name');
+          if (error) throw error;
+          holders = data || [];
+        }
+
+        const holderIds = holders.map((holder) => holder.id);
+        const supplies = await loadActiveSupplies(supabase, holderIds);
+        return { activeClients, holders, supplies };
+      }
+
+      let { activeClients, holders, supplies } = await loadHierarchy();
+
       const { data: aliasPayload, error: aliasError } = await supabase.rpc('get_internal_aliases');
       if (aliasError) throw aliasError;
       const clientAliases = aliasPayload?.clients || {};
       const supplyAliases = aliasPayload?.supplies || {};
-      const clientIds = activeClients.map((client) => client.id);
 
-      let holders = [];
-      if (clientIds.length) {
-        const { data, error } = await supabase
-          .from('holders')
-          .select('id,client_id,legal_name,tax_id,status')
-          .in('client_id', clientIds)
-          .eq('status', 'active')
-          .order('legal_name');
-        if (error) throw error;
-        holders = data || [];
-      }
-
-      const holderIds = holders.map((holder) => holder.id);
-      let supplies = await loadActiveSupplies(supabase, holderIds);
       const legacy = await reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies });
-      if (legacy.attempted) supplies = await loadActiveSupplies(supabase, holderIds);
+      if (legacy.attempted) {
+        ({ activeClients, holders, supplies } = await loadHierarchy());
+      }
 
       const activeCentralKeys = new Set(supplies.map((supply) => cupsKey(supply.cups)).filter(Boolean));
       const legacyPendingKeys = legacy.candidateKeys.filter((key) => !activeCentralKeys.has(key));
