@@ -3,12 +3,9 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const {frozenCommit,at}=require('./helpers/regression-baseline.cjs');
-const BASE=frozenCommit('pdfLifecycleWorkerLeak');
-const PARSER_BASE=frozenCommit('fenieParserBeforePowerPeriodBoundary');
+const {frozenFile}=require('./helpers/regression-baseline.cjs');
 const source=file=>fs.readFileSync(file,'utf8');
-const REPSOL_ISOLATION_BASE=frozenCommit('repsolIsolationReference');
-const old=file=>at(BASE,file);
+const old=file=>frozenFile('pdfLifecycleWorkerLeak',file);
 const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j);};
 const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
 function reader(code,name,end,mode='ok'){
@@ -45,7 +42,7 @@ for(const [path,name,end] of readerSpec){
  });
 }
 test('Fenie calculations stay locked while Endesa routing and audit rules can evolve safely',()=>{
- const current=source('app.js'),parserSnapshot=at(PARSER_BASE,'app.js');
+ const current=source('app.js'),parserSnapshot=frozenFile('fenieParserBeforePowerPeriodBoundary','app.js');
  const parserExpected=slice(parserSnapshot,'const find=','const reading=').replace(
   " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1]));\n const complete=entries.length>0&&entries.length===labels.length;",
   " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];\n const complete=entries.length>0&&entries.length===uniqueLabels.length;"
@@ -61,11 +58,11 @@ test('Fenie calculations stay locked while Endesa routing and audit rules can ev
   .replace(/ const expected=Number\(expectedPeriods\)\|\|0;\s+const complete=entries\.length>0&&\(expected\?entries\.length===expected:entries\.length===uniqueLabels\.length\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')
   .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
  assert.equal(normalized,parserExpected);
- assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(at(REPSOL_ISOLATION_BASE,'app.js'),'function lines(items)','async function pdfData'));
- assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(at(REPSOL_ISOLATION_BASE,'supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
+ assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(frozenFile('repsolIsolationReference','app.js'),'function lines(items)','async function pdfData'));
+ assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(frozenFile('repsolIsolationReference','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
  // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
- assert.equal(source('auth.css'),at(REPSOL_ISOLATION_BASE,'auth.css'),'auth.css must not change in this Repsol change');
- assert.equal(source('history-cost-chart.js'),at(REPSOL_ISOLATION_BASE,'history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
+ assert.equal(source('auth.css'),frozenFile('repsolIsolationReference','auth.css'),'auth.css must not change in this Repsol change');
+ assert.equal(source('history-cost-chart.js'),frozenFile('repsolIsolationReference','history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);

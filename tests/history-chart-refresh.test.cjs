@@ -1,10 +1,9 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {acceptedCommit,at}=require('./helpers/regression-baseline.cjs');
+const {acceptedFile}=require('./helpers/regression-baseline.cjs');
 // Stable production baseline after the approved boundary-period power-history fix.
 // This is deliberately advanced instead of removing any lock: new work must still preserve the now-approved history logic.
-const BASE=acceptedCommit();
-const source=f=>fs.readFileSync(f,'utf8'),old=f=>at(BASE,f);
+const source=f=>fs.readFileSync(f,'utf8'),old=f=>acceptedFile(f);
 const ui=source('history-ui.js');
 const chunk=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
 const ctx={Number,Math,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c])),monthLabel:v=>v};

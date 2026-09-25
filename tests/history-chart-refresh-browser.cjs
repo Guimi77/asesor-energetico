@@ -1,9 +1,8 @@
 'use strict';
 const fs=require('node:fs'),http=require('node:http'),assert=require('node:assert/strict');
-const {frozenCommit,at}=require('./helpers/regression-baseline.cjs');
+const {frozenFile}=require('./helpers/regression-baseline.cjs');
 const {chromium}=require('playwright');
-const BASE=frozenCommit('historyChartRefreshLegacyTwoCharts');
-const baseline=new Map(['auth-bootstrap.js','history-ui.js','history-cost-chart.js'].map(f=>[f,at(BASE,f)]));
+const baseline=new Map(['auth-bootstrap.js','history-ui.js','history-cost-chart.js'].map(f=>[f,frozenFile('historyChartRefreshLegacyTwoCharts',f)]));
 function setup(){
  const mode=new URL(location.href).searchParams.get('case')||'large';
  const supplies=Array.from({length:52},(_,i)=>({id:'s'+i,holder_id:'holder',cups:'TEST-CUPS-'+i,supply_name:'Synthetic supply '+i}));

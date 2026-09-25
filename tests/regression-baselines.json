@@ -1,31 +1,67 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "accepted": {
     "version": 1,
-    "commit": "f584188189cac36d269ebf6ff6a49f4f3d4e0bea",
+    "snapshot": "tests/regression-snapshots/accepted-v1",
+    "files": [
+      "history-ui.js",
+      "supply-enricher-v2.js",
+      "history-recommendations.js",
+      "history-recommendations.css",
+      "history-cost-chart.js"
+    ],
+    "sourceCommit": "f584188189cac36d269ebf6ff6a49f4f3d4e0bea",
     "acceptedAt": "2026-09-24",
     "acceptedBy": "Guimi77",
     "reason": "Baseline inicial: estado de main posterior al PR #29 con todas las regresiones y GitHub Pages verificadas en verde."
   },
   "frozen": {
     "historyChartRefreshLegacyTwoCharts": {
-      "commit": "c2a3e38daf5c064960c166941692f01691f1d7fa",
+      "snapshot": "tests/regression-snapshots/frozen-history-chart-refresh-legacy-two-charts",
+      "files": [
+        "auth-bootstrap.js",
+        "history-ui.js",
+        "history-cost-chart.js"
+      ],
+      "sourceCommit": "c2a3e38daf5c064960c166941692f01691f1d7fa",
       "reason": "Referencia histórica fija que reproduce el fallo de sesión diferida con solo dos gráficas. No se promociona."
     },
     "pdfLifecycleWorkerLeak": {
-      "commit": "1668d5ea2f8059d17e08502d83c6395db361c4bf",
+      "snapshot": "tests/regression-snapshots/frozen-pdf-lifecycle-worker-leak",
+      "files": [
+        "app.js",
+        "xtra-history.js",
+        "supply-enricher-v2.js"
+      ],
+      "sourceCommit": "1668d5ea2f8059d17e08502d83c6395db361c4bf",
       "reason": "Referencia histórica fija que reproduce la fuga de workers PDF. No se promociona."
     },
     "fenieParserBeforePowerPeriodBoundary": {
-      "commit": "4cc8fe564bc0dd3921251b964c3cdde6d06cea14",
+      "snapshot": "tests/regression-snapshots/frozen-fenie-parser-before-power-period-boundary",
+      "files": [
+        "app.js"
+      ],
+      "sourceCommit": "4cc8fe564bc0dd3921251b964c3cdde6d06cea14",
       "reason": "Referencia histórica fija usada para aislar el cambio aprobado de límites de periodos de potencia."
     },
     "repsolIsolationReference": {
-      "commit": "b3c0da573d58fbb0163b3f4365b9bfb93070e2ca",
+      "snapshot": "tests/regression-snapshots/frozen-repsol-isolation-reference",
+      "files": [
+        "app.js",
+        "supply-enricher-v2.js",
+        "auth.css",
+        "history-cost-chart.js"
+      ],
+      "sourceCommit": "b3c0da573d58fbb0163b3f4365b9bfb93070e2ca",
       "reason": "Referencia histórica fija usada para comprobar que cambios Repsol no alteran bloques ajenos."
     },
     "historyRecommendationsCoreLock": {
-      "commit": "11922976361b2d74c0a5ad3449c15056d912cbc0",
+      "snapshot": "tests/regression-snapshots/frozen-history-recommendations-core-lock",
+      "files": [
+        "history-cost-chart.js",
+        "supply-enricher-v2.js"
+      ],
+      "sourceCommit": "11922976361b2d74c0a5ad3449c15056d912cbc0",
       "reason": "Referencia histórica fija que protege dependencias centrales de recomendaciones mientras los adaptadores de entrada pueden evolucionar."
     }
   }
