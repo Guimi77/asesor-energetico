@@ -89,6 +89,68 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'duplicate_cups', 'existing_id', v_target.id);
   end if;
 
+  -- For fill-only imports of an existing CUPS, validate against the current
+  -- owner before creating anything. A conflicting row must never leave behind
+  -- an orphan client or holder as a side effect.
+  if v_existing.id is not null and v_mode = 'fill_only' then
+    select h.* into v_existing_holder
+    from public.holders h
+    where h.id = v_existing.holder_id;
+
+    select c.* into v_existing_client
+    from public.clients c
+    where c.id = v_existing_holder.client_id;
+
+    if v_existing_holder.id is null or v_existing_client.id is null then
+      return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+    end if;
+
+    if v_client_tax_key <> '' then
+      if upper(regexp_replace(coalesce(v_existing_client.tax_id,''), '[^A-Za-z0-9]', '', 'g')) <> ''
+         and upper(regexp_replace(coalesce(v_existing_client.tax_id,''), '[^A-Za-z0-9]', '', 'g')) <> v_client_tax_key then
+        return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+      end if;
+      if upper(regexp_replace(coalesce(v_existing_client.tax_id,''), '[^A-Za-z0-9]', '', 'g')) = ''
+         and lower(trim(v_existing_client.name)) <> lower(v_client_name) then
+        return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+      end if;
+    elsif lower(trim(v_existing_client.name)) <> lower(v_client_name) then
+      return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+    end if;
+
+    if v_holder_tax_key <> '' then
+      if upper(regexp_replace(coalesce(v_existing_holder.tax_id,''), '[^A-Za-z0-9]', '', 'g')) <> ''
+         and upper(regexp_replace(coalesce(v_existing_holder.tax_id,''), '[^A-Za-z0-9]', '', 'g')) <> v_holder_tax_key then
+        return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+      end if;
+      if upper(regexp_replace(coalesce(v_existing_holder.tax_id,''), '[^A-Za-z0-9]', '', 'g')) = ''
+         and lower(trim(v_existing_holder.legal_name)) <> lower(v_holder_name) then
+        return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+      end if;
+    elsif lower(trim(v_existing_holder.legal_name)) <> lower(v_holder_name) then
+      return jsonb_build_object('ok', false, 'reason', 'owner_conflict');
+    end if;
+
+    v_client_id := v_existing_client.id;
+    v_holder_id := v_existing_holder.id;
+
+    update public.clients
+    set tax_id = case
+          when nullif(trim(coalesce(tax_id,'')), '') is null and v_client_tax is not null then v_client_tax
+          else tax_id
+        end,
+        updated_at = now()
+    where id = v_client_id;
+
+    update public.holders
+    set tax_id = case
+          when nullif(trim(coalesce(tax_id,'')), '') is null and v_holder_tax is not null then v_holder_tax
+          else tax_id
+        end,
+        updated_at = now()
+    where id = v_holder_id;
+  else
+
   -- Resolve client by tax id first, then exact name. Ambiguity is surfaced.
   if v_client_tax_key <> '' then
     select count(*) into v_count
@@ -212,6 +274,8 @@ begin
         end,
         updated_at = now()
     where id = v_holder_id;
+  end if;
+
   end if;
 
   if v_existing.id is not null then
