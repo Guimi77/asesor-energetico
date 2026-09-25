@@ -386,7 +386,7 @@
         ? ` · Pendiente: ${legacyPendingKeys.map((key) => `${esc(key)} (${esc(legacyReasonLabel(legacyPendingDetails[key]))})`).join(' · ')}`
         : '';
       const cacheText = !legacyPending
-        ? ` · caché alineada con Supabase${cachePruned ? ` · ${cachePruned} registro${cachePruned === 1 ? '' : 's'} local${cachePruned === 1 ? '' : 'es'} retirado${cachePruned === 1 ? '' : 's'} por no estar activo${cachePruned === 1 ? '' : 's'} en central` : ''}`
+        ? ` · caché alineada con Supabase${cachePruned ? ` · ${cachePruned} registro${cachePruned === 1 ? '' : 's'} local${cachePruned === 1 ? '' : 'es'} archivado${cachePruned === 1 ? '' : 's'} y retirado${cachePruned === 1 ? '' : 's'} de la caché activa por no estar en central` : ''}`
         : '';
       setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}${pendingDetailText}${cacheText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
 
