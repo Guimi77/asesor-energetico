@@ -83,6 +83,47 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (action === "update_holder") {
+      const legalName = String(body?.legal_name || "").trim();
+      const taxId = body?.tax_id == null ? null : String(body.tax_id).trim() || null;
+      if (!legalName) return json({ error: "invalid_holder_name" }, 400);
+
+      const { data, error } = await admin.rpc("admin_update_holder", {
+        p_holder_id: id,
+        p_legal_name: legalName,
+        p_tax_id: taxId,
+        p_actor: user.id,
+      });
+      if (error) throw error;
+      if (!data?.ok) return json(data || { error: "holder_update_rejected" }, 409);
+      return json(data);
+    }
+
+    if (action === "reassign_supply_holder") {
+      const targetHolderId = body?.target_holder_id;
+      if (!validUuid(targetHolderId)) return json({ error: "invalid_target_holder" }, 400);
+
+      const { data, error } = await admin.rpc("admin_reassign_supply_holder", {
+        p_supply_id: id,
+        p_target_holder_id: targetHolderId,
+        p_actor: user.id,
+      });
+      if (error) throw error;
+      if (!data?.ok) return json(data || { error: "holder_reassignment_rejected" }, 409);
+      return json(data);
+    }
+
+    if (["archive_holder", "restore_holder", "delete_holder"].includes(action)) {
+      const { data, error } = await admin.rpc("admin_holder_lifecycle", {
+        p_action: action,
+        p_holder_id: id,
+        p_actor: user.id,
+      });
+      if (error) throw error;
+      if (!data?.ok) return json(data || { error: "holder_lifecycle_rejected" }, 409);
+      return json(data);
+    }
+
     if (action === "archive_client" || action === "restore_client") {
       const status = action === "archive_client" ? "archived" : "active";
       const { data, error } = await admin.from("clients").update({ status }).eq("id", id).select("id,name,status").maybeSingle();
