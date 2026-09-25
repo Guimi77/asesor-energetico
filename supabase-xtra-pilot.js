@@ -13,6 +13,29 @@
   };
   const roleIsInternal = (profile) => ['admin', 'staff'].includes(profile?.role);
   const naturalPersonTaxId = (value) => /^\d{8}[A-Z]$/i.test(taxKey(value));
+  const esc = (value) => norm(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  function legacyReasonLabel(reason = '') {
+    const labels = {
+      client_not_found: 'cliente no identificado en la base central',
+      holder_not_found: 'titular no identificado en la base central',
+      new_client_requires_tax_id: 'falta NIF/CIF para crear el cliente con seguridad',
+      client_identity_insufficient: 'identidad del cliente insuficiente',
+      client_tax_ambiguous: 'NIF/CIF de cliente ambiguo',
+      client_name_ambiguous: 'nombre de cliente ambiguo',
+      holder_tax_ambiguous: 'NIF/CIF de titular ambiguo',
+      holder_name_ambiguous: 'nombre de titular ambiguo',
+      holder_belongs_to_other_client: 'el titular está vinculado a otro cliente',
+      not_authorized: 'sesión sin permiso interno',
+      rpc_error: 'error de comunicación con Supabase',
+      exception: 'error inesperado durante la migración',
+    };
+    return labels[reason] || reason || 'motivo no determinado';
+  }
 
   function setStatus(message, type = 'ok') {
     const el = document.querySelector('#masterStatus');
@@ -117,17 +140,18 @@
 
   async function reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies }) {
     if (typeof master.all !== 'function' || typeof supabase.rpc !== 'function') {
-      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [] };
+      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [], pendingDetails: {} };
     }
 
     const localRows = master.all() || [];
     if (!localRows.length) {
-      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [] };
+      return { migrated: 0, failed: 0, unresolved: 0, attempted: 0, candidateKeys: [], pendingDetails: {} };
     }
 
     const centralKeys = new Set(supplies.map((supply) => cupsKey(supply.cups)).filter(Boolean));
     const indexes = buildIdentityIndexes(activeClients, holders);
     const candidateKeys = new Set();
+    const pendingDetails = {};
 
     let migrated = 0;
     let failed = 0;
@@ -184,17 +208,20 @@
 
         if (error) {
           failed += 1;
+          pendingDetails[key] = 'rpc_error';
           console.warn('No se pudo migrar un suministro local al maestro central', row.cups, error);
           continue;
         }
 
         if (!data?.ok) {
           unresolved += 1;
+          const reason = data?.reason || identity.reason || 'unknown';
+          pendingDetails[key] = reason;
           console.warn('Suministro heredado pendiente: no se ha podido resolver de forma segura', {
             cups: row.cups,
             client: row.client,
             company: row.company || row.holder,
-            reason: data?.reason || identity.reason || 'unknown',
+            reason,
           });
           continue;
         }
@@ -203,6 +230,7 @@
         if (data.mode === 'inserted') migrated += 1;
       } catch (error) {
         failed += 1;
+        pendingDetails[key] = 'exception';
         console.warn('No se pudo migrar un suministro local al maestro central', row.cups, error);
       }
     }
@@ -213,6 +241,7 @@
       unresolved,
       attempted,
       candidateKeys: [...candidateKeys],
+      pendingDetails,
     };
   }
 
@@ -273,6 +302,9 @@
       const activeCentralKeys = new Set(supplies.map((supply) => cupsKey(supply.cups)).filter(Boolean));
       const legacyPendingKeys = legacy.candidateKeys.filter((key) => !activeCentralKeys.has(key));
       const legacyPending = legacyPendingKeys.length;
+      const legacyPendingDetails = Object.fromEntries(
+        legacyPendingKeys.map((key) => [key, legacy.pendingDetails?.[key] || 'unknown'])
+      );
       if (legacyPending) {
         console.error('Hay suministros heredados que siguen fuera del maestro central', legacyPendingKeys);
       }
@@ -332,7 +364,10 @@
       lastSyncKey = syncKey;
       const legacyText = legacy.migrated ? ` · ${legacy.migrated} CUPS heredado${legacy.migrated === 1 ? '' : 's'} recuperado${legacy.migrated === 1 ? '' : 's'} en central` : '';
       const pendingText = legacyPending ? ` · ATENCIÓN: ${legacyPending} CUPS heredado${legacyPending === 1 ? '' : 's'} sigue${legacyPending === 1 ? '' : 'n'} fuera de la base central` : '';
-      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
+      const pendingDetailText = legacyPending
+        ? ` · Pendiente: ${legacyPendingKeys.map((key) => `${esc(key)} (${esc(legacyReasonLabel(legacyPendingDetails[key]))})`).join(' · ')}`
+        : '';
+      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}${pendingDetailText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
 
       const detail = {
         clients: activeClients.length,
@@ -343,6 +378,7 @@
         legacyIdentityUnresolved: legacy.unresolved,
         legacyPending,
         legacyPendingKeys,
+        legacyPendingDetails,
       };
       window.dispatchEvent(new CustomEvent('central-supabase-synced', { detail }));
       window.dispatchEvent(new CustomEvent('xtra-supabase-synced', {
