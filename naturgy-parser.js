@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='naturgy-2026.09.22.1';
+  const REVISION='naturgy-2026.09.25.1';
   const RETAILER='Naturgy Clientes, S.A.U.';
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/[ \t]+/g,' ').trim();
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -104,9 +104,14 @@
 
   function parseConsumption(text,totalKwh,rate){
     const labels=[['P1','Punta'],['P2','Llano'],['P3','Valle']],periods={};
+    const lines=linesOf(text);
     for(const [key,label] of labels){
-      const re=new RegExp(label+'\\s+real[\\s\\S]{0,160}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh','i');
-      const m=String(text||'').match(re);
+      // Naturgy also prints "Consumo punta/llano/valle real" beside the page-1
+      // consumption chart. Never cross line boundaries here: otherwise the
+      // parser can attach a chart-axis value such as "300 kWh" to all periods.
+      const re=new RegExp('\\b'+label+'\\s+real\\b[^\\n]{0,120}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh\\b','i');
+      const line=lines.find(value=>re.test(value));
+      const m=line?.match(re);
       if(m)periods[key]={consumption:num(m[1]),cost:null,price:rate};
     }
     const sum=round2(Object.values(periods).reduce((s,p)=>s+Number(p.consumption||0),0));
