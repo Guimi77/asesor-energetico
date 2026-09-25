@@ -7,7 +7,10 @@
   const norm = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
   const nameKey = (v) => norm(v).toLocaleLowerCase('es');
   const taxKey = (v) => norm(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  const cupsKey = (v) => norm(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const cupsKey = (v) => {
+    const compact = norm(v).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    return compact.startsWith('ES') && compact.length >= 20 ? compact.slice(0, 20) : compact;
+  };
   const roleIsInternal = (profile) => ['admin', 'staff'].includes(profile?.role);
   const naturalPersonTaxId = (value) => /^\d{8}[A-Z]$/i.test(taxKey(value));
 
