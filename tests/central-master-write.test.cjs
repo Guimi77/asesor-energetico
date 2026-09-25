@@ -62,14 +62,13 @@ test('a centrally accepted import may repair stale local ownership before the ne
   assert.ok(master.includes("upsertSupply(supply, { allowMove: true, fillOnly: true, preserveIdentity: false })"));
 });
 
-test('central sync treats Supabase values as authoritative for cached rows', () => {
-  const marker = "source: 'Supabase · Base central'";
-  const start = pilot.indexOf(marker);
-  assert.ok(start >= 0, 'central source marker must exist');
-  const options = pilot.slice(start, start + 700);
-  assert.match(options, /allowMove:\s*true/);
-  assert.match(options, /fillOnly:\s*false/);
-  assert.match(options, /preserveIdentity:\s*false/);
+test('central sync treats Supabase membership as authoritative only when no legacy row is pending', () => {
+  assert.ok(pilot.includes("if (!legacyPending && typeof master.replaceActiveFromCentral === 'function')"));
+  assert.ok(pilot.includes('master.replaceActiveFromCentral(centralRows)'));
+  assert.ok(pilot.includes("cacheAligned: !legacyPending && typeof master.replaceActiveFromCentral === 'function'"));
+  assert.ok(pilot.includes('master.add(row, {'));
+  assert.ok(pilot.includes('fillOnly: false'));
+  assert.ok(pilot.includes('preserveIdentity: false'));
 });
 
 test('database write RPC is additive, canonical and ambiguity-safe', () => {
@@ -99,7 +98,15 @@ test('fill-only owner conflicts are rejected before any new hierarchy can be ins
   assert.ok(firstHolderInsert > conflict);
 });
 
-test('browser cache markers force the new central-write code', () => {
-  assert.match(index, /master-v2\.js\?v=20260925-centralwrite1/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
+test('central cache alignment preserves a local archive before pruning', () => {
+  assert.ok(master.includes('function replaceActiveFromCentral(rows = [])'));
+  assert.ok(master.includes("archiveReason: 'central_cache_alignment'"));
+  assert.ok(master.includes("localStorage.setItem(LEGACY_ARCHIVE_STORAGE"));
+  assert.ok(master.includes("return { ok: false, reason: 'legacy_archive_failed', error }"));
+  assert.ok(master.includes('mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })'));
+});
+
+test('browser cache markers force the central-authoritative code', () => {
+  assert.match(index, /master-v2\.js\?v=20260925-centralcache1/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central7/);
 });

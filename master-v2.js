@@ -361,6 +361,90 @@
     return removed;
   }
 
+  function replaceActiveFromCentral(rows = []) {
+    if (!Array.isArray(rows)) {
+      return { ok: false, reason: 'central_snapshot_invalid' };
+    }
+
+    const previousByKey = new Map(
+      supplies
+        .map((supply) => [cupsKey(supply.cups), supply])
+        .filter(([cups]) => cups)
+    );
+    const nextByKey = new Map();
+
+    let added = 0;
+    let enriched = 0;
+    let unchanged = 0;
+    let invalid = 0;
+
+    for (const raw of rows) {
+      const incoming = normalizeSupply(raw);
+      const wanted = cupsKey(incoming.cups);
+      if (!wanted || !wanted.startsWith('ES')) {
+        invalid += 1;
+        continue;
+      }
+
+      const existing = previousByKey.get(wanted);
+      const merged = existing
+        ? mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })
+        : incoming;
+
+      if (!existing) {
+        added += 1;
+      } else if (JSON.stringify(existing) !== JSON.stringify(merged)) {
+        enriched += 1;
+      } else {
+        unchanged += 1;
+      }
+
+      nextByKey.set(wanted, merged);
+    }
+
+    const nextKeys = new Set(nextByKey.keys());
+    const prunedRows = supplies.filter((supply) => !nextKeys.has(cupsKey(supply.cups)));
+    const pruned = prunedRows.length;
+
+    if (prunedRows.length) {
+      try {
+        const archived = JSON.parse(localStorage.getItem(LEGACY_ARCHIVE_STORAGE) || '[]');
+        const currentArchive = Array.isArray(archived) ? archived : [];
+        const prunedKeys = new Set(prunedRows.map((supply) => cupsKey(supply.cups)).filter(Boolean));
+        const keptArchive = currentArchive.filter((supply) => !prunedKeys.has(cupsKey(supply?.cups)));
+        const archivedAt = new Date().toISOString();
+        for (const supply of prunedRows) {
+          keptArchive.push({
+            ...supply,
+            status: 'ARCHIVADO',
+            archivedAt,
+            archiveReason: 'central_cache_alignment',
+          });
+        }
+        localStorage.setItem(LEGACY_ARCHIVE_STORAGE, JSON.stringify(keptArchive));
+      } catch (error) {
+        console.warn('No se pudo conservar la copia local antes de alinear la caché central', error);
+        return { ok: false, reason: 'legacy_archive_failed', error };
+      }
+    }
+
+    supplies = [...nextByKey.values()];
+    save();
+    publish();
+    renderClients();
+    renderCups($('#cupsSearch')?.value || '');
+
+    return {
+      ok: true,
+      count: supplies.length,
+      added,
+      enriched,
+      unchanged,
+      pruned,
+      invalid,
+    };
+  }
+
   function archiveLocal(cups) {
     const wanted = cupsKey(cups);
     if (!wanted) return { ok: false, reason: 'cups_missing' };
@@ -458,6 +542,7 @@
       },
       learnInvoice,
       removeLocal,
+      replaceActiveFromCentral,
       archiveLocal,
       refresh: () => refresh(),
       __v2: true,

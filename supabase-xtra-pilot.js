@@ -316,18 +316,14 @@
         holderCountByClient.set(holder.client_id, (holderCountByClient.get(holder.client_id) || 0) + 1);
       }
 
-      let added = 0;
-      let enriched = 0;
-      let unchanged = 0;
-      let blocked = 0;
-
+      const centralRows = [];
       for (const supply of supplies) {
         const holder = holderById.get(supply.holder_id);
         const client = clientById.get(holder?.client_id);
         if (!holder || !client || !norm(supply.cups)) continue;
 
         const type = clientType(client, holderCountByClient.get(client.id) || 0);
-        const result = master.add({
+        centralRows.push({
           client: client.name,
           clientAlias: clientAliases[client.id] || '',
           clientTaxId: client.tax_id || '',
@@ -349,16 +345,38 @@
           distributor: supply.current_distributor || '',
           status: 'ACTIVO',
           source: 'Supabase · Base central',
-        }, {
-          allowMove: true,
-          fillOnly: false,
-          preserveIdentity: false,
         });
+      }
 
-        if (!result?.ok) blocked += 1;
-        else if (!result.updated) added += 1;
-        else if (result.enriched) enriched += 1;
-        else unchanged += 1;
+      let added = 0;
+      let enriched = 0;
+      let unchanged = 0;
+      let blocked = 0;
+      let cachePruned = 0;
+
+      if (!legacyPending && typeof master.replaceActiveFromCentral === 'function') {
+        const cacheResult = master.replaceActiveFromCentral(centralRows);
+        if (!cacheResult?.ok) {
+          throw new Error(cacheResult?.reason || 'central_cache_replace_failed');
+        }
+        added = cacheResult.added || 0;
+        enriched = cacheResult.enriched || 0;
+        unchanged = cacheResult.unchanged || 0;
+        cachePruned = cacheResult.pruned || 0;
+        blocked = cacheResult.invalid || 0;
+      } else {
+        for (const row of centralRows) {
+          const result = master.add(row, {
+            allowMove: true,
+            fillOnly: false,
+            preserveIdentity: false,
+          });
+
+          if (!result?.ok) blocked += 1;
+          else if (!result.updated) added += 1;
+          else if (result.enriched) enriched += 1;
+          else unchanged += 1;
+        }
       }
 
       lastSyncKey = syncKey;
@@ -367,7 +385,10 @@
       const pendingDetailText = legacyPending
         ? ` · Pendiente: ${legacyPendingKeys.map((key) => `${esc(key)} (${esc(legacyReasonLabel(legacyPendingDetails[key]))})`).join(' · ')}`
         : '';
-      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}${pendingDetailText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
+      const cacheText = !legacyPending
+        ? ` · caché alineada con Supabase${cachePruned ? ` · ${cachePruned} registro${cachePruned === 1 ? '' : 's'} local${cachePruned === 1 ? '' : 'es'} archivado${cachePruned === 1 ? '' : 's'} y retirado${cachePruned === 1 ? '' : 's'} de la caché activa por no estar en central` : ''}`
+        : '';
+      setStatus(`${activeClients.length} clientes · ${holders.length} titulares · ${supplies.length} CUPS activos leídos. ${added} nuevos en caché local · ${enriched} completados · ${unchanged} sin cambios${blocked ? ` · ${blocked} bloqueados` : ''}${legacyText}${pendingText}${pendingDetailText}${cacheText}. Fuente central: Supabase; sin almacenar PDFs.`, legacyPending ? 'error' : 'ok');
 
       const detail = {
         clients: activeClients.length,
@@ -379,6 +400,8 @@
         legacyPending,
         legacyPendingKeys,
         legacyPendingDetails,
+        cachePruned,
+        cacheAligned: !legacyPending && typeof master.replaceActiveFromCentral === 'function',
       };
       window.dispatchEvent(new CustomEvent('central-supabase-synced', { detail }));
       window.dispatchEvent(new CustomEvent('xtra-supabase-synced', {

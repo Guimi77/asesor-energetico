@@ -17,6 +17,7 @@ function cupsKey(value) {
 function buildHarness(role = 'admin', options = {}) {
   const calls = [];
   const added = [];
+  const replacements = [];
   const listeners = new Map();
   const dispatched = [];
   const status = { innerHTML: '', dataset: {} };
@@ -204,6 +205,19 @@ function buildHarness(role = 'admin', options = {}) {
         added.push({ item, options: optionsArg });
         return { ok: true, updated: false, enriched: true, supply: item };
       },
+      replaceActiveFromCentral(rows) {
+        const snapshot = rows.map((row) => ({ ...row }));
+        replacements.push(snapshot);
+        return {
+          ok: true,
+          count: snapshot.length,
+          added: 0,
+          enriched: 0,
+          unchanged: snapshot.length,
+          pruned: options.cachePruned || 0,
+          invalid: 0,
+        };
+      },
     },
     addEventListener(name, handler) { listeners.set(name, handler); },
     dispatchEvent(event) { dispatched.push(event); },
@@ -221,17 +235,19 @@ function buildHarness(role = 'admin', options = {}) {
   };
 
   vm.runInNewContext(source, context, { filename: 'supabase-xtra-pilot.js' });
-  return { window, calls, added, status, datasets, dispatched };
+  return { window, calls, added, replacements, status, datasets, dispatched };
 }
 
 test('admin reconciles every eligible legacy CUPS across every active client without duplicating holders', async () => {
-  const { window, calls, added, status, datasets, dispatched } = buildHarness('admin');
+  const { window, calls, added, replacements, status, datasets, dispatched } = buildHarness('admin');
   await window.CentralSupabaseMaster.reload();
 
   assert.equal(window.CentralSupabaseMaster.scope, 'all-active-clients');
   assert.equal(window.CentralSupabaseMaster.mode, 'central-master-global-reconciliation-with-audit');
-  assert.equal(added.length, 9);
-  assert.deepEqual(new Set(added.map(({ item }) => item.client)), new Set([
+  assert.equal(added.length, 0, 'clean central snapshots should replace the cache instead of additive local upserts');
+  assert.equal(replacements.length, 1);
+  assert.equal(replacements[0].length, 9);
+  assert.deepEqual(new Set(replacements[0].map((item) => item.client)), new Set([
     'CLIENTE PRUEBA CENTRAL',
     'CLIENTE PRUEBA UNO',
     'CLIENTE PRUEBA DOS',
@@ -245,7 +261,7 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
     ['CLIENTE PRUEBA TRES', 2],
   ]);
   for (const [client, expected] of expectedCounts) {
-    assert.equal(added.filter(({ item }) => item.client === client).length, expected, `${client} must preserve every distinct supply`);
+    assert.equal(replacements[0].filter((item) => item.client === client).length, expected, `${client} must preserve every distinct supply`);
   }
 
   const recoveryCalls = calls.filter((call) => call.op === 'rpc' && call.name === 'ensure_supply_from_master');
@@ -274,6 +290,9 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.ok(centralEvent);
   assert.equal(centralEvent.detail.legacyPending, 0);
   assert.equal(centralEvent.detail.legacyIdentityUnresolved, 0);
+  assert.equal(centralEvent.detail.cacheAligned, true);
+  assert.equal(centralEvent.detail.cachePruned, 0);
+  assert.match(status.innerHTML, /caché alineada con Supabase/);
 });
 
 test('CUPS extensions share the same canonical supply identity', async () => {
@@ -308,7 +327,7 @@ test('CUPS extensions share the same canonical supply identity', async () => {
 
 test('a tax-identified legacy client and holder missing from Supabase are promoted without losing the CUPS', async () => {
   const recoveredCups = 'ES0000000000000009AA';
-  const { window, calls, added, status, datasets, dispatched } = buildHarness('admin', {
+  const { window, calls, added, replacements, status, datasets, dispatched } = buildHarness('admin', {
     extraLocalRows: [{
       client: 'CLIENTE PRUEBA NUEVO',
       clientTaxId: '00000004G',
@@ -342,7 +361,9 @@ test('a tax-identified legacy client and holder missing from Supabase are promot
   const recoveredClient = datasets.clients.find((item) => item.name === 'CLIENTE PRUEBA NUEVO');
   assert.ok(datasets.holders.some((item) => item.client_id === recoveredClient.id && item.legal_name === 'CLIENTE PRUEBA NUEVO'));
   assert.ok(datasets.supplies.some((item) => cupsKey(item.cups) === cupsKey(recoveredCups)));
-  assert.ok(added.some(({ item }) => cupsKey(item.cups) === cupsKey(recoveredCups)), 'reloaded central hierarchy must repopulate the local cache');
+  assert.equal(added.length, 0);
+  assert.equal(replacements.length, 1);
+  assert.ok(replacements[0].some((item) => cupsKey(item.cups) === cupsKey(recoveredCups)), 'reloaded central hierarchy must repopulate the cache from the central snapshot');
 
   assert.equal(status.dataset.remoteStatus, 'ok');
   assert.doesNotMatch(status.innerHTML, /sigue[n]? fuera de la base central/);
@@ -355,7 +376,7 @@ test('a tax-identified legacy client and holder missing from Supabase are promot
 
 test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of being silently omitted', async () => {
   const pendingCups = 'ES0000000000000009AA0Z';
-  const { window, status, dispatched } = buildHarness('admin', {
+  const { window, replacements, status, dispatched } = buildHarness('admin', {
     extraLocalRows: [{
       client: 'CLIENTE DESCONOCIDO',
       company: 'TITULAR DESCONOCIDO',
@@ -377,11 +398,13 @@ test('a legacy CUPS that cannot be reconciled is surfaced as an error instead of
   assert.equal(centralEvent.detail.legacyPendingDetails[cupsKey(pendingCups)], 'new_client_requires_tax_id');
   assert.match(status.innerHTML, /Pendiente:/);
   assert.match(status.innerHTML, /falta NIF\/CIF para crear el cliente con seguridad/);
+  assert.equal(replacements.length, 0, 'pending legacy rows must block destructive cache alignment');
+  assert.equal(centralEvent.detail.cacheAligned, false);
 });
 
 test('RPC failures cannot masquerade as a successful reconciliation', async () => {
   const failedCups = 'ES0000000000000006AA';
-  const { window, status, dispatched } = buildHarness('admin', { rpcFailCups: [failedCups] });
+  const { window, replacements, status, dispatched } = buildHarness('admin', { rpcFailCups: [failedCups] });
   await window.CentralSupabaseMaster.reload();
 
   assert.equal(status.dataset.remoteStatus, 'error');
@@ -392,18 +415,21 @@ test('RPC failures cannot masquerade as a successful reconciliation', async () =
   assert.equal(centralEvent.detail.legacyPending, 1);
   assert.ok(centralEvent.detail.legacyPendingKeys.includes(cupsKey(failedCups)));
   assert.equal(centralEvent.detail.legacyPendingDetails[cupsKey(failedCups)], 'rpc_error');
+  assert.equal(replacements.length, 0, 'RPC failures must never prune the local cache');
+  assert.equal(centralEvent.detail.cacheAligned, false);
 });
 
 test('client accounts do not read or reconcile the internal central master', async () => {
-  const { window, calls, added } = buildHarness('client');
+  const { window, calls, added, replacements } = buildHarness('client');
   await window.CentralSupabaseMaster.reload();
   assert.equal(calls.length, 0);
   assert.equal(added.length, 0);
+  assert.equal(replacements.length, 0);
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
-  assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central5/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central7/);
+  assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
   assert.match(source, /legacyPendingKeys/);
