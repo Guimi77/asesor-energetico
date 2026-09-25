@@ -31,7 +31,14 @@ test('Coverage changes stay isolated from authentication, history data and FENIE
  assert(!ui.includes("$('#historySupply')?.addEventListener('change'"));
  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8'),oldEnricher=at(base,'supply-enricher-v2.js');
  assert.equal(part(enricher,'function parseSupply(lines)','function endesaAddress'),part(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
- assert(enricher.includes("format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
+ for(const token of [
+  "format==='uenergia'?parseUenergiaSupply(pdfData,file)",
+  "format==='iberdrola'?parseIberdrolaSupply(pdfData,file)",
+  "format==='repsol'?parseRepsolSupply(pdfData,file)",
+  "format==='naturgy'?parseNaturgySupply(pdfData,file)",
+  "format==='fenie'?parseSupply(allLines)",
+  "format==='endesa'?parseEndesaSupply(pdfData.pages,file)"
+ ]) assert(enricher.includes(token),token);
  // A missing energy breakdown must never be reinterpreted as a legitimate zero merely because the invoice total exists.
  const audit=fs.readFileSync('parser-audit.js','utf8');assert(audit.includes('Detalle energético coherente'));assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));assert(audit.includes('if(consumption>0&&energy<=0)'));
  const historyExport=fs.readFileSync('history-client-export.js','utf8'),clientExport=fs.readFileSync('client-report-export.js','utf8');
