@@ -8,7 +8,6 @@ const adminUi = fs.readFileSync(path.join(root, 'admin-data-management.js'), 'ut
 const auth = fs.readFileSync(path.join(root, 'auth.js'), 'utf8');
 const pilot = fs.readFileSync(path.join(root, 'supabase-xtra-pilot.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'), 'utf8');
-const holderMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260925123000_holder_lifecycle_management.sql'), 'utf8');
 const edgeLifecycle = fs.readFileSync(path.join(root, 'supabase/functions/admin-data-lifecycle/index.ts'), 'utf8');
 
 test('admin lifecycle browser script parses', () => {
@@ -73,38 +72,38 @@ test('latest validated invoice holder can reveal a stale current owner without r
   assert.match(adminUi, /reassign_supply_holder/);
 });
 
-test('holder lifecycle edge actions stay behind the existing admin gate and use transactional RPCs', () => {
+test('holder lifecycle edge actions stay behind the existing admin gate', () => {
   assert.match(edgeLifecycle, /callerProfile\.role !== "admin"/);
-  assert.match(edgeLifecycle, /admin_update_holder/);
-  assert.match(edgeLifecycle, /admin_reassign_supply_holder/);
-  assert.match(edgeLifecycle, /admin_holder_lifecycle/);
+  assert.match(edgeLifecycle, /action === "update_holder"/);
+  assert.match(edgeLifecycle, /action === "reassign_supply_holder"/);
+  assert.match(edgeLifecycle, /\["archive_holder", "restore_holder", "delete_holder"\]/);
   assert.match(edgeLifecycle, /invalid_target_holder/);
 });
 
-test('holder lifecycle migration preserves invoice evidence and records current-owner changes', () => {
-  assert.match(holderMigration, /create or replace function public\.admin_update_holder/);
-  assert.match(holderMigration, /create or replace function public\.admin_reassign_supply_holder/);
-  assert.match(holderMigration, /create or replace function public\.admin_holder_lifecycle/);
-  assert.match(holderMigration, /update public\.supplies[\s\S]*set holder_id = p_target_holder_id/);
-  assert.match(holderMigration, /insert into public\.supply_events/);
-  assert.match(holderMigration, /insert into public\.audit_log/);
-  assert.doesNotMatch(holderMigration, /update\s+public\.invoices/i);
-  assert.doesNotMatch(holderMigration, /delete\s+from\s+public\.invoices/i);
+test('current-owner reassignment reuses the existing central master writer and preserves invoice evidence', () => {
+  assert.match(edgeLifecycle, /userClient\.rpc\("save_master_supply"/);
+  assert.match(edgeLifecycle, /mode: "manual"/);
+  assert.match(edgeLifecycle, /original_cups: supply\.cups/);
+  assert.match(edgeLifecycle, /event_type: "holder_change"/);
+  assert.match(edgeLifecycle, /before_value:/);
+  assert.match(edgeLifecycle, /after_value:/);
+  assert.doesNotMatch(edgeLifecycle, /from\("invoices"\)\.update/);
+  assert.doesNotMatch(edgeLifecycle, /from\("invoices"\)\.delete/);
 });
 
 test('holder deletion is blocked while any supply still depends on the holder', () => {
-  assert.match(holderMigration, /holder_has_active_supplies/);
-  assert.match(holderMigration, /holder_has_supplies/);
-  const supplyCount = holderMigration.indexOf('select count(*) into v_supply_count');
-  const holderDelete = holderMigration.indexOf('delete from public.holders');
-  assert.ok(supplyCount >= 0 && holderDelete > supplyCount);
+  assert.match(edgeLifecycle, /holder_has_active_supplies/);
+  assert.match(edgeLifecycle, /holder_has_supplies/);
+  const dependencyCheck = edgeLifecycle.indexOf('dependencies.supplies > 0');
+  const holderDelete = edgeLifecycle.indexOf('from("holders").delete()');
+  assert.ok(dependencyCheck >= 0 && holderDelete > dependencyCheck);
 });
 
-test('holder admin RPCs are not executable by browser roles', () => {
-  assert.match(holderMigration, /revoke all on function public\.admin_update_holder\(uuid,text,text,uuid\) from public, anon, authenticated/);
-  assert.match(holderMigration, /revoke all on function public\.admin_reassign_supply_holder\(uuid,uuid,uuid\) from public, anon, authenticated/);
-  assert.match(holderMigration, /revoke all on function public\.admin_holder_lifecycle\(text,uuid,uuid\) from public, anon, authenticated/);
-  assert.match(holderMigration, /grant execute on function public\.admin_update_holder\(uuid,text,text,uuid\) to service_role/);
+test('holder edits reject duplicate identity and only mirror one-to-one client identities', () => {
+  assert.match(edgeLifecycle, /holder_tax_conflict/);
+  assert.match(edgeLifecycle, /holder_name_conflict/);
+  assert.match(edgeLifecycle, /\(clientHolders \|\| \[\]\)\.length === 1/);
+  assert.match(edgeLifecycle, /client_synced: clientSynced/);
 });
 
 test('browser cache marker forces holder lifecycle UI refresh', () => {
