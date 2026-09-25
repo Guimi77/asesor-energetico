@@ -11,6 +11,16 @@ Fecha de emisión: 24/03/2026
 Período electricidad:
 del 18/02/2026 al 16/03/2026
 N.º de referencia: 600000001
+Tu Factura Tu consumo
+Consumo punta real Consumo punta estimado
+Consumo llano real Consumo llano estimado
+Total a pagar
+Consumo valle real Consumo valle estimado
+55,69 €
+450
+300
+kWh
+150
 Nombre: CLIENTE DEMO                    CNAE: 9820
 Doc. Identidad: 00000000T
 3. Detalle: cómo calculamos tu factura
@@ -74,6 +84,13 @@ test('Naturgy 2.0TD maps to normalized energy model and balances',()=>{
   assert.equal(r.maximeters.P2,2.332);
   assert.equal(r.accessContract,'600000004');
   assert.equal(r.distributor,'EDISTRIBUCIÓN REDES DIGITALES, S.L.U.');
+});
+
+test('Naturgy ignores page-1 chart axis labels and uses actual reading rows',()=>{
+  const r=parser.parse({text:sample},{name:'naturgy-chart-axis-demo.pdf'});
+  assert.equal(r.readOk,true);
+  assert.deepEqual(Object.fromEntries(Object.entries(r.periods).map(([k,v])=>[k,v.consumption])),{P1:58,P2:44,P3:83});
+  assert.equal(Object.values(r.periods).reduce((sum,p)=>sum+p.consumption,0),185);
 });
 
 test('Naturgy fails closed when consumption periods do not reconcile',()=>{
