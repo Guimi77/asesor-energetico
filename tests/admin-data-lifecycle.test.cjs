@@ -62,12 +62,17 @@ test('holder administration can edit, archive and safely remove holders', () => 
   assert.match(adminUi, /\$\$\('\[data-db-action\]', root\)\.forEach/);
 });
 
-test('latest validated invoice holder can reveal a stale current owner without rewriting history', () => {
+test('latest validated invoice distinguishes legal-name updates from true holder changes', () => {
   assert.match(adminUi, /latestInvoiceBySupply/);
   assert.match(adminUi, /source_holder_name/);
   assert.match(adminUi, /source_holder_tax_id/);
   assert.match(adminUi, /validation_status !== 'valid'/);
   assert.match(adminUi, /invoice\.superseded_by/);
+  assert.match(adminUi, /holderInvoiceRelation/);
+  assert.match(adminUi, /kind: 'rename'/);
+  assert.match(adminUi, /kind: 'holder_change'/);
+  assert.match(adminUi, /Actualizar nombre desde última factura/);
+  assert.match(adminUi, /sync_holder_identity/);
   assert.match(adminUi, /Aplicar titular de última factura/);
   assert.match(adminUi, /reassign_supply_holder/);
 });
