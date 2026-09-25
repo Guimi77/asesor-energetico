@@ -5,13 +5,13 @@ on:
     paths:
       - 'supabase-xtra-pilot.js'
       - 'master-v2.js'
-      - 'master-v2.js'
       - 'auth-bootstrap.js'
       - 'tests/central-master-sync.test.cjs'
       - '.github/workflows/central-master-sync-regression.yml'
   pull_request:
     paths:
       - 'supabase-xtra-pilot.js'
+      - 'master-v2.js'
       - 'auth-bootstrap.js'
       - 'tests/central-master-sync.test.cjs'
       - '.github/workflows/central-master-sync-regression.yml'
