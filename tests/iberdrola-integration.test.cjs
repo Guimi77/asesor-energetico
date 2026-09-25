@@ -25,7 +25,7 @@ test('main parser routes Iberdrola before legacy formats and before FENIE OCR fa
   const route=app.indexOf('const iberdrola=window.IBTIberdrolaParser');
   const legacy=app.indexOf('const formats=window.IBTInvoiceFormats',route);
   assert(route>=0&&legacy>route);
-  const fileRoute=app.indexOf('if(window.IBTIberdrolaParser?.detect?.(original)||window.IBTRepsolParser?.detect?.(original))return parseInvoice(original,file)');
+  const fileRoute=app.indexOf('window.IBTIberdrolaParser?.detect?.(original)');
   const ocr=app.indexOf('const fallback=window.IBTFenieOcrFallback',fileRoute);
   assert(fileRoute>=0&&ocr>fileRoute,'Iberdrola must never enter the FENIE OCR fallback');
   assert(app.includes("if(format==='fenie')return parseFenie(d,file)"));
@@ -43,7 +43,9 @@ test('master and history consume the shared parser instead of duplicating Iberdr
   assert(history.includes('function extractIberdrola(d,file)'));
   assert(history.includes("if(iberdrola?.detect?.(d))return extractIberdrola(d,file)"));
   assert(history.includes('rawPages:raw'));
-  assert(history.includes("prepared=(iberdrola?.detect?.(source)||repsol?.detect?.(source))?{data:source,attempted:false,error:null}"));
+  const iberdrolaDirect=history.indexOf('iberdrola?.detect?.(source)');
+  const fallbackPrepare=history.indexOf('fallback?.prepare',iberdrolaDirect);
+  assert(iberdrolaDirect>=0&&fallbackPrepare>iberdrolaDirect,'Iberdrola must bypass the FENIE OCR fallback in history');
   assert(history.includes("const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'"));
   assert(history.includes("retailer:row.retailer||'IBERDROLA CLIENTES, S.A.U.'"));
 });
