@@ -22,8 +22,8 @@ window.IBTParserDiagnostics={
  items:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.items.map(i=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,pageWidth:p.pageWidth,pageHeight:p.pageHeight,...i}))),
  lines:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.reconstructedLines.map((text,index)=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,lineIndex:index,text})))
 };
-const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),round2=n=>Math.round((Number(n)||0)*100)/100,cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-const num=s=>{if(s==null)return 0;let x=String(s).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');return Number(x)||0},euros=s=>[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])),lastEuro=s=>{const a=euros(s);return a.length?a.at(-1):0},readingStatusLabel=s=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[s]||'No determinada';
+const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const readingStatusLabel=s=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[s]||'No determinada';
 const semanticPdfText=value=>window.IBTPdfTextNormalizer?.repair?.(value)??String(value??'').replace(/\s+/g,' ').trim();
 const normalizePdfData=data=>window.IBTPdfTextNormalizer?.normalizeData?.(data)??data;
 function rawLines(items){const p=items.filter(i=>i.str?.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x),g=[];for(const q of p){let z=g.find(v=>Math.abs(v.y-q.y)<=2.2);if(!z)g.push(z={y:q.y,a:[]});z.a.push(q)}return g.sort((a,b)=>b.y-a.y).map(z=>z.a.sort((a,b)=>a.x-b.x).map(v=>v.s).join(' ').replace(/\s+/g,' ').trim())}
@@ -45,37 +45,6 @@ async function pdfData(file){
   await task.destroy();
  }
 }
-const find=(a,re)=>a.find(x=>re.test(x))||'';
-function section(a,start,ends){const i=a.findIndex(x=>start.test(x));if(i<0)return[];let j=a.length;for(let k=i+1;k<a.length;k++)if(ends.some(r=>r.test(a[k]))){j=k;break}return a.slice(i,j)}
-function prow(a,p){return a.find(x=>new RegExp(`^\\s*P${p}:?\\b`,'i').test(x))||''}
-function sumPeriods(a){let n=0;for(let p=1;p<=6;p++){const l=prow(a,p);if(l)n+=lastEuro(l)}return round2(n)}
-function sectionTotal(a){let n=0;for(let p=1;p<=6;p++){const ev=euros(prow(a,p));if(!ev.length)continue;n+=p===1&&ev.length>=2?ev.at(-2):ev.at(-1)}return round2(n)}
-function powerProw(a,p){return a.find(x=>new RegExp(`(?:^|\\s)P${p}:?\\b`,'i').test(x))||''}
-// Parse billed power expressions, never a unit rate or the neighbouring subtotal.
-// Pn labels may sit on another baseline in the PDF, so they are not row anchors.
-function powerSectionDetails(a,expectedPeriods=0){
- const text=(a||[]).join('\n');
- const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
- const entries=[...text.matchAll(expression)].map(m=>({contractedKw:num(m[1]),days:Number(m[2]),amount:num(m[3])}));
- const sum=round2(entries.reduce((s,e)=>s+e.amount,0));
- // Once the individual billed expressions are removed, a standalone amount
- // can only be a printed section subtotal. Euro/kW-day prices are excluded.
- const remaining=text.replace(expression,'');
- const subtotals=[...remaining.matchAll(/(-?[\d.]+,\d{2})\s*€(?!\s*\/)/g)].map(m=>num(m[1]));
- const labels=[...text.matchAll(/\bP([1-6])\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];
- const expected=Number(expectedPeriods)||0;
- const complete=entries.length>0&&(expected?entries.length===expected:entries.length===uniqueLabels.length);
- const printedTotal=subtotals.length===1?subtotals[0]:null;
- // Each printed line and subtotal is rounded to cents independently.
- // This is a check against an explicit source amount, not a balancing entry.
- const roundingBound=(entries.length+1)*0.005+0.000001;
- const agrees=printedTotal==null||Math.abs(printedTotal-sum)<=roundingBound;
- const reliable=complete&&subtotals.length<=1&&agrees;
- return {value:reliable&&printedTotal!=null?printedTotal:sum,sum,printedTotal,entries,reliable,
-  message:!complete?'Potencia: faltan importes individuales':subtotals.length>1?'Potencia: subtotal ambiguo':!agrees?'Potencia: subtotal y periodos no coinciden':''};
-}
-function powerSectionTotal(a){return powerSectionDetails(a).value;}
-function maximeters(items){const out={};if(!items?.length)return out;const anchor=items.find(i=>/Max[ií]metro\s*\(kW\)/i.test(String(i.str||'')));if(!anchor)return out;const ay=anchor.transform?.[5],ax=anchor.transform?.[4]??0;if(!Number.isFinite(ay))return out;let vals=items.filter(i=>i!==anchor&&Math.abs((i.transform?.[5]??9999)-ay)<=3.2&&(i.transform?.[4]??0)>ax&&/^\s*-?[\d.]+,\d{2}\s*$/.test(String(i.str||''))).sort((a,b)=>(a.transform?.[4]??0)-(b.transform?.[4]??0)).map(i=>num(i.str));if(vals.length<2)return out;vals=vals.slice(0,6);for(let p=1;p<=vals.length;p++)out[`P${p}`]=vals[p-1];out._reliable=true;return out}
 function parseFenie(d,file){
  const parser=window.IBTFenieParser;
  if(!parser?.parse)throw new Error('FENIE parser no cargado');
