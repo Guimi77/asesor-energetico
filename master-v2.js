@@ -13,6 +13,7 @@
     clientes: ['Clientes', 'Gestiona grupos, empresas y particulares desde el maestro central.', 'Cartera energética'],
     cups: ['Suministros / CUPS', 'Consulta y edita todos los puntos de suministro de tus clientes.', 'Maestro energético'],
     historico: ['Histórico energético', 'Memoria de facturas, análisis, recomendaciones y actuaciones por cliente y CUPS.', 'Memoria energética'],
+    settings: ['Configuración', 'Ajustes globales del Asesor Energético.', 'Administración'],
   };
 
   const norm = (value) => String(value ?? '').trim();
