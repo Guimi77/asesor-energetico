@@ -18,7 +18,7 @@ function hideMaintenance(){
   maintenancePanel()?.classList.add('hidden');
 }
 async function loadMaintenanceSettings(){
-  const {data,error}=await supabase.from('app_settings').select('maintenance_mode,maintenance_message').eq('id','global').maybeSingle();
+  const {data,error}=await window.ibtSupabase.from('app_settings').select('maintenance_mode,maintenance_message').eq('id','global').maybeSingle();
   if(error){console.warn('No se pudo consultar el modo mantenimiento',error);return {maintenance_mode:false,maintenance_message:DEFAULT_MAINTENANCE_MESSAGE};}
   return data||{maintenance_mode:false,maintenance_message:DEFAULT_MAINTENANCE_MESSAGE};
 }
@@ -32,7 +32,7 @@ async function applyMaintenanceGate(session,profile){
 }
 async function renderMaintenanceAdmin(){
   const host=document.getElementById('maintenanceAdmin');
-  if(!host||currentProfile?.role!=='admin')return;
+  if(!host||window.ibtCurrentProfile?.role!=='admin')return;
   const settings=await loadMaintenanceSettings();
   host.classList.remove('hidden');
   const toggle=document.getElementById('maintenanceToggle');
@@ -43,15 +43,15 @@ async function renderMaintenanceAdmin(){
   if(state){state.textContent=settings.maintenance_mode?'ACTIVO':'DESACTIVADO';state.className='status '+(settings.maintenance_mode?'review':'ok');}
 }
 async function saveMaintenanceSettings(){
-  if(currentProfile?.role!=='admin')return;
+  if(window.ibtCurrentProfile?.role!=='admin')return;
   const toggle=document.getElementById('maintenanceToggle');
   const message=document.getElementById('maintenanceAdminMessage');
   const button=document.getElementById('saveMaintenance');
   const feedback=document.getElementById('maintenanceAdminFeedback');
   if(button)button.disabled=true;
-  const {data:{user}}=await supabase.auth.getUser();
+  const {data:{user}}=await window.ibtSupabase.auth.getUser();
   const payload={maintenance_mode:!!toggle?.checked,maintenance_message:(message?.value||DEFAULT_MAINTENANCE_MESSAGE).trim(),updated_at:new Date().toISOString(),updated_by:user?.id||null};
-  const {error}=await supabase.from('app_settings').update(payload).eq('id','global');
+  const {error}=await window.ibtSupabase.from('app_settings').update(payload).eq('id','global');
   if(feedback){feedback.textContent=error?'No se pudo guardar: '+error.message:'Configuración guardada.';feedback.dataset.type=error?'error':'ok';}
   if(button)button.disabled=false;
   if(!error)await renderMaintenanceAdmin();
