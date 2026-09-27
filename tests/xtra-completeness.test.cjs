@@ -75,6 +75,6 @@ test('Historical persistence routes Endesa through the validated shared parser',
  assert(source.includes('function extractEndesa(d,file)'));
  assert(source.includes("formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA'"));
  assert(source.includes("if(format==='endesa')return extractEndesa(d,file)"));
- assert(source.includes("if(format==='fenie')return extractFenie(d,file)"));
+ assert(source.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
  assert(source.includes('powerReliable:row.readOk&&Number.isFinite(Number(row.power))'));
 });
