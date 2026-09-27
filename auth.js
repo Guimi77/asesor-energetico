@@ -113,7 +113,8 @@ async function refreshAuth(){
     try{profile=await loadProfile(session.user);}catch(err){console.error(err);}
   }
   applySession(session,profile);
-  if(profile?.role==='admin')await renderUsers();
+  await applyMaintenanceGate(session,profile);
+  if(profile?.role==='admin'){await renderUsers();await renderMaintenanceAdmin();}
 }
 
 function clientAccessHtml(profile,clients,assigned){
@@ -197,6 +198,8 @@ function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 
 window.addEventListener('DOMContentLoaded',()=>{
   const loginForm=$('#loginForm');
+  document.getElementById('maintenanceAdminLogin')?.addEventListener('click',()=>{hideMaintenance();showAuthPanel('loginPanel');});
+  document.getElementById('saveMaintenance')?.addEventListener('click',saveMaintenanceSettings);
   const signupForm=$('#signupForm');
   const recoveryForm=$('#recoveryForm');
 
