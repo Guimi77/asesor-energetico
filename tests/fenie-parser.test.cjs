@@ -20,7 +20,7 @@ test('parser FENIE mantiene el contrato económico sintético 2.0TD',()=>{
   const euro='€';
   const page=[
     'FENIE ENERGIA',
-    'Nº Factura: FENIE-DEMO-001',
+    'Nº Factura: TEST000001',
     'Razón Social: CLIENTE SINTETICO',
     'CUPS: ES0000000000000000AA',
     'Tarifa: 2.0TD',
@@ -32,10 +32,11 @@ test('parser FENIE mantiene el contrato económico sintético 2.0TD',()=>{
     `P1: 0,050000 ${euro}/kW día x 5,000 kW x 31 días = 7,75 ${euro}`,
     `P2: 0,010000 ${euro}/kW día x 5,000 kW x 31 días = 1,55 ${euro}`,
     `9,30 ${euro}`,
+    'Bono social',
     `TOTAL FACTURA 24,30 ${euro}`
   ];
   const row=fenie.parse({pages:[page],rawPages:[[],[]],text:page.join('\n')},{name:'synthetic-fenie.pdf'});
-  assert.equal(row.invoiceNumber,'FENIE-DEMO-001');
+  assert.equal(row.invoiceNumber,'TEST000001');
   assert.equal(row.cups,'ES0000000000000000AA');
   assert.equal(row.tariff,'2.0TD');
   assert.equal(row.kwh,150);
