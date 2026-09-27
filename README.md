@@ -49,6 +49,24 @@ Resumen de diseño: **cliente = conclusión sencilla; ELECTRICA BT = detalle té
 4. **Preparar una V1 estable** con carga masiva, históricos, estados de CUPS, análisis, alertas e informes funcionando sobre datos reales.
 5. La IA conversacional sobre el histórico queda para una fase posterior, cuando la base de datos y los lectores estén suficientemente estabilizados.
 
+## Subproyecto: Comparador Histórico
+
+Se incorpora como línea de desarrollo el **Comparador Histórico**, una herramienta interna exclusiva para `staff` y `admin` que permitirá simular cómo habría evolucionado el coste de un suministro aplicando condiciones históricas comparables de otra comercializadora sobre el consumo y potencia reales del cliente.
+
+Principios del subproyecto:
+
+- clasificación obligatoria del contrato/factura como **fijo, indexado, híbrido o desconocido**;
+- no mezclar referencias fijas e indexadas en una misma simulación;
+- comparar condiciones normalizadas, no totales de facturas de terceros;
+- utilizar varias facturas y suministros comparables cuando existan datos suficientes;
+- revisión humana obligatoria antes de aprobar el resultado;
+- generación de un **informe específico de comparación** para el cliente, separado de los informes actuales;
+- anonimización completa de las referencias utilizadas;
+- trazabilidad de facturas, método y versión del algoritmo;
+- núcleo desacoplado de la interfaz y de Supabase para facilitar su futura migración a CRM.
+
+Especificación completa: [docs/COMPARADOR_HISTORICO.md](docs/COMPARADOR_HISTORICO.md).
+
 ## Informes
 
 El formato actual de los informes queda congelado salvo correcciones necesarias de datos. No se añaden nuevas conclusiones, alertas internas ni cambios de diseño sin una decisión expresa. Si una mejora del parser, del histórico, de lecturas o del estado de un CUPS cambia un hecho o una cifra, el informe sí debe usar la información corregida.
