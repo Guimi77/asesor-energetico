@@ -128,6 +128,32 @@ No se recomienda utilizar una única factura espejo. Cuando existan suficientes 
 
 ## Fijo e indexado no se mezclan
 
+## Escenarios tarifarios
+
+El Comparador no se limita a cambiar de comercializadora. La unidad de comparación es el **escenario tarifario**, definido por:
+
+```text
+comercializadora + modelo de precio + producto/condiciones
+```
+
+Esto permite comparar, por ejemplo:
+
+```text
+Real: FENIE ENERGÍA · indexado
+Escenario A: FENIE ENERGÍA · fijo
+Escenario B: Endesa · fijo
+Escenario C: Naturgy · indexado
+```
+
+La comercializadora y el modelo de precio se seleccionan de forma independiente. El motor debe poder comparar:
+
+- misma comercializadora y distinto modelo de precio;
+- distinta comercializadora y mismo modelo de precio;
+- distinta comercializadora y distinto modelo de precio.
+
+Cuando se comparen periodos históricos, las condiciones de referencia deben ser temporalmente compatibles con cada tramo analizado. No se debe aplicar retrospectivamente una oferta actual a meses anteriores salvo que el informe se identifique expresamente como simulación de oferta actual y no como comparación histórica.
+
+
 Si una comercializadora tiene referencias históricas de ambos tipos, el sistema debe tratarlas como escenarios distintos:
 
 ```text
