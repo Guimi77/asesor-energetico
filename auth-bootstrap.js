@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=20260927-endesaservice1';
+    script.src='xtra-history.js?v=20260927-endesahistory1';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
