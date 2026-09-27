@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.8';
+  const VERSION='2026.09.27.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
