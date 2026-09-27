@@ -99,6 +99,8 @@ function applySession(session,profile){
   if(logout)logout.classList.toggle('hidden',!signed);
   const usersLink=$('#usersNav');
   if(usersLink)usersLink.classList.toggle('hidden',profile?.role!=='admin');
+  const settingsLink=$('#settingsNav');
+  if(settingsLink)settingsLink.classList.toggle('hidden',profile?.role!=='admin');
   enforceRoleAccess(profile);
   if(profile?.active===false){
     setAuthMessage(profile?.role==='client'?'Tu solicitud está pendiente de activación. Instal·lacions BT te avisará cuando puedas entrar.':'Tu cuenta está desactivada. Contacta con el administrador.','error');
