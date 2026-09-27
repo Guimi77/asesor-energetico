@@ -9,13 +9,13 @@ test('Format detector accepts Endesa and FENIE but never guesses an unknown layo
   assert.equal(api.detect('Otra comercializadora sin patrón conocido'),'unknown');
 });
 
-test('Endesa 2.0TD real invoice balances and keeps service invoices outside the electricity total',()=>{
+test('Endesa 2.0TD real invoice includes service invoices in the amount actually paid',()=>{
   const p1=['Nº factura: P26CON000000001','Periodo de facturación: del 03/07/2026 a 04/08/2026 (32 días)','Potencia 22,09 €','Energía 226,53 €','Descuentos -42,65 €','Otros 1,64 €','Impuestos 56,39 €','Total 264,00 €','Consumo Total 855,535 kWh'];
   const p2=['Titular del contrato: CLIENTE DEMO','Potencias contratadas: punta-llano 5,750 kW; valle 5,750 kW','CUPS: ES0000000000000004AA0F','Peaje de transporte y distribución: 2.0TD','Periodo 03/07/2026 04/08/2026 Multipl. Ajuste Consumo','Lectura Lectura','real real','Punta 24.606,217 24.849,430 1,00 0,000 243,213','Llano 7.737,018 7.974,459 1,00 0,000 237,441','Valle 9.337,632 9.712,513 1,00 0,000 374,881','Pot. Punta-Llano 5,750 kW x 0,102310 Eur/kW x 32 días 18,82 €','Pot. Valle 5,750 kW x 0,017763 Eur/kW x 32 días 3,27 €','Impuesto electricidad ( 206,76 Eur X 5,1126963 %) 10,57 €','IVA normal 21 % s/ 218,18 45,82 €'];
   const p3=['DETALLE DE LA FACTURA DE SERVICIOS','TOTAL IMPORTE FACTURA 2,11 €','RESUMEN TOTAL DE LAS FACTURAS','Factura de Electricidad 264,00 €','Factura de servicios 2,11 €','Total importe a pagar 266,11 €'];
   const r=api.parseEndesa(d(p1,p2,p3),{name:'demo.pdf'});
-  assert.equal(r.total,264);assert.equal(r.serviceTotal,2.11);assert.equal(r.paymentTotal,266.11);assert.equal(r.kwh,855.535);assert.equal(r.readingStatus,'actual');
-  assert.equal(r.periods.P1.consumption,243.213);assert.equal(r.periods.P1.cost,null);assert.equal(r.contracted.P1,5.75);assert.equal(r.contracted.P2,5.75);assert.equal(r.balanced,true);assert.equal(r.readOk,true);assert.match(r.opportunity,/servicios adicionales/);
+  assert.equal(r.electricityTotal,264);assert.equal(r.total,266.11);assert.equal(r.serviceTotal,2.11);assert.equal(r.paymentTotal,266.11);assert.equal(r.other,-38.9);assert.equal(r.accounted,266.11);assert.equal(r.kwh,855.535);assert.equal(r.readingStatus,'actual');
+  assert.equal(r.periods.P1.consumption,243.213);assert.equal(r.periods.P1.cost,null);assert.equal(r.contracted.P1,5.75);assert.equal(r.contracted.P2,5.75);assert.equal(r.balanced,true);assert.equal(r.readOk,true);assert.match(r.opportunity,/incluidos en el importe total a pagar/);
   assert.equal(r.retailer,'Endesa Energía S.A.U.');
 });
 
@@ -62,4 +62,13 @@ test('Endesa refuses a green status when period consumption does not reconcile',
 
 test('Unsupported format never receives invented zero values',()=>{
   const r=api.unsupportedRow({name:'unknown.pdf'});assert.equal(r.unsupported,true);assert.equal(r.kwh,null);assert.equal(r.total,null);assert.match(r.opportunity,/No se ha interpretado/);
+});
+
+test('Catalan Endesa service invoice uses SERVEIS / IMPORT and is added to total paid',()=>{
+  const p1=['Endesa Energia, S.A. Unipersonal.','Núm. factura: P26CON000000099','Període de facturació: del 19/08/2026 a 19/09/2026 (31 dies)','Potència 31,32 €','Energia 90,54 €','Altres 1,60 €','Impostos 33,51 €','Total 156,97 €','Consum Total 662,704 kWh'];
+  const p2=['Titular del contracte: CLIENTE PRUEBA SERVICIO','Potències contractades: punta-pla 5,600 kW; vall 5,600 kW','CUPS: ES0000000000000003AA0F','Peatge de transport i distribució: 2.0TD','Període 19/08/2026 19/09/2026 Multipl. Ajust Consum','Lectura Lectura','real real','Punta 21.921,945 22.127,605 1,00 0,000 205,660','Pla 14.421,495 14.572,771 1,00 0,000 151,276','Vall 22.883,491 23.189,260 1,00 0,000 305,769','Pot. Punta-Pla 5,600 kW x 0,090214 Eur/kW x 31 dies 15,66 €','Pot. P3 5,600 kW x 0,090214 Eur/kW x 31 dies 15,66 €','Impost electricitat ( 122,63 Eur X 5,1126963 %) 6,27 €','IVA normal 21 % s/ 129,73 27,24 €'];
+  const p3=['DETALL DE LA FACTURA DE SERVEIS','Protección 360 Plus 4,78 €','IVA GENERAL 21% (s/ 4,30 €) 0,90 €','TOTAL IMPORT FACTURA 5,20 €','RESUM TOTAL DE LES FACTURES','Factura d Electricitat 156,97 €','Factura de serveis 5,20 €','Total import a pagar 162,17 €'];
+  const r=api.parseEndesa(d(p1,p2,p3),{name:'catala-serveis.pdf'});
+  assert.equal(r.electricityTotal,156.97);assert.equal(r.serviceTotal,5.2);assert.equal(r.total,162.17);assert.equal(r.paymentTotal,162.17);
+  assert.equal(r.other,6.8);assert.equal(r.accounted,162.17);assert.equal(r.balanced,true);assert.equal(r.readOk,true);
 });
