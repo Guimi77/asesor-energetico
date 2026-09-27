@@ -7,7 +7,7 @@ const http=require('node:http');
 const {frozenFile}=require('./helpers/regression-baseline.cjs');
 const {chromium}=require('playwright');
 const {PDFDocument,StandardFonts}=require('pdf-lib');
-const specs=[['main','app.js','pdfData','const find='],['history','xtra-history.js','readPdf','function extractFenie'],['master','supply-enricher-v2.js','inspect','async function inspectFiles']];
+const specs=[['main','app.js','pdfData','function parseFenie'],['history','xtra-history.js','readPdf','function extractFenie'],['master','supply-enricher-v2.js','inspect','async function inspectFiles']];
 const original=file=>frozenFile('pdfLifecycleWorkerLeak',file);
 function readerCode(baseline){return specs.map(([key,file,name,end])=>{
  const all=baseline?original(file):fs.readFileSync(file,'utf8');

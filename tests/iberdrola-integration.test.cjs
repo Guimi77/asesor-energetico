@@ -28,7 +28,7 @@ test('main parser routes Iberdrola before legacy formats and before FENIE OCR fa
   const fileRoute=app.indexOf('window.IBTIberdrolaParser?.detect?.(original)');
   const ocr=app.indexOf('const fallback=window.IBTFenieOcrFallback',fileRoute);
   assert(fileRoute>=0&&ocr>fileRoute,'Iberdrola must never enter the FENIE OCR fallback');
-  assert(app.includes("if(format==='fenie')return parseFenie(d,file)"));
+  assert(app.includes("const fenie=window.IBTFenieParser")); assert(app.includes("if(fenie?.detect?.(d))return fenie.parse(d,file"));
   assert(app.includes("if(format==='endesa')return formats.parseEndesa(d,file"));
 });
 

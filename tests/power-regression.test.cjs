@@ -9,12 +9,13 @@ const root = path.resolve(__dirname, '..');
 const appPath = process.env.PARSER_FILE || path.join(root, 'app.js');
 const source = fs.readFileSync(appPath, 'utf8');
 const auditSource = fs.readFileSync(path.join(root, 'parser-audit.js'), 'utf8');
+const fenie = require(path.join(root, 'fenie-parser.js'));
 const boot = source.indexOf("const dz=$('#dropZone')");
 assert.ok(boot > 0, 'Application bootstrap must remain present');
-const ctx = vm.createContext({window: {}, document: {}, pdfjsLib: {GlobalWorkerOptions: {}}, console});
+const ctx = vm.createContext({window: {IBTFenieParser: fenie}, document: {}, pdfjsLib: {GlobalWorkerOptions: {}}, console});
 vm.runInContext(source.slice(0, boot).replace(/^import[^\n]*\n/, '') +
-  '\nglobalThis.check={powerSectionDetails,parseFenie,render,exportExcel};', ctx);
-const read = ctx.check.powerSectionDetails;
+  '\nglobalThis.check={render,exportExcel};', ctx);
+const read = fenie.powerSectionDetails;
 const euro = '\u20ac';
 const row = (p, amount, days = '30 d\u00edas', price = '0,00') =>
   `P${p}: ${price} ${euro}/kW d\u00eda + 0,000001 ${euro}/kW d\u00eda = 0,012345 ${euro}/kW d\u00eda x 17,000 kW x ${days} = ${amount} ${euro}`;
@@ -63,7 +64,7 @@ test('FENIE 3.0TD restores missing contracted P4/P5 labels from six ordered form
   const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
   const powerRows=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} ${euro}`);
   const page=['Razón Social: CLIENTE SINTETICO','CUPS: ES0000000000000002AA','Tarifa: 3.0TD','Periodo Facturación: 01/01/2026 - 13/01/2026 (13 días)','Término de energía','Término de potencia',...powerRows,'Excesos de Potencia',`TOTAL FACTURA 108,00 ${euro}`];
-  const parsed=ctx.check.parseFenie({pages:[page],rawPages:[[],[]],text:page.join('\n')},{name:'synthetic.pdf'});
+  const parsed=fenie.parse({pages:[page],rawPages:[[],[]],text:page.join('\n')},{name:'synthetic.pdf'});
   assert.equal(parsed.powerDetail.reliable,true);
   assert.equal(parsed.power,108);
   assert.equal(parsed.readOk,true);

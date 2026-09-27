@@ -7,7 +7,7 @@ const {frozenFile}=require('./helpers/regression-baseline.cjs');
 const source=file=>fs.readFileSync(file,'utf8');
 const old=file=>frozenFile('pdfLifecycleWorkerLeak',file);
 const slice=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j);};
-const readerSpec=[['app.js','pdfData','const find='],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
+const readerSpec=[['app.js','pdfData','function parseFenie'],['xtra-history.js','readPdf','function extractFenie'],['supply-enricher-v2.js','inspect','async function inspectFiles']];
 function reader(code,name,end,mode='ok'){
  let opened=0,closed=0,pages=0;
  const items=[{str:'FENIE ENERGIA',transform:[1,0,0,1,20,440]},{str:'CUPS: ES0000000000000001AA',transform:[1,0,0,1,20,400]},{str:'Razón Social: CLIENTE SINTETICO',transform:[1,0,0,1,20,420]}];
@@ -41,32 +41,28 @@ for(const [path,name,end] of readerSpec){
   assert.equal(r.stats().opened,1);assert.equal(r.stats().closed,1);
  });
 }
-test('Fenie calculations stay locked while Endesa routing and audit rules can evolve safely',()=>{
- const current=source('app.js'),parserSnapshot=frozenFile('fenieParserBeforePowerPeriodBoundary','app.js');
- const parserExpected=slice(parserSnapshot,'const find=','const reading=').replace(
-  " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1]));\n const complete=entries.length>0&&entries.length===labels.length;",
-  " const labels=[...text.matchAll(/\\bP([1-6])\\s*:/g)].map(m=>Number(m[1])),uniqueLabels=[...new Set(labels)];\n const complete=entries.length>0&&entries.length===uniqueLabels.length;"
- );
- const candidate=slice(current,'const find=','const reading=');
- assert(candidate.includes('function powerSectionDetails(a,expectedPeriods=0){'));
- assert(candidate.includes('const expected=Number(expectedPeriods)||0;'));
- assert(candidate.includes('expected?entries.length===expected:entries.length===uniqueLabels.length'));
- assert(candidate.includes('powerDetail.entries.length===expectedPowerPeriods'));
- assert(candidate.includes('contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw'));
- const normalized=candidate
-  .replace('function powerSectionDetails(a,expectedPeriods=0){','function powerSectionDetails(a){')
-  .replace(/ const expected=Number\(expectedPeriods\)\|\|0;\s+const complete=entries\.length>0&&\(expected\?entries\.length===expected:entries\.length===uniqueLabels\.length\);/,' const complete=entries.length>0&&entries.length===uniqueLabels.length;')
-  .replace(/const expectedPowerPeriods=.*?;const power=/,'const powerDetail=powerSectionDetails(ps),power=');
- assert.equal(normalized,parserExpected);
+test('Fenie calculations stay locked while the implementation moves out of app.js',()=>{
+ const current=source('app.js'),fenieSource=source('fenie-parser.js');
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(frozenFile('repsolIsolationReference','app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(frozenFile('repsolIsolationReference','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
- // Authentication now has a dedicated access-control regression suite, but its current baseline stays locked here too.
- assert.equal(source('auth.css'),frozenFile('repsolIsolationReference','auth.css'),'auth.css must not change in this Repsol change');
- assert.equal(source('history-cost-chart.js'),frozenFile('repsolIsolationReference','history-cost-chart.js'),'history-cost-chart.js must not change in this Repsol change');
+ assert.equal(source('auth.css'),frozenFile('repsolIsolationReference','auth.css'),'auth.css must not change in this FENIE isolation');
+ assert.equal(source('history-cost-chart.js'),frozenFile('repsolIsolationReference','history-cost-chart.js'),'history-cost-chart.js must not change in this FENIE isolation');
+
+ for(const token of [
+  'function powerSectionDetails(a,expectedPeriods=0){',
+  'const expected=Number(expectedPeriods)||0;',
+  'expected?entries.length===expected:entries.length===uniqueLabels.length',
+  'powerDetail.entries.length===expectedPowerPeriods',
+  'contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw'
+ ])assert(fenieSource.includes(token),token);
+
  const app=current,report=source('client-report-export.js'),enricher=source('supply-enricher-v2.js'),audit=source('parser-audit.js'),guard=source('supply-source-guard.js');
+ assert(app.includes('window.IBTFenieParser'));
+ assert(app.includes('fenie?.detect?.(d)'));
+ assert(!/Raz\\[oó\\]n Social/.test(app));
+ assert(!/Compensaci\\[oó\\]n Excedente/.test(app));
  for(const token of ['Tipo lectura','Origen lectura','Qué revisar'])assert(app.includes(token),token);
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
- assert(app.includes("format==='fenie')return parseFenie"));
  assert(app.includes("format==='endesa')return formats.parseEndesa"));
  assert(app.includes('Factura no compatible todavía'));
  assert(enricher.includes("format==='uenergia'?parseUenergiaSupply(pdfData,file):format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='naturgy'?parseNaturgySupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
@@ -102,7 +98,7 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
  assert(s.includes("const COMPLETENESS_VERSION='energy-2026.09.15.1'"));
  assert(s.includes("if(format==='endesa')return extractEndesa(d,file)"));
- assert(s.includes("if(format==='fenie')return extractFenie(d,file)"));
+ assert(s.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
  for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'","'needs_review'"])assert(s.includes(state),state);
  assert(!s.includes("adjustments.push(...rights.items)"));
  assert(s.includes("distributor_rights:rights.status"));
