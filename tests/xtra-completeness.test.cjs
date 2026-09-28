@@ -9,7 +9,7 @@ const compactJs=fs.readFileSync('ui-compact.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
-vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,powerDetails,excessRows,reactiveRows,taxRows,rightsDetail};',ctx);
+vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,powerDetails,excessRows,reactiveRows,taxRows,rightsDetail,reviewReasons};',ctx);
 const plain=v=>JSON.parse(JSON.stringify(v));
 test('Completeness states distinguish missing, not applicable and unreliable data',()=>{
  assert.equal(ctx.api.status('dato',false),'extracted');
@@ -115,4 +115,24 @@ test('El progreso masivo no incrusta el texto del histórico en su propio estado
  const bulk=fs.readFileSync('bulk-performance.js','utf8');
  assert(!bulk.includes('if (historyText) lines.push(historyText)'));
  assert(bulk.includes("document.querySelector('#historyUploadStatus')"));
+});
+
+
+test('Los motivos de revisión histórica se traducen a lenguaje útil',()=>{
+ const reasons=plain(ctx.api.reviewReasons({
+  power_price_components:'unreliable',
+  distributor_rights:'needs_review',
+  energy_periods:'extracted',
+  compensation:'not_present'
+ }));
+ assert.deepEqual(reasons,['Precio de potencia: incompleto/no fiable','Derechos de distribuidora: revisar']);
+});
+
+test('El cargador muestra el detalle de las facturas históricas a revisar',()=>{
+ assert(source.includes("box.id='historyReviewDetails'"));
+ assert(source.includes('Detalle a revisar (${items.length})'));
+ assert(source.includes("item.reasons.join(' · ')"));
+ assert(source.includes('historyReviewDetails(reviewItems)'));
+ assert(source.includes('reviewItems.push(r.historyReview)'));
+ assert(source.includes("historyReview:x.assessment==='needs_review'"));
 });
