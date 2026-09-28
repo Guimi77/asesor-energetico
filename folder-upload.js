@@ -32,6 +32,16 @@
     return status;
   }
 
+  function clearFolderStatus(force=false){
+    const status=document.querySelector('#bulkProcessingStatus');
+    if(!status)return;
+    const text=String(status.textContent||'').trim();
+    const folderMessage=/^(?:Carpeta|Leyendo la carpeta|La carpeta|No se ha podido leer la carpeta|Se encontraron \d+ PDF)/i.test(text);
+    if(!force&&!folderMessage)return;
+    status.textContent='';
+    status.style.display='none';
+  }
+
   function setFileMode(){
     input.removeAttribute('webkitdirectory');
     input.removeAttribute('directory');
@@ -102,7 +112,7 @@
   }
 
   // El botón normal sigue abriendo la selección de archivos, aunque antes se haya usado una carpeta.
-  pickFiles.addEventListener('click', setFileMode, true);
+  pickFiles.addEventListener('click', () => { clearFolderStatus(); setFileMode(); }, true);
 
   pickFolder.addEventListener('click', () => {
     if (!supportsFolder) return;
@@ -112,7 +122,7 @@
   });
 
   input.addEventListener('change', event => {
-    if (input.dataset.folderMode !== '1') return;
+    if (input.dataset.folderMode !== '1') { clearFolderStatus(); return; }
     const files = [...(event.target?.files || [])];
     const pdfs = files.filter(file => file?.name?.toLowerCase().endsWith('.pdf'));
     const status = ensureStatus();
@@ -124,7 +134,7 @@
   dropZone.addEventListener('drop', event => {
     const items = [...(event.dataTransfer?.items || [])];
     const entries = items.map(item => item.webkitGetAsEntry?.()).filter(Boolean);
-    if (!entries.some(entry => entry.isDirectory)) return;
+    if (!entries.some(entry => entry.isDirectory)) { clearFolderStatus(); return; }
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -143,4 +153,7 @@
       }
     })();
   }, true);
+
+  const clearData=document.querySelector('#clearData');
+  if(clearData)clearData.addEventListener('click',()=>{clearFolderStatus(true);setFileMode();},{capture:true});
 })();
