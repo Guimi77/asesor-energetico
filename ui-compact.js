@@ -81,8 +81,8 @@
   };
 
   const processStatuses = (root = document) => {
-    const history = root.querySelector?.('#historySyncStatus') ||
-      (root.id === 'historySyncStatus' ? root : null);
+    const history = root.querySelector?.('#historyUploadStatus') ||
+      (root.id === 'historyUploadStatus' ? root : null);
     const bulk = root.querySelector?.('#bulkProcessingStatus') ||
       (root.id === 'bulkProcessingStatus' ? root : null);
 

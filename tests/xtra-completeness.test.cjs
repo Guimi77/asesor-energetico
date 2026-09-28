@@ -91,7 +91,7 @@ test('El estado de histórico es legible y ocupa su propia fila en el cargador',
 
 test('Los estados de carga e histórico no pueden compartir la misma fila estrecha',()=>{
  assert.match(compactCss,/\.uploader\{[\s\S]*flex-wrap:wrap/);
- assert.match(compactCss,/#historySyncStatus,\s*#bulkProcessingStatus\{[\s\S]*flex:1 0 100%!important/);
+ assert.match(compactCss,/#historyUploadStatus,\s*#bulkProcessingStatus\{[\s\S]*flex:1 0 100%!important/);
  assert.match(compactCss,/width:100%!important/);
  assert.match(compactCss,/max-width:100%!important/);
  assert.match(compactCss,/white-space:normal!important/);
@@ -101,4 +101,18 @@ test('Los estados de carga e histórico no pueden compartir la misma fila estrec
 
 test('El toast reconoce el nuevo formato final del histórico',()=>{
  assert.match(compactJs,/Histórico:\\s\*\\d\+\\s\*\\\/\\s\*\\d\+\\s\*·\\s\*✓/);
+});
+
+
+test('El estado del cargador y el estado de la vista Histórico usan IDs distintos',()=>{
+ assert(source.includes("let el=$('#historyUploadStatus');"));
+ assert(source.includes("el.id='historyUploadStatus'"));
+ assert(source.includes('id="historySyncStatus"'));
+ assert(!source.includes("let el=$('#historySyncStatus');"));
+});
+
+test('El progreso masivo no incrusta el texto del histórico en su propio estado',()=>{
+ const bulk=fs.readFileSync('bulk-performance.js','utf8');
+ assert(!bulk.includes('if (historyText) lines.push(historyText)'));
+ assert(bulk.includes("document.querySelector('#historyUploadStatus')"));
 });

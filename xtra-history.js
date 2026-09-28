@@ -304,8 +304,8 @@ const entries=Object.entries(reasons||{}).filter(([,count])=>count>0);
 return entries.length?' · '+entries.map(([reason,count])=>`${HISTORY_SKIP_LABELS[reason]||reason}: ${count}`).join(' · '):'';
 }
 function historyStatus(text,type='ok'){
-let el=$('#historySyncStatus');
-if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historySyncStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:8px 12px;margin-top:8px;white-space:normal;line-height:1.4';host.appendChild(el)}
+let el=$('#historyUploadStatus');
+if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historyUploadStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:8px 12px;margin-top:8px;white-space:normal;line-height:1.4';host.appendChild(el)}
 el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 }
 async function persistOne(file){

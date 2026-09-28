@@ -36,8 +36,10 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('uenergia-parser.js');
   assertCacheToken('naturgy-parser.js');
   assertCacheToken('parser-audit.js');
+  assertCacheToken('bulk-performance.js');
   assertCacheToken('auth-bootstrap.js');
   assertCacheToken('ui-compact.css');
   assertCacheToken('ui-compact.js');
   assertSourceCacheToken(authBootstrap,'xtra-history.js');
+  assertSourceCacheToken(authBootstrap,'bulk-performance.js');
 });
