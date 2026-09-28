@@ -111,7 +111,6 @@
       `${prefix || 'Procesando'} · ${s.processed}/${bulkTotal} PDF`,
       `${plural(s.added, 'factura única en este análisis', 'facturas únicas en este análisis')} · ${plural(s.correct, 'correcta', 'correctas')} · ${plural(s.review, 'a revisar', 'a revisar')} · ${plural(s.duplicates, 'repetida dentro del lote', 'repetidas dentro del lote')} · ${plural(s.readErrors, 'error de lectura', 'errores de lectura')}`
     ];
-    if (historyText) lines.push(historyText);
     const dbText = dbOutcomeText();
     if (dbText && dbText !== historyText) lines.push(dbText);
     const conflicts = conflictText();
@@ -364,7 +363,7 @@
     if (dropZone){
       new MutationObserver(() => {
         if (!bulkActive) return;
-        const h = document.querySelector('#historySyncStatus');
+        const h = document.querySelector('#historyUploadStatus');
         const text = h?.textContent?.trim();
         if (text && text !== historyText){
           historyText = text;
