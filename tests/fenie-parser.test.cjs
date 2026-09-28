@@ -134,7 +134,11 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   assert.equal(normalized.validation.completeness.version,'energy-test.1');
 });
 
-test('añadir el modelo portable no cambia todavía el flujo histórico FENIE',()=>{
-  assert.match(xtra,/if\(fenie\?\.detect\?\.\(d\)\)return extractFenie\(d,file\)/);
-  assert.doesNotMatch(xtra,/parseNormalized\(/);
+test('comparación en sombra FENIE no cambia todavía la persistencia histórica',()=>{
+  assert(xtra.includes('function extractFenieLegacy(d,file)'));
+  assert(xtra.includes('function extractFenie(d,file)'));
+  assert(xtra.includes('parser.parseNormalized(d,file'));
+  assert(xtra.includes('return legacy;'));
+  assert(xtra.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
+  assert(xtra.includes('FENIE portable:'));
 });
