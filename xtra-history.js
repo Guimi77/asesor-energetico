@@ -1,7 +1,7 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 const PILOT='GRUPO XTRA';
-const COMPLETENESS_VERSION='energy-2026.09.15.1';
+const COMPLETENESS_VERSION='energy-2026.09.28.1';
 const $=s=>document.querySelector(s);
 const norm=v=>String(v??'').trim();
 const clean=v=>norm(v).replace(/\s+/g,' ');
@@ -45,6 +45,10 @@ function reviewReasons(completeness){
   const label=REVIEW_FIELD_LABELS[key]||key.replace(/_/g,' ');
   return state==='needs_review'?label+': revisar':label+': incompleto/no fiable';
  });
+}
+function powerPriceRows(a){
+ const re=/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi;
+ return (a||[]).map(line=>[...String(line||'').matchAll(re)].map(m=>num(m[1]))).filter(values=>values.length>=4);
 }
 function powerDetails(a,expectedPeriods=0){
 const text=(a||[]).join('\n');
@@ -172,9 +176,10 @@ energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,un
 }
 const energy=round2(Object.values(periods).reduce((s,x)=>s+x.cost,0));
 const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),expectedPowerPeriods=/^2\.0TD$/i.test(tariff)?2:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0,pd=powerDetails(ps,expectedPowerPeriods),power=pd.value;
-let powerPricesReliable=pd.reliable;
+const powerPriceComponents=powerPriceRows(ps);
+let powerPricesReliable=pd.reliable&&powerPriceComponents.length>=pd.entries.length;
 const powerPeriods=pd.reliable?pd.entries.map((e,i)=>{
-const periodNo=expectedPowerPeriods?i+1:(pd.labels[i]||i+1),line=prow(ps,periodNo),pr=[...line.matchAll(/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi)].map(m=>num(m[1]));if(pr.length<4)powerPricesReliable=false;
+const periodNo=expectedPowerPeriods?i+1:(pd.labels[i]||i+1),pr=powerPriceComponents[i]||[];if(pr.length<4)powerPricesReliable=false;
 return {period:periodNo,contracted_kw:e.contractedKw,billed_power_eur:e.amount,unit_price_eur_kw_day:pr.at(-1)??null,toll_price_eur_kw_day:pr[0]??null,charges_price_eur_kw_day:pr[1]??null,retailer_price_eur_kw_day:pr[2]??null};
 }):[];
 const excessSection=section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/Bono social/i,/Impuesto electricidad/i]),excess=sectionTotal(excessSection),excessPeriods=excessRows(excessSection);
@@ -363,8 +368,14 @@ consumption_kwh:x.kwh,energy_cost_eur:x.energy,power_cost_eur:x.power,excess_cos
 parser_version:window.IBT_PARSER_VERSION||'FENIE',validation_message:'Validado contra parser principal antes de guardar histórico',completeness_assessment_status:x.assessment,source_completeness:x.completeness,
 energy_periods:x.energyPeriods,power_periods:x.powerPeriods,maximeters:x.maximeterRows,excess_periods:x.excessPeriods,reactive_periods:x.reactivePeriods,tax_lines:x.taxLines,distributor_rights:x.distributorRights,adjustments:x.adjustments};
 const {data,error}=await supabase.rpc('upsert_xtra_energy_history',{p_payload:payload});if(error)throw error;
-const result=data||{ok:false};
+let result=data||{ok:false};
 if(result?.ok){
+  try{
+    const {data:completenessData,error:completenessError}=await supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload});
+    if(completenessError)console.warn('Completitud XTRA:',file.name,completenessError);
+    else if(completenessData?.ok===false)console.warn('Completitud XTRA:',file.name,completenessData);
+    else if(completenessData?.ok)result={...result,completeness:completenessData.completeness};
+  }catch(completenessError){console.warn('Completitud XTRA:',file.name,completenessError)}
   try{
     const {data:readingData,error:readingError}=await supabase.rpc('enrich_xtra_invoice_reading_status',{p_payload:{validated:true,cups:x.cups,invoice_number:x.invoiceNumber,billing_start:x.period.start,billing_end:x.period.end,consumption_kwh:x.kwh,total_eur:x.total,reading_status:x.readingStatus,reading_source_label:x.readingSourceLabel}});
     if(readingError)console.warn('Calidad lectura XTRA:',file.name,readingError);
