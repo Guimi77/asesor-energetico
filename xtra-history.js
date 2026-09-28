@@ -27,6 +27,25 @@ function dateIn(line){return ((String(line||'').match(/\d{2}\/\d{2}\/\d{4}/)||[]
 function isoDate(s){const m=norm(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:''}
 function parsePeriod(s){const m=norm(s).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}}
 function status(value,present=true){return value!==''&&value!=null?'extracted':present?'unreliable':'not_present'}
+const REVIEW_FIELD_LABELS={
+ power_price_components:'Precio de potencia',
+ energy_price_components:'Precio de energía',
+ distributor_rights:'Derechos de distribuidora',
+ meter_number:'Nº de contador',
+ maximeters:'Maxímetros',
+ excess_detail:'Detalle de excesos',
+ reactive_detail:'Detalle de reactiva',
+ tax_lines:'Detalle de impuestos',
+ supply_address:'Dirección de suministro',
+ contract_number:'Nº de contrato',
+ access_contract_number:'Contrato de acceso'
+};
+function reviewReasons(completeness){
+ return Object.entries(completeness||{}).filter(([,state])=>state==='unreliable'||state==='needs_review').map(([key,state])=>{
+  const label=REVIEW_FIELD_LABELS[key]||key.replace(/_/g,' ');
+  return state==='needs_review'?label+': revisar':label+': incompleto/no fiable';
+ });
+}
 function powerDetails(a,expectedPeriods=0){
 const text=(a||[]).join('\n');
 const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
@@ -308,6 +327,22 @@ let el=$('#historyUploadStatus');
 if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historyUploadStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:8px 12px;margin-top:8px;white-space:normal;line-height:1.4';host.appendChild(el)}
 el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 }
+function historyReviewDetails(items){
+ const host=$('#dropZone');if(!host)return;
+ let box=$('#historyReviewDetails');
+ if(!box){box=document.createElement('div');box.id='historyReviewDetails';box.style.cssText='flex-basis:100%;width:100%;min-width:0;margin:0;padding:8px 10px;border-radius:7px;background:#fff8e8;color:#7a4c00;font-size:.68rem;line-height:1.45';host.appendChild(box)}
+ box.replaceChildren();
+ if(!items?.length){box.hidden=true;return}
+ box.hidden=false;
+ const title=document.createElement('strong');title.textContent=`Detalle a revisar (${items.length})`;box.appendChild(title);
+ const list=document.createElement('div');list.style.marginTop='4px';
+ for(const item of items){
+  const row=document.createElement('div');
+  row.textContent=`Factura ${item.invoiceNumber||'sin número'} · ${item.reasons?.length?item.reasons.join(' · '):'Completitud histórica: revisar'}`;
+  list.appendChild(row);
+ }
+ box.appendChild(list);
+}
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
 if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
@@ -336,7 +371,7 @@ if(result?.ok){
     else if(readingData?.ok===false)console.warn('Calidad lectura XTRA:',file.name,readingData);
   }catch(readingError){console.warn('Calidad lectura XTRA:',file.name,readingError)}
 }
-return result;
+return {...result,historyReview:x.assessment==='needs_review'?{invoiceNumber:x.invoiceNumber,reasons:reviewReasons(x.completeness)}:null};
 }
 async function renderSummary(){
 const supabase=window.ibtSupabase,profile=window.ibtCurrentProfile,view=$('#historicoView');
@@ -349,17 +384,19 @@ let queue=Promise.resolve();
 function enqueue(files){
 const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;
 queue=queue.then(async()=>{
-let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={};
+let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={},reviewItems=[];
+historyReviewDetails([]);
 historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review');
 for(const file of list){
-try{const r=await persistOne(file);if(r?.ok){saved++;if(r.completeness==='complete')complete++;else review++;}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
+try{const r=await persistOne(file);if(r?.ok){saved++;if(r.completeness==='complete')complete++;else{review++;if(r.historyReview)reviewItems.push(r.historyReview)}}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
 catch(e){failed++;console.warn('Histórico XTRA:',file.name,e)}
 done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,'review');
 await new Promise(resolve=>setTimeout(resolve,0));
 }
 await renderSummary();
 historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
-window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review}}));
+historyReviewDetails(reviewItems);
+window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
