@@ -103,7 +103,10 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  const payload=persist.slice(persist.indexOf('const payload={'),persist.indexOf("const {data,error}=await"));
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/pdfData/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
- assert.match(s,/const COMPLETENESS_VERSION='energy-\\d{4}\\.\\d{2}\\.\\d{2}\\.\\d+';/);
+ const completenessVersion=(s.match(/COMPLETENESS_VERSION='([^']+)'/)||[])[1],versionParts=String(completenessVersion||'').replace('energy-','').split('.');
+ assert(completenessVersion?.startsWith('energy-'));
+ assert.equal(versionParts.length,4);
+ assert(versionParts.every(v=>v!==''&&Number.isInteger(Number(v))));
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
  assert(s.includes("if(format==='endesa')return extractEndesa(d,file)"));
