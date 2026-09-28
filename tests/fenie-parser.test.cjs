@@ -124,6 +124,8 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   assert.equal(normalized.costs.totalEur,legacy.total);
   assert.equal(normalized.costs.differenceEur,legacy.diff);
   assert.equal(normalized.parties.holder.taxId,'B00000000');
+  assert.equal(normalized.supply.cups,'ES0000000000000000AA');
+  assert.equal(normalized.supply.address,'CALLE PRUEBA 1');
   assert.equal(normalized.contract.accessNumber,'ATR-0001');
   assert.equal(normalized.energy.periods.length,6);
   assert.equal(normalized.power.periods.length,6);
