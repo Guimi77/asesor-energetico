@@ -31,6 +31,7 @@
   gap:10px;
   min-height:70px;
   border-radius:10px;
+  flex-wrap:wrap;
 }
 .uploader .upload-icon{
   width:38px;
@@ -57,21 +58,21 @@
 
 #historySyncStatus,
 #bulkProcessingStatus{
-  flex:0 1 430px!important;
-  max-width:430px!important;
+  flex:1 0 100%!important;
+  width:100%!important;
+  max-width:100%!important;
   min-width:0!important;
-  margin:0 0 0 4px!important;
-  padding:5px 8px!important;
+  margin:0!important;
+  padding:6px 9px!important;
   border-radius:7px!important;
-  font-size:.64rem!important;
-  line-height:1.25!important;
-  white-space:nowrap!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-  align-self:center!important;
+  font-size:.66rem!important;
+  line-height:1.35!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  align-self:stretch!important;
   box-shadow:none!important;
 }
-#bulkProcessingStatus{flex-basis:430px!important}
 
 .toolbar{
   margin:10px 0 12px;
