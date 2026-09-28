@@ -276,9 +276,9 @@ function fenieShadowStatus(){
  let el=$('#fenieShadowStatus');if(!el){el=document.createElement('div');el.id='fenieShadowStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:7px 10px;margin:0;border-radius:7px;font-size:.68rem;line-height:1.4';host.appendChild(el)}
  const summary=fenieHistoryShadowSummary();
  if(!summary.checked){el.hidden=true;return}
- el.hidden=false;el.className=\`status \${summary.mismatches?'review':'ok'}\`;
- el.textContent=\`FENIE portable: \${summary.matched}/\${summary.checked} coinciden · \${summary.mismatches} diferencias\`;
- if(summary.mismatches)el.title=summary.details.map(x=>\`\${x.invoiceNumber||'sin factura'}: \${(x.fields||[]).join(', ')}\`).join('\\n');
+ el.hidden=false;el.className='status '+(summary.mismatches?'review':'ok');
+ el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias';
+ if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+': '+(x.fields||[]).join(', ')).join('\n');
 }
 
 function extractEndesa(d,file){
