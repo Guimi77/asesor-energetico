@@ -56,7 +56,7 @@
 .primary{box-shadow:0 2px 5px rgba(24,52,184,.12)}
 .secondary{margin-left:5px}
 
-#historySyncStatus,
+#historyUploadStatus,
 #bulkProcessingStatus{
   flex:1 0 100%!important;
   width:100%!important;
@@ -249,7 +249,7 @@ td{padding:10px 8px}
   .uploader #pickFolder{
     flex:1 1 145px;
   }
-  #historySyncStatus,
+  #historyUploadStatus,
   #bulkProcessingStatus{
     flex:1 1 100%!important;
     max-width:100%!important;
