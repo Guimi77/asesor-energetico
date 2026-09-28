@@ -52,7 +52,8 @@
     if (!text) return;
     el.title = text;
 
-    if (!/Histórico terminado/i.test(text)) return;
+    const finished=/Histórico terminado/i.test(text)||/Histórico:\s*\d+\s*\/\s*\d+\s*·\s*✓/i.test(text);
+    if (!finished) return;
     if (el.dataset.ibtToastSource === text) return;
 
     el.dataset.ibtToastSource = text;
