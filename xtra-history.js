@@ -255,11 +255,17 @@ function compareFenieHistoryModels(legacy,portable){
 function recordFenieHistoryShadow(legacy,portable,error=null){
  const key=[legacy?.invoiceNumber||portable?.invoiceNumber||'sin-factura',legacy?.period?.start||portable?.period?.start||'',legacy?.period?.end||portable?.period?.end||''].join('|');
  const comparison=error?{ok:false,fields:['portable_error'],error:String(error?.message||error)}:compareFenieHistoryModels(legacy,portable);
- FENIE_HISTORY_SHADOW.set(key,{invoiceNumber:legacy?.invoiceNumber||portable?.invoiceNumber||'',...comparison});
+ FENIE_HISTORY_SHADOW.set(key,{invoiceNumber:legacy?.invoiceNumber||portable?.invoiceNumber||'',tariff:legacy?.tariff||portable?.tariff||'',...comparison});
 }
 function fenieHistoryShadowSummary(){
- const rows=[...FENIE_HISTORY_SHADOW.values()],mismatches=rows.filter(x=>!x.ok);
- return{checked:rows.length,matched:rows.length-mismatches.length,mismatches:mismatches.length,details:mismatches.slice(0,12)};
+ const rows=[...FENIE_HISTORY_SHADOW.values()],mismatches=rows.filter(x=>!x.ok),fieldCounts={},tariffCounts={};
+ for(const row of mismatches){
+  tariffCounts[row.tariff||'sin tarifa']=(tariffCounts[row.tariff||'sin tarifa']||0)+1;
+  for(const field of row.fields||[])fieldCounts[field]=(fieldCounts[field]||0)+1;
+ }
+ const sortedFields=Object.entries(fieldCounts).sort((a,b)=>b[1]-a[1]).map(([field,count])=>({field,count}));
+ const sortedTariffs=Object.entries(tariffCounts).sort((a,b)=>b[1]-a[1]).map(([tariff,count])=>({tariff,count}));
+ return{checked:rows.length,matched:rows.length-mismatches.length,mismatches:mismatches.length,fields:sortedFields,tariffs:sortedTariffs,details:mismatches.slice(0,12)};
 }
 function resetFenieHistoryShadow(){FENIE_HISTORY_SHADOW.clear()}
 function extractFenie(d,file){
@@ -277,8 +283,10 @@ function fenieShadowStatus(){
  const summary=fenieHistoryShadowSummary();
  if(!summary.checked){el.hidden=true;return}
  el.hidden=false;el.className='status '+(summary.mismatches?'review':'ok');
- el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias';
- if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+': '+(x.fields||[]).join(', ')).join('\n');
+ const fieldText=(summary.fields||[]).slice(0,6).map(x=>x.field+' '+x.count).join(' · ');
+ const tariffText=(summary.tariffs||[]).map(x=>x.tariff+' '+x.count).join(' · ');
+ el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'+(fieldText?' · Campos: '+fieldText:'')+(tariffText?' · Tarifas: '+tariffText:'');
+ if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+' ['+(x.tariff||'sin tarifa')+']: '+(x.fields||[]).join(', ')).join('\n');
 }
 
 function extractEndesa(d,file){
