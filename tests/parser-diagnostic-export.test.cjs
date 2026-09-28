@@ -49,3 +49,18 @@ test('la auditoría inicia la descarga antes de mostrar el resumen y no bloquea 
   assert.ok(notify>download,'el resumen debe mostrarse después de iniciar la descarga');
   assert.match(audit,/try\{[\s\S]*const a=auditWorkbook\(wb\);[\s\S]*return result;[\s\S]*\}catch\(error\)/);
 });
+
+
+test('la auditoría masiva no intenta volcar todos los items PDF.js al XLSX',()=>{
+  assert.match(app,/stats:\(\)=>PDFJS_DIAGNOSTIC_PAGES\.reduce/);
+  assert.match(app,/itemsForInvoices:/);
+  assert.match(app,/linesForInvoices:/);
+  assert.match(app,/statsForInvoices:/);
+  assert.match(audit,/const MAX_DIAGNOSTIC_ROWS=10000/);
+  assert.match(audit,/Detalle bruto limitado a facturas con incidencias/);
+  assert.match(audit,/Sin incidencias: se omite el detalle bruto PDF\.js para evitar generar millones de celdas/);
+  assert.match(audit,/itemsForInvoices\?\.\(invoices,MAX_DIAGNOSTIC_ROWS\)/);
+  assert.match(audit,/linesForInvoices\?\.\(invoices,MAX_DIAGNOSTIC_ROWS\)/);
+  assert.doesNotMatch(audit,/diagnosticSheetRows\(\),wdi/);
+  assert.doesNotMatch(audit,/diagnosticLineRows\(\),wdl/);
+});
