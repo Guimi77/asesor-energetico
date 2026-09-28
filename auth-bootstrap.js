@@ -84,7 +84,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-bulk-performance]')){
     const script=document.createElement('script');
-    script.src='bulk-performance.js?v=20260908-2';
+    script.src='bulk-performance.js?v=7f3b22ecc9f1';
     script.dataset.bulkPerformance='1';
     document.body.appendChild(script);
   }
@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=57b78219a956';
+    script.src='xtra-history.js?v=e9a7e0b3d855';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
