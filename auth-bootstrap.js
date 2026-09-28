@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=70f227cd5e6d';
+    script.src='xtra-history.js?v=2be47a2a9462';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }

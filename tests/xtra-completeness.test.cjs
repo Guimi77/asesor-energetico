@@ -188,3 +188,13 @@ test('El adaptador portable FENIE cubre el contrato completo del histórico',()=
  const adapter=source.slice(start,end);
  for(const required of ['supply.cups','billing.start','billing.end','energy.totalKwh','energy.totalEur','power.totalEur','excess.totalEur','reactive.totalEur','costs.totalEur','energy.periods','power.periods','power.maximeters','model?.taxLines','model?.distributorRights','validation.completeness','validation.assessment'])assert(adapter.includes(required),required);
 });
+
+
+test('El shadow FENIE agrupa diferencias por campo y tarifa',()=>{
+ assert(source.includes('fieldCounts={}'));
+ assert(source.includes('tariffCounts={}'));
+ assert(source.includes("fieldCounts[field]=(fieldCounts[field]||0)+1"));
+ assert(source.includes("tariffCounts[row.tariff||'sin tarifa']"));
+ assert(source.includes("' · Campos: '+fieldText"));
+ assert(source.includes("' · Tarifas: '+tariffText"));
+});
