@@ -331,7 +331,7 @@
       const km=l.match(/([\d.]+,\d{2})\s*kWh/i),consumption=km?num(km[1]):0,ev=euros(l),cost=ev.length?(ev.length>1?ev.at(-2):ev[0]):0,
         pr=[...l.matchAll(/([\d.,]+)\s*€\s*\/\s*kWh/gi)].map(m=>num(m[1]));
       if(pr.length<4)energyPricesReliable=false;
-      energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,unit_price_eur_kwh:pr.at(-1)??null,toll_price_eur_kwh:pr[0]??null,charges_price_eur_kwh:pr[1]??null,retailer_price_eur_kwh:pr[2]??null});
+      energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,unit_price_eur_kwh:pr.at(-1)||null,toll_price_eur_kwh:pr[0]??null,charges_price_eur_kwh:pr[1]??null,retailer_price_eur_kwh:pr[2]??null});
     }
 
     const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),
