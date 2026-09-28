@@ -149,7 +149,7 @@ const data={pages,raw,rawPages:raw,text:pages.flat().join('\n')};return window.I
 await task.destroy();
 }
 }
-function extractFenie(d,file){
+function extractFenieLegacy(d,file){
 const a=d.pages[0]||[],text=d.text;
 const reading=window.IBTReadingStatus?.classify?.(text)||{status:'unknown',sourceLabel:null};
 const invoiceLine=find(a,/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)/i);
@@ -216,6 +216,71 @@ integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present'
 const assessment=Object.values(completeness).some(v=>v==='unreliable'||v==='needs_review')?'needs_review':'complete';
 return {file:file.name,invoiceNumber,cups,tariff,periodText,period,total,kwh,energy,power,excess,reactive,compensation,social,rental,tax,vat,igic,distributorCharges,other,accounted,diff,energyPeriods,powerPeriods,maximeterRows,excessPeriods,reactivePeriods,taxLines,adjustments,distributorRights:rights.items,distributor,retailer:'FENIE ENERGIA',contract,powerReliable:pd.reliable,holderName,holderTaxId,sourceSupplyAddress,accessContract,issueDate,contractType,contractEndDate,meterNumber,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,completeness,assessment};
 }
+
+const FENIE_HISTORY_SHADOW=new Map();
+function fenieHistoryFromNormalized(model,file){
+ const invoice=model?.invoice||{},billing=invoice.billing||{},parties=model?.parties||{},supply=model?.supply||{},contract=model?.contract||{},energy=model?.energy||{},power=model?.power||{},excess=model?.excess||{},reactive=model?.reactive||{},costs=model?.costs||{},reading=model?.reading||{},validation=model?.validation||{};
+ return{
+  file:file?.name||'',invoiceNumber:invoice.number||'',cups:supply.cups||'',tariff:invoice.tariff||'',periodText:billing.text||'',period:{start:billing.start||'',end:billing.end||'',days:billing.days??null},
+  total:Number(costs.totalEur)||0,kwh:Number(energy.totalKwh)||0,energy:Number(energy.totalEur)||0,power:Number(power.totalEur)||0,excess:Number(excess.totalEur)||0,reactive:Number(reactive.totalEur)||0,
+  compensation:Number(costs.compensationEur)||0,social:Number(costs.socialBonusEur)||0,rental:Number(costs.meterRentalEur)||0,tax:Number(costs.electricityTaxEur)||0,vat:Number(costs.vatEur)||0,igic:Number(costs.igicEur)||0,
+  distributorCharges:Number(costs.distributorChargesEur)||0,other:Number(costs.otherEur)||0,accounted:Number(costs.accountedEur)||0,diff:Number(costs.differenceEur)||0,
+  energyPeriods:Array.isArray(energy.periods)?energy.periods:[],powerPeriods:Array.isArray(power.periods)?power.periods:[],maximeterRows:Array.isArray(power.maximeters)?power.maximeters:[],
+  excessPeriods:Array.isArray(excess.periods)?excess.periods:[],reactivePeriods:Array.isArray(reactive.periods)?reactive.periods:[],taxLines:Array.isArray(model?.taxLines)?model.taxLines:[],
+  adjustments:Array.isArray(model?.adjustments)?model.adjustments:[],distributorRights:Array.isArray(model?.distributorRights)?model.distributorRights:[],
+  distributor:parties.distributor||'',retailer:parties.retailer||'FENIE ENERGIA',contract:contract.number||'',powerReliable:!!power.reliable,
+  holderName:parties.holder?.name||'',holderTaxId:parties.holder?.taxId||'',sourceSupplyAddress:supply.address||parties.supplyAddress||'',accessContract:contract.accessNumber||'',
+  issueDate:invoice.issueDate||'',contractType:contract.type||'',contractEndDate:contract.endDate||'',meterNumber:contract.meterNumber||'',
+  readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',completeness:validation.completeness||{},assessment:validation.assessment||'needs_review'
+ };
+}
+function fenieParityCanonical(x){
+ return{
+  invoiceNumber:x?.invoiceNumber||'',cups:x?.cups||'',tariff:x?.tariff||'',periodText:x?.periodText||'',period:x?.period||{},
+  total:Number(x?.total)||0,kwh:Number(x?.kwh)||0,energy:Number(x?.energy)||0,power:Number(x?.power)||0,excess:Number(x?.excess)||0,reactive:Number(x?.reactive)||0,
+  compensation:Number(x?.compensation)||0,social:Number(x?.social)||0,rental:Number(x?.rental)||0,tax:Number(x?.tax)||0,vat:Number(x?.vat)||0,igic:Number(x?.igic)||0,
+  distributorCharges:Number(x?.distributorCharges)||0,other:Number(x?.other)||0,accounted:Number(x?.accounted)||0,diff:Number(x?.diff)||0,
+  energyPeriods:x?.energyPeriods||[],powerPeriods:x?.powerPeriods||[],maximeterRows:x?.maximeterRows||[],excessPeriods:x?.excessPeriods||[],reactivePeriods:x?.reactivePeriods||[],
+  taxLines:x?.taxLines||[],adjustments:x?.adjustments||[],distributorRights:x?.distributorRights||[],distributor:x?.distributor||'',retailer:x?.retailer||'',contract:x?.contract||'',
+  powerReliable:!!x?.powerReliable,holderName:x?.holderName||'',holderTaxId:x?.holderTaxId||'',sourceSupplyAddress:x?.sourceSupplyAddress||'',accessContract:x?.accessContract||'',
+  issueDate:x?.issueDate||'',contractType:x?.contractType||'',contractEndDate:x?.contractEndDate||'',meterNumber:x?.meterNumber||'',
+  readingStatus:x?.readingStatus||'unknown',readingSourceLabel:x?.readingSourceLabel||'',completeness:x?.completeness||{},assessment:x?.assessment||''
+ };
+}
+function compareFenieHistoryModels(legacy,portable){
+ const a=fenieParityCanonical(legacy),b=fenieParityCanonical(portable),fields=[];
+ for(const key of Object.keys(a))if(JSON.stringify(a[key])!==JSON.stringify(b[key]))fields.push(key);
+ return{ok:fields.length===0,fields};
+}
+function recordFenieHistoryShadow(legacy,portable,error=null){
+ const key=[legacy?.invoiceNumber||portable?.invoiceNumber||'sin-factura',legacy?.period?.start||portable?.period?.start||'',legacy?.period?.end||portable?.period?.end||''].join('|');
+ const comparison=error?{ok:false,fields:['portable_error'],error:String(error?.message||error)}:compareFenieHistoryModels(legacy,portable);
+ FENIE_HISTORY_SHADOW.set(key,{invoiceNumber:legacy?.invoiceNumber||portable?.invoiceNumber||'',...comparison});
+}
+function fenieHistoryShadowSummary(){
+ const rows=[...FENIE_HISTORY_SHADOW.values()],mismatches=rows.filter(x=>!x.ok);
+ return{checked:rows.length,matched:rows.length-mismatches.length,mismatches:mismatches.length,details:mismatches.slice(0,12)};
+}
+function resetFenieHistoryShadow(){FENIE_HISTORY_SHADOW.clear()}
+function extractFenie(d,file){
+ const legacy=extractFenieLegacy(d,file),parser=window.IBTFenieParser;
+ if(!parser?.parseNormalized){recordFenieHistoryShadow(legacy,null,new Error('parseNormalized no disponible'));return legacy}
+ try{
+  const model=parser.parseNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||parser.revision||'FENIE',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
+  recordFenieHistoryShadow(legacy,fenieHistoryFromNormalized(model,file));
+ }catch(error){recordFenieHistoryShadow(legacy,null,error)}
+ return legacy;
+}
+function fenieShadowStatus(){
+ const host=$('#dropZone');if(!host)return;
+ let el=$('#fenieShadowStatus');if(!el){el=document.createElement('div');el.id='fenieShadowStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:7px 10px;margin:0;border-radius:7px;font-size:.68rem;line-height:1.4';host.appendChild(el)}
+ const summary=fenieHistoryShadowSummary();
+ if(!summary.checked){el.hidden=true;return}
+ el.hidden=false;el.className='status '+(summary.mismatches?'review':'ok');
+ el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias';
+ if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+': '+(x.fields||[]).join(', ')).join('\n');
+}
+
 function extractEndesa(d,file){
 const formats=window.IBTInvoiceFormats;if(!formats?.parseEndesa)return null;
 const row=formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
@@ -396,6 +461,7 @@ function enqueue(files){
 const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;
 queue=queue.then(async()=>{
 let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={},reviewItems=[];
+resetFenieHistoryShadow();fenieShadowStatus();
 historyReviewDetails([]);
 historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review');
 for(const file of list){
@@ -407,11 +473,12 @@ await new Promise(resolve=>setTimeout(resolve,0));
 await renderSummary();
 historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
 historyReviewDetails(reviewItems);
-window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems}}));
+fenieShadowStatus();
+window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary()}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
 const dz=$('#dropZone');if(dz)dz.addEventListener('drop',e=>enqueue(e.dataTransfer?.files||[]),{capture:true});
 window.addEventListener('ibt-role-changed',()=>setTimeout(renderSummary,0));
 window.addEventListener('DOMContentLoaded',()=>setTimeout(renderSummary,0));
-window.XtraHistory={refresh:renderSummary,mode:'structured-history-only',completenessVersion:COMPLETENESS_VERSION};
+window.XtraHistory={refresh:renderSummary,mode:'structured-history-only',completenessVersion:COMPLETENESS_VERSION,fenieShadowSummary:fenieHistoryShadowSummary};

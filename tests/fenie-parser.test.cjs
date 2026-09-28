@@ -124,6 +124,8 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   assert.equal(normalized.costs.totalEur,legacy.total);
   assert.equal(normalized.costs.differenceEur,legacy.diff);
   assert.equal(normalized.parties.holder.taxId,'B00000000');
+  assert.equal(normalized.supply.cups,'ES0000000000000000AA');
+  assert.equal(normalized.supply.address,'CALLE PRUEBA 1');
   assert.equal(normalized.contract.accessNumber,'ATR-0001');
   assert.equal(normalized.energy.periods.length,6);
   assert.equal(normalized.power.periods.length,6);
@@ -132,7 +134,11 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   assert.equal(normalized.validation.completeness.version,'energy-test.1');
 });
 
-test('añadir el modelo portable no cambia todavía el flujo histórico FENIE',()=>{
-  assert.match(xtra,/if\(fenie\?\.detect\?\.\(d\)\)return extractFenie\(d,file\)/);
-  assert.doesNotMatch(xtra,/parseNormalized\(/);
+test('comparación en sombra FENIE no cambia todavía la persistencia histórica',()=>{
+  assert(xtra.includes('function extractFenieLegacy(d,file)'));
+  assert(xtra.includes('function extractFenie(d,file)'));
+  assert(xtra.includes('parser.parseNormalized(d,file'));
+  assert(xtra.includes('return legacy;'));
+  assert(xtra.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
+  assert(xtra.includes('FENIE portable:'));
 });

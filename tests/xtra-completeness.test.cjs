@@ -164,3 +164,27 @@ test('El cargador muestra el detalle de las facturas históricas a revisar',()=>
  assert(source.includes('reviewItems.push(r.historyReview)'));
  assert(source.includes("historyReview:x.assessment==='needs_review'"));
 });
+
+test('FENIE compara modelo portable y legado en sombra sin cambiar lo que se persiste',()=>{
+ assert(source.includes('const FENIE_HISTORY_SHADOW=new Map()'));
+ assert(source.includes('function fenieHistoryFromNormalized(model,file)'));
+ assert(source.includes('function compareFenieHistoryModels(legacy,portable)'));
+ assert(source.includes('function extractFenieLegacy(d,file)'));
+ assert(source.includes('parser.parseNormalized(d,file'));
+ assert(source.includes('recordFenieHistoryShadow(legacy,fenieHistoryFromNormalized(model,file))'));
+ assert(source.includes('return legacy;'));
+ assert(source.includes("el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
+});
+
+test('La comparación FENIE se cuenta por factura y periodo únicos',()=>{
+ assert(source.includes("const key=[legacy?.invoiceNumber||portable?.invoiceNumber||'sin-factura'"));
+ assert(source.includes("legacy?.period?.start||portable?.period?.start||''"));
+ assert(source.includes('FENIE_HISTORY_SHADOW.set(key'));
+ assert(source.includes('resetFenieHistoryShadow();fenieShadowStatus();'));
+});
+
+test('El adaptador portable FENIE cubre el contrato completo del histórico',()=>{
+ const start=source.indexOf('function fenieHistoryFromNormalized'),end=source.indexOf('function fenieParityCanonical',start);
+ const adapter=source.slice(start,end);
+ for(const required of ['supply.cups','billing.start','billing.end','energy.totalKwh','energy.totalEur','power.totalEur','excess.totalEur','reactive.totalEur','costs.totalEur','energy.periods','power.periods','power.maximeters','model?.taxLines','model?.distributorRights','validation.completeness','validation.assessment'])assert(adapter.includes(required),required);
+});
