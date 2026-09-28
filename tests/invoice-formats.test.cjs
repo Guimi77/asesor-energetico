@@ -19,6 +19,28 @@ test('Endesa 2.0TD real invoice includes service invoices in the amount actually
   assert.equal(r.retailer,'Endesa Energía S.A.U.');
 });
 
+test('Endesa expone modelo energético normalizado portable sin alterar el parser clásico',()=>{
+  const p1=['Nº factura: P26CON000000001','Periodo de facturación: del 03/07/2026 a 04/08/2026 (32 días)','Potencia 22,09 €','Energía 226,53 €','Descuentos -42,65 €','Otros 1,64 €','Impuestos 56,39 €','Total 264,00 €','Consumo Total 855,535 kWh'];
+  const p2=['Titular del contrato: CLIENTE DEMO','Potencias contratadas: punta-llano 5,750 kW; valle 5,750 kW','CUPS: ES0000000000000004AA0F','Peaje de transporte y distribución: 2.0TD','Punta 24.606,217 24.849,430 1,00 0,000 243,213','Llano 7.737,018 7.974,459 1,00 0,000 237,441','Valle 9.337,632 9.712,513 1,00 0,000 374,881','Pot. Punta-Llano 5,750 kW x 0,102310 Eur/kW x 32 días 18,82 €','Pot. Valle 5,750 kW x 0,017763 Eur/kW x 32 días 3,27 €','Impuesto electricidad ( 206,76 Eur X 5,1126963 %) 10,57 €','IVA normal 21 % s/ 218,18 45,82 €'];
+  const p3=['DETALLE DE LA FACTURA DE SERVICIOS','TOTAL IMPORTE FACTURA 2,11 €','RESUMEN TOTAL DE LAS FACTURAS','Factura de Electricidad 264,00 €','Factura de servicios 2,11 €','Total importe a pagar 266,11 €'];
+  const data=d(p1,p2,p3),legacy=api.parseEndesa(data,{name:'demo.pdf'}),normalized=api.parseEndesaNormalized(data,{name:'demo.pdf'},{completenessVersion:'energy-test.1'});
+  assert.equal(normalized.modelVersion,'ibt-energy-invoice-1');
+  assert.equal(normalized.parser.id,'endesa');
+  assert.equal(normalized.invoice.number,legacy.invoiceNumber);
+  assert.equal(normalized.invoice.billing.start,'2026-07-03');
+  assert.equal(normalized.invoice.billing.end,'2026-08-04');
+  assert.equal(normalized.invoice.billing.days,32);
+  assert.equal(normalized.supply.cups,legacy.cups);
+  assert.equal(normalized.energy.totalKwh,legacy.kwh);
+  assert.equal(normalized.energy.totalEur,legacy.energy);
+  assert.equal(normalized.power.totalEur,legacy.power);
+  assert.equal(normalized.costs.totalEur,legacy.total);
+  assert.equal(normalized.costs.differenceEur,legacy.diff);
+  assert.equal(normalized.energy.periods.length,3);
+  assert.equal(normalized.power.periods.length,2);
+  assert.equal(normalized.validation.completeness.version,'energy-test.1');
+});
+
 test('Endesa 3.0TD estimated invoice reads P1-P6 and current demands without inventing period prices',()=>{
   const p1=['Nº de factura: P26CON000000002','Periodo de facturación: del 11/05/2026 al 04/06/2026 (24 días)','Potencia 52,14 €','Energía 525,89 €','Descuentos -71,36 €','Otros 8,98 €','Impuestos 139,66 €','Total 655,31 €','Consumo Total 2.853,101 kWh'];
   const p2=['Titular del contrato: CLIENTE DEMO','Potencia contratada [kW]: P1 15,010; P2 15,010; P3 15,010; P4 15,010; P5 15,010; P6 15,010.','CUPS: ES0000000000000005AA0F','Peaje de transporte y distribución: 3.0TD','Lectura Lectura','estimada estimada','P1 1.18.1 12.028,667 12.206,986 1,00 0,000 178,319','P2 1.18.2 19.046,997 19.809,805 1,00 0,000 762,808','P3 1.18.3 17.732,082 18.217,505 1,00 0,000 485,423','P4 1.18.4 16.794,474 16.794,474 1,00 0,000 0,000','P5 1.18.5 10.562,016 10.562,016 1,00 0,000 0,000','P6 1.18.6 59.047,670 60.474,220 1,00 0,000 1.426,550','P1 1.16.1 5,628 1 5,628','P2 1.16.2 6,067 1 6,067','P3 1.16.3 5,795 1 5,795','P4 1.16.4 0,000 1 0,000','P5 1.16.5 0,000 1 0,000','P6 1.16.6 6,873 1 6,873','Pot. P1 15,010 kW x 24 días x 0,067393 Eur/kW y día 24,28 €','Pot. P2 15,010 kW x 24 días x 0,034203 Eur/kW y día 12,32 €','Pot. P3 15,010 kW x 24 días x 0,014995 Eur/kW y día 5,40 €','Pot. P4 15,010 kW x 24 días x 0,013083 Eur/kW y día 4,71 €','Pot. P5 15,010 kW x 24 días x 0,008671 Eur/kW y día 3,12 €','Pot. P6 15,010 kW x 24 días x 0,006407 Eur/kW y día 2,31 €','Impuesto Electricidad 507,13 Eur x 5,1126963 % 25,93 €','IVA normal (21%) 21 % s/ 541,58 113,73 €'];
