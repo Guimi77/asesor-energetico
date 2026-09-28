@@ -305,7 +305,7 @@ return entries.length?' · '+entries.map(([reason,count])=>`${HISTORY_SKIP_LABEL
 }
 function historyStatus(text,type='ok'){
 let el=$('#historySyncStatus');
-if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historySyncStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='grid-column:1/-1;padding:8px 12px;margin-top:8px';host.appendChild(el)}
+if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historySyncStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:8px 12px;margin-top:8px;white-space:normal;line-height:1.4';host.appendChild(el)}
 el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
 }
 async function persistOne(file){
@@ -350,15 +350,15 @@ function enqueue(files){
 const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;
 queue=queue.then(async()=>{
 let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={};
-historyStatus(`Histórico: 0/${list.length} · validación y guardado en curso`,'review');
+historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review');
 for(const file of list){
 try{const r=await persistOne(file);if(r?.ok){saved++;if(r.completeness==='complete')complete++;else review++;}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
 catch(e){failed++;console.warn('Histórico XTRA:',file.name,e)}
-done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardados · ${complete} completos · ${review} revisar · ${skipped} omitidos · ${failed} errores${skipSummary(skipReasons)}`,'review');
+done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,'review');
 await new Promise(resolve=>setTimeout(resolve,0));
 }
 await renderSummary();
-historyStatus(`Histórico terminado: ${done}/${list.length} · ${saved} guardados · ${complete} completos · ${review} con detalle a revisar · ${skipped} omitidos · ${failed} errores${skipSummary(skipReasons)}`,failed||skipped||review?'review':'ok');
+historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
 window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
