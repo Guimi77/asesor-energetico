@@ -290,7 +290,7 @@ function fenieShadowStatus(){
  if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+' ['+(x.tariff||'sin tarifa')+']: '+(x.fields||[]).join(', ')).join('\n');
 }
 
-function extractEndesa(d,file){
+function extractEndesaLegacy(d,file){
 const formats=window.IBTInvoiceFormats;if(!formats?.parseEndesa)return null;
 const row=formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
 const periodText=norm(row.period),period=parsePeriod(periodText),tariff=norm(row.tariff),periods=row.periods||{},contracted=row.contracted||{},mx=row.maximeters||{};
@@ -306,6 +306,45 @@ const completeness={version:COMPLETENESS_VERSION,invoice_number:status(row.invoi
 const assessment=row.readOk&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
 return {file:file.name,invoiceNumber:row.invoiceNumber,cups:row.cups,tariff,periodText,period,total:Number(row.total)||0,kwh:Number(row.kwh)||0,energy:Number(row.energy)||0,power:Number(row.power)||0,excess:Number(row.excess)||0,reactive:Number(row.reactive)||0,compensation:Number(row.compensation)||0,social:Number(row.social)||0,rental:Number(row.rental)||0,tax:Number(row.tax)||0,vat:Number(row.vat)||0,igic:Number(row.igic)||0,distributorCharges:Number(row.distributorCharges)||0,other:Number(row.other)||0,accounted:Number(row.accounted)||0,diff:Number(row.diff)||0,energyPeriods,powerPeriods,maximeterRows,excessPeriods:[],reactivePeriods,taxLines,adjustments,distributorRights:[],distributor:row.distributor||'',retailer:row.retailer||'Endesa Energía S.A.U.',contract:row.contract||row.contractNumber||'',powerReliable:row.readOk&&Number.isFinite(Number(row.power)),holderName:row.company||'',holderTaxId:row.taxId||'',sourceSupplyAddress:row.supplyAddress||'',accessContract:row.accessContract||'',issueDate:'',contractType:row.contractType||'',contractEndDate:row.renewalDate||'',meterNumber:'',readingStatus:row.readingStatus||'unknown',readingSourceLabel:row.readingSourceLabel||'',completeness,assessment};
 }
+const ENDESA_HISTORY_SHADOW=new Map();
+function endesaHistoryFromNormalized(model,file){return fenieHistoryFromNormalized(model,file)}
+function recordEndesaHistoryShadow(legacy,portable,error=null){
+ const key=[legacy?.invoiceNumber||portable?.invoiceNumber||'sin-factura',legacy?.period?.start||portable?.period?.start||'',legacy?.period?.end||portable?.period?.end||''].join('|');
+ const comparison=error?{ok:false,fields:['portable_error'],error:String(error?.message||error)}:compareFenieHistoryModels(legacy,portable);
+ ENDESA_HISTORY_SHADOW.set(key,{invoiceNumber:legacy?.invoiceNumber||portable?.invoiceNumber||'',tariff:legacy?.tariff||portable?.tariff||'',...comparison});
+}
+function endesaHistoryShadowSummary(){
+ const rows=[...ENDESA_HISTORY_SHADOW.values()],mismatches=rows.filter(x=>!x.ok),fieldCounts={},tariffCounts={};
+ for(const row of mismatches){
+  tariffCounts[row.tariff||'sin tarifa']=(tariffCounts[row.tariff||'sin tarifa']||0)+1;
+  for(const field of row.fields||[])fieldCounts[field]=(fieldCounts[field]||0)+1;
+ }
+ const sortedFields=Object.entries(fieldCounts).sort((a,b)=>b[1]-a[1]).map(([field,count])=>({field,count}));
+ const sortedTariffs=Object.entries(tariffCounts).sort((a,b)=>b[1]-a[1]).map(([tariff,count])=>({tariff,count}));
+ return{checked:rows.length,matched:rows.length-mismatches.length,mismatches:mismatches.length,fields:sortedFields,tariffs:sortedTariffs,details:mismatches.slice(0,12)};
+}
+function resetEndesaHistoryShadow(){ENDESA_HISTORY_SHADOW.clear()}
+function extractEndesa(d,file){
+ const legacy=extractEndesaLegacy(d,file),formats=window.IBTInvoiceFormats;
+ if(!legacy||!formats?.parseEndesaNormalized){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('parseEndesaNormalized no disponible'));return legacy}
+ try{
+  const model=formats.parseEndesaNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
+  recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file));
+ }catch(error){recordEndesaHistoryShadow(legacy,null,error)}
+ return legacy;
+}
+function endesaShadowStatus(){
+ const host=$('#dropZone');if(!host)return;
+ let el=$('#endesaShadowStatus');if(!el){el=document.createElement('div');el.id='endesaShadowStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:7px 10px;margin:0;border-radius:7px;font-size:.68rem;line-height:1.4';host.appendChild(el)}
+ const summary=endesaHistoryShadowSummary();
+ if(!summary.checked){el.hidden=true;return}
+ el.hidden=false;el.className='status '+(summary.mismatches?'review':'ok');
+ const fieldText=(summary.fields||[]).slice(0,6).map(x=>x.field+' '+x.count).join(' · ');
+ const tariffText=(summary.tariffs||[]).map(x=>x.tariff+' '+x.count).join(' · ');
+ el.textContent='ENDESA portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'+(fieldText?' · Campos: '+fieldText:'')+(tariffText?' · Tarifas: '+tariffText:'');
+ if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+' ['+(x.tariff||'sin tarifa')+']: '+(x.fields||[]).join(', ')).join('\n');
+}
+
 function extractIberdrola(d,file){
 const parser=window.IBTIberdrolaParser;if(!parser?.parse)return null;
 const row=parser.parse(d,file,{parserVersion:window.IBT_PARSER_VERSION||'IBERDROLA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
@@ -470,7 +509,7 @@ function enqueue(files){
 const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;
 queue=queue.then(async()=>{
 let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={},reviewItems=[];
-resetFenieHistoryShadow();fenieShadowStatus();
+resetFenieHistoryShadow();resetEndesaHistoryShadow();fenieShadowStatus();endesaShadowStatus();
 historyReviewDetails([]);
 historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review');
 for(const file of list){
@@ -482,12 +521,12 @@ await new Promise(resolve=>setTimeout(resolve,0));
 await renderSummary();
 historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
 historyReviewDetails(reviewItems);
-fenieShadowStatus();
-window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary()}}));
+fenieShadowStatus();endesaShadowStatus();
+window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary(),endesaShadow:endesaHistoryShadowSummary()}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
 const dz=$('#dropZone');if(dz)dz.addEventListener('drop',e=>enqueue(e.dataTransfer?.files||[]),{capture:true});
 window.addEventListener('ibt-role-changed',()=>setTimeout(renderSummary,0));
 window.addEventListener('DOMContentLoaded',()=>setTimeout(renderSummary,0));
-window.XtraHistory={refresh:renderSummary,mode:'structured-history-only',completenessVersion:COMPLETENESS_VERSION,fenieShadowSummary:fenieHistoryShadowSummary};
+window.XtraHistory={refresh:renderSummary,mode:'structured-history-only',completenessVersion:COMPLETENESS_VERSION,fenieShadowSummary:fenieHistoryShadowSummary,endesaShadowSummary:endesaHistoryShadowSummary};
