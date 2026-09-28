@@ -331,10 +331,10 @@ function extractEndesa(d,file){
  const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row);
  if(!legacy||!formats?.normalizeEndesaRow){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('normalizeEndesaRow no disponible'));return legacy}
  try{
-  const model=formats.normalizeEndesaRow(row,options);
-  recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file));
- }catch(error){recordEndesaHistoryShadow(legacy,null,error)}
- return legacy;
+  const model=formats.normalizeEndesaRow(row,options),portable=endesaHistoryFromNormalized(model,file),comparison=compareFenieHistoryModels(legacy,portable);
+  recordEndesaHistoryShadow(legacy,portable);
+  return comparison.ok?portable:legacy;
+ }catch(error){recordEndesaHistoryShadow(legacy,null,error);return legacy}
 }
 function endesaShadowStatus(){
  const host=$('#dropZone');if(!host)return;
