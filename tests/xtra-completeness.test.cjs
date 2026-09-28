@@ -106,7 +106,7 @@ test('2.0TD reactive absence is not fabricated as zero measured reactive detail'
 test('Endesa compara modelo portable y legado en sombra sin cambiar aún la persistencia',()=>{
  assert(source.includes('const ENDESA_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function endesaHistoryFromNormalized(model,file)'));
- assert(source.includes('function extractEndesaLegacy(d,file)'));
+ assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
  assert(source.includes('const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row)'));
  assert(source.includes('formats.normalizeEndesaRow(row,options)'));
  assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));
