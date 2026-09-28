@@ -45,9 +45,8 @@ test('Fenie calculations stay locked while the implementation moves out of app.j
  const current=source('app.js'),fenieSource=source('fenie-parser.js');
  assert.equal(slice(current,'function lines(items)','async function pdfData'),slice(frozenFile('repsolIsolationReference','app.js'),'function lines(items)','async function pdfData'));
  assert.equal(slice(source('supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'),slice(frozenFile('repsolIsolationReference','supply-enricher-v2.js'),'function parseSupply(lines)','function endesaAddress'));
- assert.equal(source('auth.css'),frozenFile('repsolIsolationReference','auth.css'),'auth.css must not change in this FENIE isolation');
- assert.equal(source('history-cost-chart.js'),frozenFile('repsolIsolationReference','history-cost-chart.js'),'history-cost-chart.js must not change in this FENIE isolation');
-
+ // Do not freeze unrelated UI files inside a FENIE parser guard. Those files
+ // have their own behavioural contracts and may evolve independently.
  for(const token of [
   'function powerSectionDetails(a,expectedPeriods=0){',
   'const expected=Number(expectedPeriods)||0;',
@@ -73,6 +72,14 @@ test('Fenie calculations stay locked while the implementation moves out of app.j
  assert(audit.includes('No se acepta 0 kWh por ausencia de datos.'));
  assert(audit.includes('Detalle energético coherente'));
  assert(guard.includes("data?.retailer||data?.commercializer"));
+});
+
+test('access UI guards are behavioural instead of frozen to an old CSS snapshot',()=>{
+ const authCss=source('auth.css');
+ assert(authCss.includes('.auth-signed-in .auth-gate{display:none}'));
+ assert(authCss.includes('.auth-signed-in .sidebar,.auth-signed-in .app-shell{visibility:visible}'));
+ assert(authCss.includes('.maintenance-active .auth-gate{display:grid!important}'));
+ assert(authCss.includes('.maintenance-active .sidebar,.maintenance-active .app-shell{visibility:hidden!important}'));
 });
 test('Bulk loader tracks large folders without concurrent auxiliary PDF readers',()=>{
  const s=source('bulk-performance.js');
