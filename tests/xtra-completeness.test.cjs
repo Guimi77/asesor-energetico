@@ -105,8 +105,8 @@ test('Endesa compara modelo portable y legado en sombra sin cambiar aún la pers
  assert(source.includes('const ENDESA_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function endesaHistoryFromNormalized(model,file)'));
  assert(source.includes('function extractEndesaLegacy(d,file)'));
- assert(source.includes('formats.parseEndesaNormalized(d,file'));
- assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));
+ assert(source.includes('const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row)'));\n assert(source.includes('formats.normalizeEndesaRow(row,options)'));
+ assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));\n assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
  assert(source.includes('return legacy;'));
  assert(source.includes("el.textContent='ENDESA portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
  assert(source.includes('endesaShadowSummary:endesaHistoryShadowSummary'));
