@@ -79,7 +79,7 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   const euro='€';
   const page=[
     'FENIE ENERGIA',
-    'Nº Factura: SYNTH000002',
+    'Nº Factura: TEST000002',
     'Razón Social: CLIENTE SINTETICO SL',
     'NIF / CIF: B00000000',
     'Dir. Suministro: CALLE PRUEBA 1',
