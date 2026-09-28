@@ -8,6 +8,7 @@ const root=path.join(__dirname,'..');
 const fenie=require('../fenie-parser.js');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const xtra=fs.readFileSync(path.join(root,'xtra-history.js'),'utf8');
 
 test('detector FENIE reconoce su formato y no captura otras comercializadoras',()=>{
   assert.equal(fenie.detect('FENIE ENERGIA Razón Social: DEMO Periodo Facturación: 01/01/2026 - 31/01/2026 Término de potencia'),true);
@@ -68,6 +69,70 @@ test('navegador carga fenie-parser antes de app.js',()=>{
 test('API portable expone detect, parse, revision y helper de potencia',()=>{
   assert.equal(typeof fenie.detect,'function');
   assert.equal(typeof fenie.parse,'function');
+  assert.equal(typeof fenie.parseNormalized,'function');
   assert.equal(typeof fenie.powerSectionDetails,'function');
   assert.match(fenie.revision,/^fenie-/);
+});
+
+
+test('modelo FENIE normalizado conserva el núcleo económico y añade estructura portable',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA',
+    'Nº Factura: TEST000002',
+    'Razón Social: CLIENTE SINTETICO SL',
+    'NIF / CIF: B00000000',
+    'Dir. Suministro: CALLE PRUEBA 1',
+    'CUPS: ES0000000000000000AA',
+    'Tarifa: 3.0TD',
+    'Periodo Facturación: 01/02/2026 - 28/02/2026 (28 días)',
+    'Fecha de Factura: 01/03/2026',
+    'Contrato Acceso: ATR-0001',
+    'Tipo Contrato: Mercado libre',
+    'Fecha fin del contrato de suministro: 31/12/2026',
+    'Empresa Distribuidora: DISTRIBUIDORA DEMO',
+    'CO-2026-SYNTH',
+    'Término de energía',
+    'P1: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'P2: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'P3: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'P4: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'P5: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'P6: 100,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,060000 '+euro+' / kWh 6,00 '+euro,
+    'Término de potencia',
+    'P1: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    'P2: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    'P3: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    'P4: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    'P5: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    'P6: 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día + 0,010000 '+euro+' / kW día = 0,030000 '+euro+' / kW día 10,000 kW x 28 días = 8,40 '+euro,
+    '50,40 '+euro,
+    'Bono social',
+    'TOTAL FACTURA 86,40 '+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\n')};
+  const legacy=fenie.parse(data,{name:'synthetic-normalized.pdf'});
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-normalized.pdf'},{completenessVersion:'energy-test.1'});
+  assert.equal(normalized.modelVersion,'ibt-energy-invoice-1');
+  assert.equal(normalized.parser.id,'fenie');
+  assert.equal(normalized.invoice.number,legacy.invoiceNumber);
+  assert.equal(normalized.invoice.billing.start,'2026-02-01');
+  assert.equal(normalized.invoice.billing.end,'2026-02-28');
+  assert.equal(normalized.energy.totalKwh,legacy.kwh);
+  assert.equal(normalized.energy.totalEur,legacy.energy);
+  assert.equal(normalized.power.totalEur,legacy.power);
+  assert.equal(normalized.costs.totalEur,legacy.total);
+  assert.equal(normalized.costs.differenceEur,legacy.diff);
+  assert.equal(normalized.parties.holder.taxId,'B00000000');
+  assert.equal(normalized.contract.accessNumber,'ATR-0001');
+  assert.equal(normalized.energy.periods.length,6);
+  assert.equal(normalized.power.periods.length,6);
+  assert.equal(normalized.energy.periods[0].toll_price_eur_kwh,0.01);
+  assert.equal(normalized.power.periods[0].unit_price_eur_kw_day,0.03);
+  assert.equal(normalized.validation.completeness.version,'energy-test.1');
+});
+
+test('añadir el modelo portable no cambia todavía el flujo histórico FENIE',()=>{
+  assert.match(xtra,/if\(fenie\?\.detect\?\.\(d\)\)return extractFenie\(d,file\)/);
+  assert.doesNotMatch(xtra,/parseNormalized\(/);
 });
