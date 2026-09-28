@@ -9,7 +9,7 @@ const compactJs=fs.readFileSync('ui-compact.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
-vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,powerDetails,excessRows,reactiveRows,taxRows,rightsDetail,reviewReasons};',ctx);
+vm.runInContext(beforePdf+'\nglobalThis.api={status,euros,powerDetails,powerPriceRows,excessRows,reactiveRows,taxRows,rightsDetail,reviewReasons};',ctx);
 const plain=v=>JSON.parse(JSON.stringify(v));
 test('Completeness states distinguish missing, not applicable and unreliable data',()=>{
  assert.equal(ctx.api.status('dato',false),'extracted');
@@ -24,6 +24,26 @@ test('Historical power parser ignores duplicate OCR period labels when all six b
  assert.equal(detail.reliable,true);
  assert.equal(detail.value,108);
 });
+test('FENIE power price components survive period labels split onto separate PDF lines',()=>{
+ const lines=[
+  '0,040918 €/kW día + 0,014909 €/kW día + 0,000000 €/kW día = 0,055827 €/kW día x 17,000 kW x 19 días = 18,03 €',
+  'P1: 38,34 €',
+  '0,021628 €/kW día + 0,007461 €/kW día + 0,000000 €/kW día = 0,029089 €/kW día x 17,000 kW x 19 días = 9,40 €',
+  'P2:',
+  '0,006858 €/kW día + 0,005421 €/kW día + 0,000000 €/kW día = 0,012279 €/kW día x 17,000 kW x 19 días = 3,97 €',
+  'P3:',
+  '0,005227 €/kW día + 0,005421 €/kW día + 0,000000 €/kW día = 0,010648 €/kW día x 17,000 kW x 19 días = 3,44 €',
+  'P4:',
+  'P5: 0,001467 €/kW día + 0,005421 €/kW día + 0,000000 €/kW día = 0,006888 €/kW día x 17,000 kW x 19 días = 2,22 €',
+  'P6: 0,001467 €/kW día + 0,002485 €/kW día + 0,000000 €/kW día = 0,003952 €/kW día x 17,000 kW x 19 días = 1,28 €'
+ ];
+ const rows=plain(ctx.api.powerPriceRows(lines));
+ assert.equal(rows.length,6);
+ assert.deepEqual(rows[0],[0.040918,0.014909,0,0.055827]);
+ assert.deepEqual(rows[1],[0.021628,0.007461,0,0.029089]);
+ assert.deepEqual(rows[5],[0.001467,0.002485,0,0.003952]);
+});
+
 test('Historical FENIE 3.0TD accepts missing OCR labels only with all six billed formulas',()=>{
  const amounts=['50,80','26,47','11,17','9,69','6,27','3,60'];
  const lines=amounts.map((amount,i)=>`${[0,1,2,5].includes(i)?`P${i+1}: `:''}70,000 kW x 13 dias = ${amount} €`);
@@ -64,6 +84,14 @@ test('Structured payload carries completeness detail and never carries PDF bytes
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
 });
+test('Existing validated invoices refresh completeness without changing core amounts',()=>{
+ const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);
+ assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
+ assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
+ assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
+ assert(source.includes("const COMPLETENESS_VERSION='energy-2026.09.28.1'"));
+});
+
 test('Automatic history write cannot bypass the validated main parser row',()=>{
  const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);assert(start>=0&&end>start);
  for(const check of ["/Correcta/i.test(ui.status)","ui.balance==='OK'","same(ui.kwh,x.kwh,.02)","same(ui.energy,x.energy)","same(ui.power,x.power)","same(ui.excess,x.excess)","same(ui.reactive,x.reactive)","same(ui.total,x.total)"])assert(persist.includes(check),check);
