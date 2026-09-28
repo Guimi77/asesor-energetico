@@ -4,6 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync('xtra-history.js','utf8');
+const compactCss=fs.readFileSync('ui-compact.css','utf8');
+const compactJs=fs.readFileSync('ui-compact.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
@@ -84,4 +86,19 @@ test('El estado de histórico es legible y ocupa su propia fila en el cargador',
  assert(source.includes('Histórico: ${done}/${list.length} · ✓ ${saved} guardadas'));
  assert(source.includes('${complete} completas · ${review} a revisar · ${failed} errores'));
  assert(!source.includes('Histórico terminado: ${done}/${list.length}'));
+});
+
+
+test('Los estados de carga e histórico no pueden compartir la misma fila estrecha',()=>{
+ assert.match(compactCss,/\.uploader\{[\s\S]*flex-wrap:wrap/);
+ assert.match(compactCss,/#historySyncStatus,\s*#bulkProcessingStatus\{[\s\S]*flex:1 0 100%!important/);
+ assert.match(compactCss,/width:100%!important/);
+ assert.match(compactCss,/max-width:100%!important/);
+ assert.match(compactCss,/white-space:normal!important/);
+ assert.match(compactCss,/overflow:visible!important/);
+ assert.doesNotMatch(compactCss,/max-width:430px!important/);
+});
+
+test('El toast reconoce el nuevo formato final del histórico',()=>{
+ assert.match(compactJs,/Histórico:\\s\*\\d\+\\s\*\\\/\\s\*\\d\+\\s\*·\\s\*✓/);
 });
