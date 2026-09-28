@@ -101,6 +101,17 @@ test('2.0TD reactive absence is not fabricated as zero measured reactive detail'
  assert(source.includes("const reactiveApplicable=!/^2\\.0TD$/i.test(tariff);"));
  assert(source.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
+test('Endesa compara modelo portable y legado en sombra sin cambiar aún la persistencia',()=>{
+ assert(source.includes('const ENDESA_HISTORY_SHADOW=new Map()'));
+ assert(source.includes('function endesaHistoryFromNormalized(model,file)'));
+ assert(source.includes('function extractEndesaLegacy(d,file)'));
+ assert(source.includes('formats.parseEndesaNormalized(d,file'));
+ assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));
+ assert(source.includes('return legacy;'));
+ assert(source.includes("el.textContent='ENDESA portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
+ assert(source.includes('endesaShadowSummary:endesaHistoryShadowSummary'));
+});
+
 test('Historical persistence routes Endesa through the validated shared parser',()=>{
  assert(source.includes('function extractEndesa(d,file)'));
  assert(source.includes("formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA'"));
