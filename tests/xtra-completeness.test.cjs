@@ -78,3 +78,10 @@ test('Historical persistence routes Endesa through the validated shared parser',
  assert(source.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
  assert(source.includes('powerReliable:row.readOk&&Number.isFinite(Number(row.power))'));
 });
+
+test('El estado de histórico es legible y ocupa su propia fila en el cargador',()=>{
+ assert(source.includes("flex-basis:100%;width:100%;min-width:0"));
+ assert(source.includes('Histórico: ${done}/${list.length} · ✓ ${saved} guardadas'));
+ assert(source.includes('${complete} completas · ${review} a revisar · ${failed} errores'));
+ assert(!source.includes('Histórico terminado: ${done}/${list.length}'));
+});

@@ -7,16 +7,24 @@ const path=require('node:path');
 
 const root=path.join(__dirname,'..');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const authBootstrap=fs.readFileSync(path.join(root,'auth-bootstrap.js'),'utf8');
 
 function gitBlobSha(file){
   const buf=fs.readFileSync(path.join(root,file));
-  return crypto.createHash('sha1').update(`blob ${buf.length}\0`).update(buf).digest('hex');
+  return crypto.createHash('sha1').update('blob '+buf.length+'\0').update(buf).digest('hex');
+}
+
+function escapedName(file){
+  return file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+
+function assertSourceCacheToken(source,file){
+  const expected=gitBlobSha(file).slice(0,12);
+  assert.match(source,new RegExp(escapedName(file)+'\\?v='+expected+'(?:[\"\'])'),file+' debe usar como cache-buster el hash de su contenido ('+expected+')');
 }
 
 function assertCacheToken(file){
-  const expected=gitBlobSha(file).slice(0,12);
-  const escaped=file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  assert.match(index,new RegExp(`${escaped}\\?v=${expected}(?:[\"'])`),`${file} debe usar como cache-buster el hash de su contenido (${expected})`);
+  assertSourceCacheToken(index,file);
 }
 
 test('los assets críticos no pueden desplegar código nuevo con una URL cacheada antigua',()=>{
@@ -28,4 +36,6 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('uenergia-parser.js');
   assertCacheToken('naturgy-parser.js');
   assertCacheToken('parser-audit.js');
+  assertCacheToken('auth-bootstrap.js');
+  assertSourceCacheToken(authBootstrap,'xtra-history.js');
 });
