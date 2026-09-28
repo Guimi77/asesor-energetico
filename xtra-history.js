@@ -290,9 +290,9 @@ function fenieShadowStatus(){
  if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+' ['+(x.tariff||'sin tarifa')+']: '+(x.fields||[]).join(', ')).join('\n');
 }
 
-function extractEndesaLegacy(d,file){
+function extractEndesaLegacy(d,file,rowOverride=null){
 const formats=window.IBTInvoiceFormats;if(!formats?.parseEndesa)return null;
-const row=formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
+const row=rowOverride||formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
 const periodText=norm(row.period),period=parsePeriod(periodText),tariff=norm(row.tariff),periods=row.periods||{},contracted=row.contracted||{},mx=row.maximeters||{};
 const energyPeriods=Object.entries(periods).filter(([key])=>/^P[1-6]$/.test(key)).map(([key,value])=>({period:Number(key.slice(1)),consumption_kwh:Number(value?.consumption)||0,energy_cost_eur:value?.cost==null?null:Number(value.cost),unit_price_eur_kwh:value?.price==null?null:Number(value.price)}));
 const powerEntries=row.powerDetail?.entries||[],powerKeys=Object.keys(contracted).filter(key=>/^P[1-6]$/.test(key)).sort((a,b)=>Number(a.slice(1))-Number(b.slice(1)));
@@ -325,10 +325,13 @@ function endesaHistoryShadowSummary(){
 }
 function resetEndesaHistoryShadow(){ENDESA_HISTORY_SHADOW.clear()}
 function extractEndesa(d,file){
- const legacy=extractEndesaLegacy(d,file),formats=window.IBTInvoiceFormats;
- if(!legacy||!formats?.parseEndesaNormalized){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('parseEndesaNormalized no disponible'));return legacy}
+ const formats=window.IBTInvoiceFormats;
+ if(!formats?.parseEndesa)return null;
+ const options={parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION};
+ const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row);
+ if(!legacy||!formats?.normalizeEndesaRow){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('normalizeEndesaRow no disponible'));return legacy}
  try{
-  const model=formats.parseEndesaNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
+  const model=formats.normalizeEndesaRow(row,options);
   recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file));
  }catch(error){recordEndesaHistoryShadow(legacy,null,error)}
  return legacy;
@@ -443,7 +446,13 @@ return entries.length?' · '+entries.map(([reason,count])=>`${HISTORY_SKIP_LABEL
 function historyStatus(text,type='ok'){
 let el=$('#historyUploadStatus');
 if(!el){const host=$('#dropZone');if(!host)return;el=document.createElement('div');el.id='historyUploadStatus';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.style.cssText='flex-basis:100%;width:100%;min-width:0;padding:8px 12px;margin-top:8px;white-space:normal;line-height:1.4';host.appendChild(el)}
-el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
+el.hidden=false;el.style.display='';el.textContent=text;el.className=`status ${type==='ok'?'ok':'review'}`;
+}
+function clearHistoryUploadUi(){
+ resetFenieHistoryShadow();resetEndesaHistoryShadow();
+ for(const selector of ['#historyUploadStatus','#historyReviewDetails','#fenieShadowStatus','#endesaShadowStatus']){
+  const el=$(selector);if(!el)continue;el.textContent='';el.hidden=true;if(selector==='#historyUploadStatus')el.style.display='none';
+ }
 }
 function historyReviewDetails(items){
  const host=$('#dropZone');if(!host)return;
@@ -527,6 +536,7 @@ window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipp
 }
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
 const dz=$('#dropZone');if(dz)dz.addEventListener('drop',e=>enqueue(e.dataTransfer?.files||[]),{capture:true});
+const clearData=$('#clearData');if(clearData)clearData.addEventListener('click',clearHistoryUploadUi,{capture:true});
 window.addEventListener('ibt-role-changed',()=>setTimeout(renderSummary,0));
 window.addEventListener('DOMContentLoaded',()=>setTimeout(renderSummary,0));
 window.XtraHistory={refresh:renderSummary,mode:'structured-history-only',completenessVersion:COMPLETENESS_VERSION,fenieShadowSummary:fenieHistoryShadowSummary,endesaShadowSummary:endesaHistoryShadowSummary};

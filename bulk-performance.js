@@ -126,6 +126,13 @@
     el.textContent = text || progressText(mainDone ? 'Lectura principal terminada' : 'Procesando');
   }
 
+  function hideStatus(){
+    const el=document.querySelector('#bulkProcessingStatus');
+    if(!el)return;
+    el.textContent='';
+    el.style.display='none';
+  }
+
   function trackDbResult(result, args){
     if (!bulkActive || result?.error) return;
     const data = result?.data || {};
@@ -165,7 +172,10 @@
 
   function begin(files){
     const total = pdfCount(files);
-    if (total < BULK_MIN) return;
+    if (total < BULK_MIN) {
+      if(!bulkActive)hideStatus();
+      return;
+    }
     wrapHistoryRpc();
     bulkActive = true;
     bulkTotal = total;

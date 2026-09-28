@@ -6,6 +6,8 @@ const vm=require('node:vm');
 const source=fs.readFileSync('xtra-history.js','utf8');
 const compactCss=fs.readFileSync('ui-compact.css','utf8');
 const compactJs=fs.readFileSync('ui-compact.js','utf8');
+const folderUpload=fs.readFileSync('folder-upload.js','utf8');
+const bulkPerformance=fs.readFileSync('bulk-performance.js','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
@@ -104,9 +106,11 @@ test('2.0TD reactive absence is not fabricated as zero measured reactive detail'
 test('Endesa compara modelo portable y legado en sombra sin cambiar aún la persistencia',()=>{
  assert(source.includes('const ENDESA_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function endesaHistoryFromNormalized(model,file)'));
- assert(source.includes('function extractEndesaLegacy(d,file)'));
- assert(source.includes('formats.parseEndesaNormalized(d,file'));
+ assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
+ assert(source.includes('const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row)'));
+ assert(source.includes('formats.normalizeEndesaRow(row,options)'));
  assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));
+ assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
  assert(source.includes('return legacy;'));
  assert(source.includes("el.textContent='ENDESA portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
  assert(source.includes('endesaShadowSummary:endesaHistoryShadowSummary'));
@@ -118,6 +122,17 @@ test('Historical persistence routes Endesa through the validated shared parser',
  assert(source.includes("if(format==='endesa')return extractEndesa(d,file)"));
  assert(source.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
  assert(source.includes('powerReliable:row.readOk&&Number.isFinite(Number(row.power))'));
+});
+
+test('Limpiar análisis elimina estados transitorios del cargador y permite el siguiente lote',()=>{
+ assert(source.includes("const clearData=$('#clearData');if(clearData)clearData.addEventListener('click',clearHistoryUploadUi,{capture:true});"));
+ assert(source.includes("el.hidden=false;el.style.display='';el.textContent=text"));
+ assert(source.includes("for(const selector of ['#historyUploadStatus','#historyReviewDetails','#fenieShadowStatus','#endesaShadowStatus'])"));
+ assert(folderUpload.includes("clearData.addEventListener('click',()=>{clearFolderStatus(true);setFileMode();},{capture:true})"));
+ assert(folderUpload.includes("if (input.dataset.folderMode !== '1') { clearFolderStatus(); return; }"));
+ assert(folderUpload.includes("if (!entries.some(entry => entry.isDirectory)) { clearFolderStatus(); return; }"));
+ assert(bulkPerformance.includes("if (total < BULK_MIN)"));
+ assert(bulkPerformance.includes("if(!bulkActive)hideStatus();"));
 });
 
 test('El estado de histórico es legible y ocupa su propia fila en el cargador',()=>{

@@ -84,14 +84,14 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-bulk-performance]')){
     const script=document.createElement('script');
-    script.src='bulk-performance.js?v=7f3b22ecc9f1';
+    script.src='bulk-performance.js?v=72fce35ff71b';
     script.dataset.bulkPerformance='1';
     document.body.appendChild(script);
   }
 
   if(!document.querySelector('script[data-folder-upload]')){
     const script=document.createElement('script');
-    script.src='folder-upload.js?v=20260909-2';
+    script.src='folder-upload.js?v=9070f8e35035';
     script.dataset.folderUpload='1';
     document.body.appendChild(script);
   }
@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=cdffa0c6ff9d';
+    script.src='xtra-history.js?v=2d7e775ad271';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
