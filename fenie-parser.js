@@ -227,9 +227,175 @@
     };
   }
 
+
+  const norm=v=>String(v??'').trim();
+  const clean=v=>norm(v).replace(/\s+/g,' ');
+  const afterLabel=(line,re)=>norm(String(line||'').replace(re,'').replace(/^\s*:?\s*/,''));
+  const dateIn=line=>((String(line||'').match(/\d{2}\/\d{2}\/\d{4}/)||[])[0])||'';
+  const isoDate=value=>{const m=norm(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:''};
+  const parseBillingPeriod=value=>{const m=norm(value).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}};
+  const sourceStatus=(value,present=true)=>value!==''&&value!=null?'extracted':present?'unreliable':'not_present';
+
+  function powerPriceRows(a){
+    const re=/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi;
+    return (a||[]).map(line=>[...String(line||'').matchAll(re)].map(m=>num(m[1]))).filter(values=>values.length>=4);
+  }
+
+  function excessRows(a){
+    const out=[];
+    for(let p=1;p<=6;p++){
+      const line=prow(a,p);if(!line)continue;
+      const m=line.match(/P[1-6]:?\s*([\d.,-]+)\s*[x×]\s*([\d.,-]+)\s*=\s*(-?[\d.]+,\d{2})\s*€/i);
+      if(m)out.push({period:p,excess_kw:num(m[1]),unit_price:num(m[2]),amount_eur:num(m[3])});
+    }
+    return out;
+  }
+
+  function reactiveRows(a){
+    const out=[];
+    for(let p=1;p<=6;p++){
+      const line=prow(a,p);if(!line)continue;
+      let m=line.match(/P[1-6]:?\s*([\d.,-]+)\s*kVArh\s+([\d.,-]+)\s+([\d.,-]+)\s*kVArh\s*[x×]\s*([\d.,-]+)\s*€\s*\/\s*kVArh\s*=\s*(-?[\d.]+,\d{2})\s*€/i);
+      if(m){out.push({period:p,reactive_kvarh:num(m[1]),consumption_kvarh:num(m[1]),cos_phi:num(m[2]),excess_kvarh:num(m[3]),unit_price_eur_kvarh:num(m[4]),amount_eur:num(m[5])});continue}
+      m=line.match(/P[1-6]:?[\s\S]*?([\d.,-]+)\s*kVArh\s*[x×]\s*([\d.,-]+)\s*€\s*\/\s*kVArh\s*=\s*(-?[\d.]+,\d{2})\s*€/i);
+      if(m)out.push({period:p,reactive_kvarh:null,consumption_kvarh:null,cos_phi:null,excess_kvarh:num(m[1]),unit_price_eur_kvarh:num(m[2]),amount_eur:num(m[3])});
+    }
+    return out;
+  }
+
+  function taxRows(a){
+    const out=[];
+    for(const line of a||[]){
+      if(!/^\s*(IVA|IGIC)\b/i.test(line))continue;
+      const type=/^\s*IGIC\b/i.test(line)?'IGIC':'IVA',
+        label=(line.match(/^\s*((?:IVA|IGIC)(?:\s+(?:Reducido|Normal))?)/i)||[])[1]||type,
+        rate=(line.match(/([\d.,]+)\s*%/)||[])[1],
+        base=(line.match(/s\/\s*(-?[\d.]+,\d{2})/i)||[])[1];
+      out.push({tax_type:type,label:norm(label),rate_pct:rate?num(rate):null,taxable_base_eur:base?num(base):null,amount_eur:lastEuro(line)});
+    }
+    return out;
+  }
+
+  function rightsDetail(a,total){
+    const signal=/Derechos (?:de )?(Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche|Actuaci[oó]n Equipos) Distribuidora/ig,
+      block=[];let active=false;
+    for(const line of a||[]){
+      signal.lastIndex=0;
+      if(signal.test(line)){active=true;block.push(line);continue}
+      if(active){if(/^(?:Impuesto electricidad|Alquiler Equipo|IVA\b|IGIC\b|TOTAL FACTURA)/i.test(line))break;block.push(line)}
+    }
+    const text=clean(block.join(' '));
+    if(!text)return {text:'',items:[],status:'not_present',residual:0};
+    signal.lastIndex=0;
+    const matches=[...text.matchAll(signal)],items=[];
+    for(let i=0;i<matches.length;i++){
+      const m=matches[i],start=m.index??0,end=i+1<matches.length?(matches[i+1].index??text.length):text.length,
+        segment=text.slice(start,end),amountMatch=segment.match(/\((-?[\d.]+,\d{2})\s*€\)/i);
+      if(!amountMatch)continue;
+      const legal=(segment.match(/\(([^\)]*(?:R\.D\.|Art\.)[^\)]*)\)/i)||[])[1]||null;
+      items.push({concept:`Derechos ${m[1]} Distribuidora`,amount_eur:num(amountMatch[1]),category:'distributor_right',legal_reference:legal,source_text:segment.slice(0,220)});
+    }
+    if(!items.length&&matches.length===1&&Number(total)!==0){
+      const segment=text.slice(matches[0].index??0),legal=(segment.match(/\(([^\)]*(?:R\.D\.|Art\.)[^\)]*)\)/i)||[])[1]||null;
+      items.push({concept:`Derechos ${matches[0][1]} Distribuidora`,amount_eur:Number(total),category:'distributor_right',legal_reference:legal,source_text:segment.slice(0,220)});
+    }
+    const known=round2(items.reduce((sum,item)=>sum+Number(item.amount_eur||0),0)),residual=round2(Number(total||0)-known);
+    if(Math.abs(residual)>.05){
+      items.push({concept:'Derecho distribuidora no identificado',amount_eur:residual,category:'distributor_right_unidentified',legal_reference:null,source_text:text.slice(0,220)});
+      return {text,items,status:'needs_review',residual};
+    }
+    return {text,items,status:items.length?'extracted':'needs_review',residual:0};
+  }
+
+  function parseNormalized(d,file,options={}){
+    const row=parse(d,file,options),a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
+      period=parseBillingPeriod(row.period),tariff=norm(row.tariff),
+      holderLine=find(a,/Raz[oó]n Social\s*:/i),taxIdLine=find(a,/NIF\s*\/\s*CIF\s*:/i),
+      addressLine=find(a,/Dir\.\s*Suministro\s*:/i),accessLine=find(a,/Contrato Acceso\s*:/i),
+      holderName=afterLabel(holderLine,/.*?Raz[oó]n Social\s*:/i),
+      holderTaxId=afterLabel(taxIdLine,/.*?NIF\s*\/\s*CIF\s*:/i).split(/\s+/)[0]||'',
+      supplyAddress=afterLabel(addressLine,/.*?Dir\.\s*Suministro\s*:/i),
+      accessContract=((afterLabel(accessLine,/.*?Contrato Acceso\s*:/i).match(/[A-Z0-9._-]+/i)||[])[0])||'',
+      issueDate=isoDate(dateIn(find(a,/Fecha de Factura\s*:/i))),
+      contract=((text.match(/\b(CO-\d{4}-[A-Z0-9._-]+)\b/i)||[])[1])||'',
+      contractType=afterLabel(find(a,/Tipo Contrato\s*:/i),/.*?Tipo Contrato\s*:/i),
+      contractEndDate=isoDate(dateIn(find(a,/Fecha fin del contrato de suministro\s*:/i))),
+      meterLine=find(a,/Alquiler Equipo medida.*N[º°o.]?\s*Contador/i),
+      meterNumber=((meterLine.match(/N[º°o.]?\s*Contador\s*([A-Z0-9._-]+)/i)||[])[1])||'',
+      distributor=afterLabel(find(a,/Empresa Distribuidora\s*:/i),/.*?Empresa Distribuidora\s*:/i);
+
+    const es=section(a,/T[eé]rmino (?:de )?energ[ií]a(?: variable)?/i,[/T[eé]rmino de potencia/i]),
+      energyPeriods=[];let energyPricesReliable=true;
+    for(let p=1;p<=6;p++){
+      const l=prow(es,p);if(!l)continue;
+      const km=l.match(/([\d.]+,\d{2})\s*kWh/i),consumption=km?num(km[1]):0,ev=euros(l),cost=ev.length?(ev.length>1?ev.at(-2):ev[0]):0,
+        pr=[...l.matchAll(/([\d.,]+)\s*€\s*\/\s*kWh/gi)].map(m=>num(m[1]));
+      if(pr.length<4)energyPricesReliable=false;
+      energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,unit_price_eur_kwh:pr.at(-1)??null,toll_price_eur_kwh:pr[0]??null,charges_price_eur_kwh:pr[1]??null,retailer_price_eur_kwh:pr[2]??null});
+    }
+
+    const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),
+      expectedPowerPeriods=/^2\.0TD$/i.test(tariff)?2:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0,
+      priceRows=powerPriceRows(ps),powerEntries=row.powerDetail?.entries||[];
+    let powerPricesReliable=!!row.powerDetail?.reliable&&priceRows.length>=powerEntries.length;
+    const powerPeriods=row.powerDetail?.reliable?powerEntries.map((entry,i)=>{
+      const pr=priceRows[i]||[];if(pr.length<4)powerPricesReliable=false;
+      return {period:expectedPowerPeriods?i+1:i+1,contracted_kw:entry.contractedKw,billed_power_eur:entry.amount,unit_price_eur_kw_day:pr.at(-1)??null,toll_price_eur_kw_day:pr[0]??null,charges_price_eur_kw_day:pr[1]??null,retailer_price_eur_kw_day:pr[2]??null};
+    }):[];
+
+    const excessSection=section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/Bono social/i,/Impuesto electricidad/i]),
+      reactiveSection=section(a,/Energ[ií]a reactiva/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/Bono social/i,/Impuesto electricidad/i]),
+      excessPeriods=excessRows(excessSection),reactivePeriods=reactiveRows(reactiveSection),
+      maximeterRows=Object.keys(row.maximeters||{}).filter(k=>/^P\d$/.test(k)).map(k=>({period:Number(k.slice(1)),maximeter_kw:row.maximeters[k],reliable:!!row.maximeters._reliable,source:'FENIE · tabla maxímetro'})),
+      taxes=taxRows(a),rights=rightsDetail(a,row.distributorCharges),
+      adjustments=[];
+
+    if(row.integratorAdjustment)adjustments.push({concept:'Ajuste por Integrador',amount_eur:row.integratorAdjustment,category:'adjustment'});
+    if(row.regularizationReactive)adjustments.push({concept:'Regularización Reactiva',amount_eur:row.regularizationReactive,category:'reactive_adjustment'});
+
+    const reactiveApplicable=!/^2\.0TD$/i.test(tariff),
+      completeness={
+        version:options.completenessVersion||'energy-1',
+        invoice_number:sourceStatus(row.invoiceNumber),cups:sourceStatus(row.cups),billing_period:sourceStatus(period.start&&period.end),issue_date:sourceStatus(issueDate),
+        holder_name:sourceStatus(holderName),holder_tax_id:sourceStatus(holderTaxId),supply_address:sourceStatus(supplyAddress),access_contract_number:sourceStatus(accessContract),
+        contract_number:sourceStatus(contract),contract_type:sourceStatus(contractType,!!find(a,/Tipo Contrato\s*:/i)),contract_end_date:sourceStatus(contractEndDate),meter_number:sourceStatus(meterNumber),
+        tariff:sourceStatus(tariff),distributor:sourceStatus(distributor),energy_periods:energyPeriods.length?'extracted':'unreliable',energy_price_components:energyPricesReliable?'extracted':'unreliable',
+        power_periods:row.powerDetail?.reliable?'extracted':'unreliable',power_price_components:powerPricesReliable?'extracted':'unreliable',maximeters:row.maximeters?._reliable?'extracted':'unreliable',
+        excess_detail:excessSection.length?(excessPeriods.length?'extracted':'unreliable'):'not_present',
+        reactive_detail:reactiveSection.length?(reactivePeriods.length?'extracted':'unreliable'):(reactiveApplicable?'unreliable':'not_applicable'),
+        compensation:find(a,/Compensaci[oó]n Excedente/i)?'extracted':'not_present',social_bonus:find(a,/Bono social/i)?'extracted':'unreliable',
+        meter_rental:find(a,/Alquiler Equipo medida/i)?'extracted':'unreliable',electricity_tax:find(a,/Impuesto electricidad/i)?'extracted':'unreliable',
+        tax_lines:taxes.length?'extracted':'unreliable',distributor_rights:rights.status,
+        integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
+      },
+      assessment=Object.values(completeness).some(v=>v==='unreliable'||v==='needs_review')?'needs_review':'complete';
+
+    return {
+      modelVersion:'ibt-energy-invoice-1',
+      parser:{id:'fenie',version:row.parserVersion},
+      invoice:{number:row.invoiceNumber,issueDate,billing:{text:row.period,start:period.start,end:period.end,days:period.days},tariff},
+      parties:{holder:{name:holderName,taxId:holderTaxId},retailer:RETAILER,distributor,supplyAddress},
+      contract:{number:contract,accessNumber:accessContract,type:contractType,endDate:contractEndDate,meterNumber},
+      energy:{totalKwh:row.kwh,totalEur:row.energy,periods:energyPeriods},
+      power:{totalEur:row.power,periods:powerPeriods,maximeters:maximeterRows,reliable:!!row.powerDetail?.reliable},
+      excess:{totalEur:row.excess,periods:excessPeriods},
+      reactive:{totalEur:row.reactive,periods:reactivePeriods},
+      costs:{
+        compensationEur:row.compensation,socialBonusEur:row.social,meterRentalEur:row.rental,electricityTaxEur:row.tax,
+        vatEur:row.vat,igicEur:row.igic,distributorChargesEur:row.distributorCharges,otherEur:row.other,totalEur:row.total,accountedEur:row.accounted,differenceEur:row.diff
+      },
+      taxLines:taxes,
+      distributorRights:rights.items,
+      adjustments,
+      reading:{status:row.readingStatus,sourceLabel:row.readingSourceLabel},
+      validation:{balanced:row.balanced,readOk:row.readOk,message:row.readMessage,completeness,assessment}
+    };
+  }
+
   return Object.freeze({
     detect,
     parse,
+    parseNormalized,
     powerSectionDetails,
     revision:REVISION,
     retailer:RETAILER
