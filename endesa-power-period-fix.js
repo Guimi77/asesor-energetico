@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.2';
+  const VERSION='2026.09.28.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const round3=n=>Math.round((Number(n)||0)*1000)/1000;
@@ -62,6 +62,58 @@
     return null;
   }
 
+  function globalEnergyLine(lines){
+    const matches=[],re=/\bFacturaci[oó]n\s+del\s+Consumo\s+([\d.]+,\d+)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*(?:Eur|€)\s*\/?\s*kWh\s+(-?[\d.]+,\d{2})\s*€/i;
+    for(const source of lines||[]){
+      const s=text(source),m=s.match(re);if(!m)continue;
+      const kwh=num(m[1]),price=num(m[2]),amount=num(m[3]);
+      if(kwh==null||price==null||amount==null)continue;
+      matches.push({kwh,price,amount,source:s});
+    }
+    return matches.length===1?matches[0]:null;
+  }
+
+  function deriveEnergyPeriodsFromGlobalPrice(lines,periods,totalKwh,summaryEnergy){
+    const bill=globalEnergyLine(lines);if(!bill)return null;
+    const entries=Object.entries(periods||{})
+      .filter(([key,value])=>/^P[1-6]$/.test(key)&&value?.consumption!=null)
+      .sort((a,b)=>Number(a[0].slice(1))-Number(b[0].slice(1)));
+    if(!entries.length)return null;
+    const parsedKwh=round3(entries.reduce((s,[,value])=>s+(Number(value.consumption)||0),0));
+    if(totalKwh==null||summaryEnergy==null)return null;
+    if(Math.abs(parsedKwh-Number(totalKwh))>.1)return null;
+    if(Math.abs(bill.kwh-Number(totalKwh))>.1)return null;
+    if(Math.abs(bill.amount-Number(summaryEnergy))>.05)return null;
+    if(Math.abs((bill.kwh*bill.price)-bill.amount)>.05)return null;
+
+    const derived=entries.map(([key,value])=>({
+      key,
+      period:Number(key.slice(1)),
+      consumption:Number(value.consumption)||0,
+      price:round6(bill.price),
+      cost:round2((Number(value.consumption)||0)*bill.price)
+    }));
+    const roundedTotal=round2(derived.reduce((s,e)=>s+e.cost,0));
+    const remainder=round2(bill.amount-roundedTotal);
+    if(Math.abs(remainder)>.05)return null;
+    if(Math.abs(remainder)>.001){
+      const target=derived.filter(e=>e.consumption>0).sort((a,b)=>b.consumption-a.consumption)[0];
+      if(!target)return null;
+      target.cost=round2(target.cost+remainder);
+    }
+    const parsedCost=round2(derived.reduce((s,e)=>s+e.cost,0));
+    if(Math.abs(parsedCost-bill.amount)>.01)return null;
+
+    const enriched={...(periods||{})};
+    for(const e of derived){
+      enriched[e.key]={...(enriched[e.key]||{}),cost:e.cost,price:e.price,energyCostSource:'derived_global_unit_price'};
+    }
+    return{
+      periods:enriched,
+      detail:{status:'derived_global_price',reliable:true,entries:derived.map(e=>({period:e.period,kwh:round3(e.consumption),cost:e.cost,price:e.price,source:bill.source})),parsedKwh,parsedCost,totalKwh,summaryEnergy,globalPrice:round6(bill.price),source:bill.source}
+    };
+  }
+
   function aggregateEnergyPeriods(lines,periods,totalKwh,summaryEnergy){
     const groups=new Map(),raw=[];
     const re=/\bConsumo\s+(P[1-6]|Punta|Llano|Valle)\s+([\d.]+,\d+)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*(?:Eur|€)\s*\/\s*kWh.*?(-?[\d.]+,\d{2})\s*€/i;
@@ -73,7 +125,10 @@
       if(!groups.has(period))groups.set(period,{period,kwh:0,cost:0,weighted:0,sources:[]});
       const g=groups.get(period);g.kwh+=kwh;g.cost+=amount;g.weighted+=kwh*price;g.sources.push(item.source);
     }
-    if(!raw.length)return {periods,detail:{status:'not_present',reliable:false,entries:[]}};
+    if(!raw.length){
+      const derived=deriveEnergyPeriodsFromGlobalPrice(lines,periods,totalKwh,summaryEnergy);
+      return derived||{periods,detail:{status:'not_present',reliable:false,entries:[]}};
+    }
     const entries=[...groups.values()].sort((a,b)=>a.period-b.period).map(g=>({
       period:g.period,kwh:round3(g.kwh),cost:round2(g.cost),price:g.kwh>0?round6(g.weighted/g.kwh):null,sources:g.sources
     }));
@@ -99,5 +154,5 @@
     return Object.freeze(api);
   }
 
-  return Object.freeze({version:VERSION,patch,periodFromSource,aggregatePowerDetail,energyPeriod,aggregateEnergyPeriods});
+  return Object.freeze({version:VERSION,patch,periodFromSource,aggregatePowerDetail,energyPeriod,globalEnergyLine,deriveEnergyPeriodsFromGlobalPrice,aggregateEnergyPeriods});
 });
