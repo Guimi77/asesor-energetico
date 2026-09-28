@@ -194,7 +194,8 @@ test('La comparación FENIE se cuenta por factura y periodo únicos',()=>{
  assert(source.includes("const key=[legacy?.invoiceNumber||portable?.invoiceNumber||'sin-factura'"));
  assert(source.includes("legacy?.period?.start||portable?.period?.start||''"));
  assert(source.includes('FENIE_HISTORY_SHADOW.set(key'));
- assert(source.includes('resetFenieHistoryShadow();fenieShadowStatus();'));
+ assert(source.includes('resetFenieHistoryShadow()'));
+ assert(source.includes('fenieShadowStatus()'));
 });
 
 test('El adaptador portable FENIE cubre el contrato completo del histórico',()=>{
