@@ -7,10 +7,18 @@ const path=require('node:path');
 
 const root=path.join(__dirname,'..');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const authBootstrap=fs.readFileSync(path.join(root,'auth-bootstrap.js'),'utf8');
 
 function gitBlobSha(file){
   const buf=fs.readFileSync(path.join(root,file));
   return crypto.createHash('sha1').update(`blob ${buf.length}\0`).update(buf).digest('hex');
+}
+
+function assertNestedCacheToken(source,file){
+  const expected=gitBlobSha(file).slice(0,12);
+  const escaped=file.replace(/[.*+?^${}()|[\]\\]/g,'\\function assertCacheToken(file){
+');
+  assert.match(source,new RegExp(`${escaped}\\?v=${expected}(?:[\"'])`),`${file} debe usar como cache-buster el hash de su contenido (${expected})`);
 }
 
 function assertCacheToken(file){
@@ -28,4 +36,6 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('uenergia-parser.js');
   assertCacheToken('naturgy-parser.js');
   assertCacheToken('parser-audit.js');
+  assertCacheToken('auth-bootstrap.js');
+  assertNestedCacheToken(authBootstrap,'xtra-history.js');
 });
