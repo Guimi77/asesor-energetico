@@ -375,6 +375,7 @@
       parser:{id:'fenie',version:row.parserVersion},
       invoice:{number:row.invoiceNumber,issueDate,billing:{text:row.period,start:period.start,end:period.end,days:period.days},tariff},
       parties:{holder:{name:holderName,taxId:holderTaxId},retailer:RETAILER,distributor,supplyAddress},
+      supply:{cups:row.cups,address:supplyAddress},
       contract:{number:contract,accessNumber:accessContract,type:contractType,endDate:contractEndDate,meterNumber},
       energy:{totalKwh:row.kwh,totalEur:row.energy,periods:energyPeriods},
       power:{totalEur:row.power,periods:powerPeriods,maximeters:maximeterRows,reliable:!!row.powerDetail?.reliable},
