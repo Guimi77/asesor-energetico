@@ -177,6 +177,73 @@
     const classified=options.readingClassifier?.(p2text),reading=classified&&classified.status&&classified.status!=='unknown'?classified:endesaReading(p2text);
     return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',taxId:meta.taxId,cups,period,tariff,kwh:consumption,energy,power,excess,reactive,compensation,social:0,rental:0,integratorAdjustment:0,regularizationReactive:0,other,tax,vat:iva,igic,distributorCharges:0,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:consumption?total/consumption:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods,contracted,maximeters,parserVersion:options.parserVersion||'',powerDetail,sourceFormat:'endesa',supplier:'Endesa Energía S.A.U.',retailer:'Endesa Energía S.A.U.',commercializer:'Endesa Energía S.A.U.',supplyAddress,supplyCity:place.city,supplyProvince:place.province,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.contractType,renewalDate:meta.renewalDate,serviceTotal:service.serviceTotal,electricityTotal,serviceTotal:service.serviceTotal,paymentTotal:service.paymentTotal,serviceInvoices:service.serviceInvoices,discounts,summaryOther,adjustments};
   }
+  function parseEndesaNormalized(d,file,options={}){
+    const row=parseEndesa(d,file,options);if(!row||row.unsupported)return null;
+    const periodText=text(row.period),pm=periodText.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i),
+      iso=s=>{const m=String(s||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:'';},
+      billing={text:periodText,start:pm?iso(pm[1]):'',end:pm?iso(pm[2]):'',days:pm&&pm[3]?Number(pm[3]):null},
+      tariff=text(row.tariff),periods=row.periods||{},contracted=row.contracted||{},mx=row.maximeters||{};
+
+    const energyPeriods=Object.entries(periods).filter(([key])=>/^P[1-6]$/.test(key)).map(([key,value])=>({
+      period:Number(key.slice(1)),
+      consumption_kwh:Number(value?.consumption)||0,
+      energy_cost_eur:value?.cost==null?null:Number(value.cost),
+      unit_price_eur_kwh:value?.price==null?null:Number(value.price)
+    }));
+    const powerEntries=row.powerDetail?.entries||[],powerKeys=Object.keys(contracted).filter(key=>/^P[1-6]$/.test(key)).sort((a,b)=>Number(a.slice(1))-Number(b.slice(1)));
+    const powerPeriods=powerKeys.map((key,index)=>({
+      period:Number(key.slice(1)),
+      contracted_kw:Number(contracted[key])||0,
+      billed_power_eur:powerEntries[index]?.amount==null?null:Number(powerEntries[index].amount),
+      unit_price_eur_kw_day:null
+    }));
+    const maximeters=Object.keys(mx).filter(key=>/^P[1-6]$/.test(key)).map(key=>({
+      period:Number(key.slice(1)),maximeter_kw:Number(mx[key])||0,reliable:!!mx._reliable,source:'ENDESA · tabla potencia'
+    }));
+    const taxLines=[];
+    if(Number(row.tax))taxLines.push({tax_type:'ELECTRICITY_TAX',label:'Impuesto electricidad',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.tax)});
+    if(Number(row.vat))taxLines.push({tax_type:'IVA',label:'IVA',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.vat)});
+    if(Number(row.igic))taxLines.push({tax_type:'IGIC',label:'IGIC',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.igic)});
+    const adjustments=[];
+    if(Number(row.discounts))adjustments.push({concept:'Descuentos',amount_eur:Number(row.discounts),category:'discount'});
+    if(Number(row.summaryOther))adjustments.push({concept:'Otros',amount_eur:Number(row.summaryOther),category:'other'});
+    if(Number(row.adjustments))adjustments.push({concept:'Ajustes de peajes',amount_eur:Number(row.adjustments),category:'adjustment'});
+    if(Number(row.serviceTotal))adjustments.push({concept:'Servicios Endesa',amount_eur:Number(row.serviceTotal),category:'service'});
+
+    const sourceStatus=(value,present=true)=>value!==''&&value!=null?'extracted':present?'unreliable':'not_present',
+      reactiveApplicable=!/^2\.0TD$/i.test(tariff),hasMaximeters=!!mx._reliable,
+      completeness={
+        version:options.completenessVersion||'energy-1',
+        invoice_number:sourceStatus(row.invoiceNumber),cups:sourceStatus(row.cups),billing_period:sourceStatus(billing.start&&billing.end),issue_date:'not_present',
+        holder_name:sourceStatus(row.company),holder_tax_id:sourceStatus(row.taxId,false),supply_address:sourceStatus(row.supplyAddress),access_contract_number:sourceStatus(row.accessContract,false),
+        contract_number:sourceStatus(row.contract,false),contract_type:sourceStatus(row.contractType,false),contract_end_date:sourceStatus(row.renewalDate,false),meter_number:'not_present',
+        tariff:sourceStatus(tariff),distributor:sourceStatus(row.distributor,false),energy_periods:energyPeriods.length?'extracted':'unreliable',energy_price_components:'not_present',
+        power_periods:powerPeriods.length?'extracted':'unreliable',power_price_components:'not_present',maximeters:hasMaximeters?'extracted':reactiveApplicable?'not_present':'not_applicable',
+        excess_detail:Number(row.excess)?'extracted':'not_present',reactive_detail:Number(row.reactive)?'extracted':reactiveApplicable?'not_present':'not_applicable',
+        compensation:Number(row.compensation)?'extracted':'not_present',social_bonus:'not_present',meter_rental:'not_present',electricity_tax:Number(row.tax)?'extracted':'not_present',
+        tax_lines:taxLines.length?'extracted':'not_present',distributor_rights:'not_present',integrator_adjustment:'not_present',reactive_regularization:'not_present'
+      },
+      assessment=row.readOk&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
+
+    return{
+      modelVersion:'ibt-energy-invoice-1',
+      parser:{id:'endesa',version:row.parserVersion||options.parserVersion||''},
+      invoice:{number:row.invoiceNumber||'',issueDate:'',billing,tariff},
+      parties:{holder:{name:row.company||'',taxId:row.taxId||''},retailer:row.retailer||'Endesa Energía S.A.U.',distributor:row.distributor||'',supplyAddress:row.supplyAddress||''},
+      supply:{cups:row.cups||'',address:row.supplyAddress||''},
+      contract:{number:row.contract||row.contractNumber||'',accessNumber:row.accessContract||'',type:row.contractType||'',endDate:row.renewalDate||'',meterNumber:''},
+      energy:{totalKwh:Number(row.kwh)||0,totalEur:Number(row.energy)||0,periods:energyPeriods},
+      power:{totalEur:Number(row.power)||0,periods:powerPeriods,maximeters,reliable:!!row.readOk&&Number.isFinite(Number(row.power))},
+      excess:{totalEur:Number(row.excess)||0,periods:[]},
+      reactive:{totalEur:Number(row.reactive)||0,periods:[]},
+      costs:{compensationEur:Number(row.compensation)||0,socialBonusEur:Number(row.social)||0,meterRentalEur:Number(row.rental)||0,electricityTaxEur:Number(row.tax)||0,
+        vatEur:Number(row.vat)||0,igicEur:Number(row.igic)||0,distributorChargesEur:Number(row.distributorCharges)||0,otherEur:Number(row.other)||0,totalEur:Number(row.total)||0,
+        accountedEur:Number(row.accounted)||0,differenceEur:Number(row.diff)||0},
+      taxLines,distributorRights:[],adjustments,
+      reading:{status:row.readingStatus||'unknown',sourceLabel:row.readingSourceLabel||''},
+      validation:{balanced:!!row.balanced,readOk:!!row.readOk,message:row.readMessage||'',completeness,assessment}
+    };
+  }
   function unsupportedRow(file){return{unsupported:true,file:file?.name||'',invoiceNumber:'—',company:'Formato no compatible todavía',cups:'',period:'—',tariff:'—',kwh:null,energy:null,power:null,excess:null,reactive:null,compensation:null,social:null,rental:null,integratorAdjustment:null,regularizationReactive:null,other:null,tax:null,vat:null,igic:null,distributorCharges:null,total:null,accounted:null,diff:null,balanced:false,readOk:false,readMessage:'Factura no compatible todavía',readingStatus:'unknown',readingSourceLabel:'',avg:null,opportunity:'Factura no compatible todavía. No se ha interpretado ni guardado ningún dato.',periods:{},contracted:{},maximeters:{},powerDetail:{reliable:false},sourceFormat:'unknown'};}
-  return Object.freeze({detect,parseEndesa,unsupportedRow,endesaReading,canonicalEndesaLine,canonicalEndesaLines});
+  return Object.freeze({detect,parseEndesa,parseEndesaNormalized,unsupportedRow,endesaReading,canonicalEndesaLine,canonicalEndesaLines});
 });
