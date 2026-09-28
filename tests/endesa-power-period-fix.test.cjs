@@ -62,6 +62,34 @@ test('Endesa energy detail fills P1-P3 costs and weighted prices only when kWh a
   assert.ok(r.periods.P3.price>0.0924&&r.periods.P3.price<0.0937);
 });
 
+test('Endesa deriva costes P1-P6 solo cuando existe un único precio global reconciliado',()=>{
+  const periods={
+    P1:{consumption:100,cost:null,price:null},P2:{consumption:200,cost:null,price:null},P3:{consumption:300,cost:null,price:null},
+    P4:{consumption:0,cost:null,price:null},P5:{consumption:0,cost:null,price:null},P6:{consumption:400,cost:null,price:null}
+  };
+  const lines=['Facturación del Consumo 1.000,000 kWh x 0,123456 Eur/kWh 123,46 €'];
+  const r=fix.aggregateEnergyPeriods(lines,periods,1000,123.46);
+  assert.equal(r.detail.reliable,true);
+  assert.equal(r.detail.status,'derived_global_price');
+  assert.deepEqual([r.periods.P1.cost,r.periods.P2.cost,r.periods.P3.cost,r.periods.P4.cost,r.periods.P5.cost,r.periods.P6.cost],[12.35,24.69,37.04,0,0,49.38]);
+  assert.deepEqual([r.periods.P1.price,r.periods.P2.price,r.periods.P3.price,r.periods.P6.price],[0.123456,0.123456,0.123456,0.123456]);
+  assert.equal(r.periods.P1.energyCostSource,'derived_global_unit_price');
+  assert.equal(Number(Object.values(r.periods).reduce((s,p)=>s+(Number(p.cost)||0),0).toFixed(2)),123.46);
+});
+
+test('Endesa no reparte un precio global si hay varias líneas de facturación o no cuadra el total',()=>{
+  const periods={P1:{consumption:400,cost:null,price:null},P2:{consumption:300,cost:null,price:null},P3:{consumption:300,cost:null,price:null}};
+  const multiple=fix.aggregateEnergyPeriods([
+    'Facturación del Consumo 500,000 kWh x 0,100000 Eur/kWh 50,00 €',
+    'Facturación del Consumo 500,000 kWh x 0,120000 Eur/kWh 60,00 €'
+  ],periods,1000,110);
+  assert.equal(multiple.detail.status,'not_present');
+  assert.equal(multiple.periods.P1.cost,null);
+  const mismatch=fix.aggregateEnergyPeriods(['Facturación del Consumo 1.000,000 kWh x 0,100000 Eur/kWh 100,00 €'],periods,999,100);
+  assert.equal(mismatch.detail.status,'not_present');
+  assert.equal(mismatch.periods.P1.cost,null);
+});
+
 test('Endesa energy detail fails closed if the labelled lines do not reconcile with invoice energy',()=>{
   const periods={P1:{consumption:100,cost:null,price:null}};
   const r=fix.aggregateEnergyPeriods(['Consumo Punta 100,000 kWh x 0,200000 Eur/kWh 20,00 €'],periods,100,99);
