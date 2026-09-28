@@ -173,7 +173,7 @@ test('FENIE compara modelo portable y legado en sombra sin cambiar lo que se per
  assert(source.includes('parser.parseNormalized(d,file'));
  assert(source.includes('recordFenieHistoryShadow(legacy,fenieHistoryFromNormalized(model,file))'));
  assert(source.includes('return legacy;'));
- assert(source.includes('FENIE portable: ${summary.matched}/${summary.checked} coinciden · ${summary.mismatches} diferencias'));
+ assert(source.includes("el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
 });
 
 test('La comparación FENIE se cuenta por factura y periodo únicos',()=>{
