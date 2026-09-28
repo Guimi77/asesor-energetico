@@ -41,6 +41,18 @@ test('Endesa expone modelo energético normalizado portable sin alterar el parse
   assert.equal(normalized.validation.completeness.version,'energy-test.1');
 });
 
+test('Endesa puede normalizar una fila runtime ya validada sin volver a parsear el PDF',()=>{
+  const row={invoiceNumber:'P26CONRUNTIME001',period:'01/01/2026 - 31/01/2026 (31 días)',tariff:'2.0TD',company:'CLIENTE RUNTIME',taxId:'A00000000',cups:'ES0000000000000000AA',supplyAddress:'DIRECCION YA SANEADA 1',accessContract:'500000000001',contract:'130000000001',contractType:'Libre Endesa',renewalDate:'31/12/2026',distributor:'EDISTRIBUCION',retailer:'Endesa Energía S.A.U.',kwh:100,energy:20,power:10,excess:0,reactive:0,compensation:0,social:0,rental:0,tax:1,vat:6.51,igic:0,distributorCharges:0,other:0,total:37.51,accounted:37.51,diff:0,balanced:true,readOk:true,readMessage:'Lectura correcta',readingStatus:'actual',readingSourceLabel:'Lectura real / real',periods:{P1:{consumption:30,cost:6,price:.2},P2:{consumption:30,cost:6,price:.2},P3:{consumption:40,cost:8,price:.2}},contracted:{P1:5.75,P2:5.75},maximeters:{},powerDetail:{entries:[{amount:5},{amount:5}],reliable:true},discounts:0,summaryOther:0,adjustments:0,serviceTotal:0,parserVersion:'runtime-test'};
+  const normalized=api.normalizeEndesaRow(row,{completenessVersion:'energy-test.1'});
+  assert.equal(normalized.supply.address,'DIRECCION YA SANEADA 1');
+  assert.equal(normalized.contract.number,'130000000001');
+  assert.equal(normalized.contract.accessNumber,'500000000001');
+  assert.equal(normalized.power.reliable,true);
+  assert.equal(normalized.validation.assessment,'complete');
+  assert.equal(normalized.power.periods.length,2);
+  assert.equal(normalized.validation.completeness.version,'energy-test.1');
+});
+
 test('Endesa 3.0TD estimated invoice reads P1-P6 and current demands without inventing period prices',()=>{
   const p1=['Nº de factura: P26CON000000002','Periodo de facturación: del 11/05/2026 al 04/06/2026 (24 días)','Potencia 52,14 €','Energía 525,89 €','Descuentos -71,36 €','Otros 8,98 €','Impuestos 139,66 €','Total 655,31 €','Consumo Total 2.853,101 kWh'];
   const p2=['Titular del contrato: CLIENTE DEMO','Potencia contratada [kW]: P1 15,010; P2 15,010; P3 15,010; P4 15,010; P5 15,010; P6 15,010.','CUPS: ES0000000000000005AA0F','Peaje de transporte y distribución: 3.0TD','Lectura Lectura','estimada estimada','P1 1.18.1 12.028,667 12.206,986 1,00 0,000 178,319','P2 1.18.2 19.046,997 19.809,805 1,00 0,000 762,808','P3 1.18.3 17.732,082 18.217,505 1,00 0,000 485,423','P4 1.18.4 16.794,474 16.794,474 1,00 0,000 0,000','P5 1.18.5 10.562,016 10.562,016 1,00 0,000 0,000','P6 1.18.6 59.047,670 60.474,220 1,00 0,000 1.426,550','P1 1.16.1 5,628 1 5,628','P2 1.16.2 6,067 1 6,067','P3 1.16.3 5,795 1 5,795','P4 1.16.4 0,000 1 0,000','P5 1.16.5 0,000 1 0,000','P6 1.16.6 6,873 1 6,873','Pot. P1 15,010 kW x 24 días x 0,067393 Eur/kW y día 24,28 €','Pot. P2 15,010 kW x 24 días x 0,034203 Eur/kW y día 12,32 €','Pot. P3 15,010 kW x 24 días x 0,014995 Eur/kW y día 5,40 €','Pot. P4 15,010 kW x 24 días x 0,013083 Eur/kW y día 4,71 €','Pot. P5 15,010 kW x 24 días x 0,008671 Eur/kW y día 3,12 €','Pot. P6 15,010 kW x 24 días x 0,006407 Eur/kW y día 2,31 €','Impuesto Electricidad 507,13 Eur x 5,1126963 % 25,93 €','IVA normal (21%) 21 % s/ 541,58 113,73 €'];
