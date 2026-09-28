@@ -1,21 +1,48 @@
 (()=>{'use strict';
 let auditMode=false;
 const n=v=>Number(v)||0,txt=v=>String(v??'').trim(),has=v=>v!==''&&v!=null;
+const MAX_DIAGNOSTIC_ROWS=10000;
 const close=(a,b,t=.05)=>Math.abs(a-b)<=t;
 const parserVersion=()=>String(window.IBT_PARSER_VERSION||'desconocida');
 const expectedEnergyPeriods=tariff=>/^2\.0TD$/i.test(tariff)?3:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0;
 function getRows(wb,name){const ws=wb?.Sheets?.[name];return ws?XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(3):[]}
 function pdfJsDiagnosticItems(){try{return window.IBTParserDiagnostics?.items?.()||[]}catch{return[]}}
 function pdfJsDiagnosticLines(){try{return window.IBTParserDiagnostics?.lines?.()||[]}catch{return[]}}
-function diagnosticSheetRows(){
- const items=pdfJsDiagnosticItems();
+function diagnosticStats(){
+ try{
+  const s=window.IBTParserDiagnostics?.stats?.();
+  if(s)return{pages:n(s.pages),items:n(s.items),lines:n(s.lines)};
+ }catch{}
+ return{pages:0,items:pdfJsDiagnosticItems().length,lines:pdfJsDiagnosticLines().length};
+}
+function issueInvoices(a){return[...new Set((a?.issues||[]).map(r=>txt(r?.[1])).filter(Boolean))]}
+function diagnosticIssueStats(invoices){
+ try{
+  const s=window.IBTParserDiagnostics?.statsForInvoices?.(invoices);
+  if(s)return{pages:n(s.pages),items:n(s.items),lines:n(s.lines)};
+ }catch{}
+ const wanted=new Set(invoices||[]);
+ return{pages:0,items:pdfJsDiagnosticItems().filter(i=>wanted.has(txt(i.invoiceNumber))).length,lines:pdfJsDiagnosticLines().filter(i=>wanted.has(txt(i.invoiceNumber))).length};
+}
+function diagnosticSheetRows(invoices){
+ let items=[];
+ try{items=window.IBTParserDiagnostics?.itemsForInvoices?.(invoices,MAX_DIAGNOSTIC_ROWS)||[]}catch{}
+ if(!items.length&&invoices?.length){
+  const wanted=new Set(invoices);
+  items=pdfJsDiagnosticItems().filter(i=>wanted.has(txt(i.invoiceNumber))).slice(0,MAX_DIAGNOSTIC_ROWS);
+ }
  const header=['Archivo PDF','Nº factura parser','Formato parser','Versión parser','Página','Índice item PDF.js','Texto exacto','x','y','Ancho','Alto','hasEOL','dir','fontName','t0','t1','t2','t3','t4','t5','Ancho página','Alto página'];
  const rows=items.map(i=>[i.file,i.invoiceNumber,i.sourceFormat,i.parserVersion,i.page,i.index,i.text,i.x,i.y,i.width,i.height,i.hasEOL?'TRUE':'FALSE',i.dir,i.fontName,...Array.from({length:6},(_,n)=>Number(i.transform?.[n]??0)),i.pageWidth,i.pageHeight]);
  return{header,rows};
 }
-function diagnosticLineRows(){
- const rows=pdfJsDiagnosticLines();
- return{header:['Archivo PDF','Nº factura parser','Formato parser','Versión parser','Página','Índice línea reconstruida','Texto de línea usado por la app'],rows:rows.map(r=>[r.file,r.invoiceNumber,r.sourceFormat,r.parserVersion,r.page,r.lineIndex,r.text])};
+function diagnosticLineRows(invoices){
+ let lines=[];
+ try{lines=window.IBTParserDiagnostics?.linesForInvoices?.(invoices,MAX_DIAGNOSTIC_ROWS)||[]}catch{}
+ if(!lines.length&&invoices?.length){
+  const wanted=new Set(invoices);
+  lines=pdfJsDiagnosticLines().filter(r=>wanted.has(txt(r.invoiceNumber))).slice(0,MAX_DIAGNOSTIC_ROWS);
+ }
+ return{header:['Archivo PDF','Nº factura parser','Formato parser','Versión parser','Página','Índice línea reconstruida','Texto de línea usado por la app'],rows:lines.map(r=>[r.file,r.invoiceNumber,r.sourceFormat,r.parserVersion,r.page,r.lineIndex,r.text])};
 }
 function auditWorkbook(wb){
   const summary=getRows(wb,'Resumen').filter(r=>txt(r[1]));
@@ -59,8 +86,8 @@ function auditWorkbook(wb){
     if(consumption===0&&energy!==0)add('COHERENCIA','Consumo 0 kWh con término de energía distinto de 0 €.');
     if(total>0&&power===0&&consumption===0)add('FACTURA SIN CONSUMO','Factura con importe y 0 kWh: comprobar que potencia/derechos/otros conceptos estén capturados.');
   }
-  const total=summary.length;
-  return{version:parserVersion(),total,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticItems:pdfJsDiagnosticItems().length,diagnosticLines:pdfJsDiagnosticLines().length};
+  const total=summary.length,diagnostic=diagnosticStats();
+  return{version:parserVersion(),total,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticPages:diagnostic.pages,diagnosticItems:diagnostic.items,diagnosticLines:diagnostic.lines};
 }
 function auditBook(a){
   const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser ${a.version}`};
@@ -82,10 +109,14 @@ function auditBook(a){
   ['D4','D5','D6','D7','D8'].forEach(c=>{if(ws[c])ws[c].z='0.00%'});XLSX.utils.book_append_sheet(wb,ws,'Resumen auditoría');
   const ih=[['Severidad','Nº factura','Empresa','CUPS','Periodo','Tarifa','Control','Detalle'],...a.issues];
   const wi=XLSX.utils.aoa_to_sheet(ih);wi['!cols']=[{wch:12},{wch:20},{wch:32},{wch:27},{wch:25},{wch:10},{wch:24},{wch:80}];XLSX.utils.book_append_sheet(wb,wi,'Incidencias auditoría');
-  const di=diagnosticSheetRows(),wdi=XLSX.utils.aoa_to_sheet([di.header,...di.rows]);
+  const invoices=issueInvoices(a),issueStats=diagnosticIssueStats(invoices);
+  const scope=invoices.length
+    ? `Detalle bruto limitado a facturas con incidencias: ${invoices.length} factura(s). Items ${issueStats.items}; líneas ${issueStats.lines}. Máximo ${MAX_DIAGNOSTIC_ROWS} filas por hoja.`
+    : `Sin incidencias: se omite el detalle bruto PDF.js para evitar generar millones de celdas. Capturados en memoria: ${a.diagnosticItems} items y ${a.diagnosticLines} líneas.`;
+  const di=diagnosticSheetRows(invoices),wdi=XLSX.utils.aoa_to_sheet([['ALCANCE DEL DIAGNÓSTICO',scope],[],di.header].concat(di.rows));
   wdi['!cols']=[{wch:34},{wch:22},{wch:14},{wch:18},{wch:8},{wch:14},{wch:90},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:10},{wch:18},...Array(6).fill({wch:12}),{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wdi,'Diagnóstico PDF.js');
-  const dl=diagnosticLineRows(),wdl=XLSX.utils.aoa_to_sheet([dl.header,...dl.rows]);
+  const dl=diagnosticLineRows(invoices),wdl=XLSX.utils.aoa_to_sheet([['ALCANCE DEL DIAGNÓSTICO',scope],[],dl.header].concat(dl.rows));
   wdl['!cols']=[{wch:34},{wch:22},{wch:14},{wch:18},{wch:8},{wch:18},{wch:120}];
   XLSX.utils.book_append_sheet(wb,wdl,'Filas PDF.js');
   return wb;

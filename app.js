@@ -20,7 +20,30 @@ window.IBTParserDiagnostics={
  clear:()=>clearPdfJsDiagnostic(),
  pages:()=>PDFJS_DIAGNOSTIC_PAGES.map(p=>({...p,items:p.items.map(i=>({...i,transform:[...i.transform]})),reconstructedLines:[...p.reconstructedLines]})),
  items:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.items.map(i=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,pageWidth:p.pageWidth,pageHeight:p.pageHeight,...i}))),
- lines:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.reconstructedLines.map((text,index)=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,lineIndex:index,text})))
+ lines:()=>PDFJS_DIAGNOSTIC_PAGES.flatMap(p=>p.reconstructedLines.map((text,index)=>({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,lineIndex:index,text}))),
+ stats:()=>PDFJS_DIAGNOSTIC_PAGES.reduce((a,p)=>{a.pages++;a.items+=p.items.length;a.lines+=p.reconstructedLines.length;return a},{pages:0,items:0,lines:0}),
+ statsForInvoices:invoiceNumbers=>{
+  const wanted=new Set((invoiceNumbers||[]).map(v=>String(v||'')));
+  return PDFJS_DIAGNOSTIC_PAGES.reduce((a,p)=>{if(wanted.has(String(p.invoiceNumber||''))){a.pages++;a.items+=p.items.length;a.lines+=p.reconstructedLines.length}return a},{pages:0,items:0,lines:0});
+ },
+ itemsForInvoices:(invoiceNumbers,limit=10000)=>{
+  const wanted=new Set((invoiceNumbers||[]).map(v=>String(v||''))),out=[],max=Math.max(0,Number(limit)||0);
+  if(!wanted.size||!max)return out;
+  for(const p of PDFJS_DIAGNOSTIC_PAGES)if(wanted.has(String(p.invoiceNumber||'')))for(const i of p.items){
+    out.push({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,pageWidth:p.pageWidth,pageHeight:p.pageHeight,...i,transform:[...i.transform]});
+    if(out.length>=max)return out;
+  }
+  return out;
+ },
+ linesForInvoices:(invoiceNumbers,limit=10000)=>{
+  const wanted=new Set((invoiceNumbers||[]).map(v=>String(v||''))),out=[],max=Math.max(0,Number(limit)||0);
+  if(!wanted.size||!max)return out;
+  for(const p of PDFJS_DIAGNOSTIC_PAGES)if(wanted.has(String(p.invoiceNumber||'')))for(let index=0;index<p.reconstructedLines.length;index++){
+    out.push({file:p.file,invoiceNumber:p.invoiceNumber,sourceFormat:p.sourceFormat,parserVersion:p.parserVersion,page:p.page,lineIndex:index,text:p.reconstructedLines[index]});
+    if(out.length>=max)return out;
+  }
+  return out;
+ }
 };
 const $=s=>document.querySelector(s);let rows=[];const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),cleanKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const readingStatusLabel=s=>({actual:'Real confirmada',estimated:'Estimada',no_distributor_reading:'Sin lectura distribuidora',unknown:'No determinada'})[s]||'No determinada';
