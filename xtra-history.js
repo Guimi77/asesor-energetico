@@ -273,9 +273,10 @@ function extractFenie(d,file){
  if(!parser?.parseNormalized){recordFenieHistoryShadow(legacy,null,new Error('parseNormalized no disponible'));return legacy}
  try{
   const model=parser.parseNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||parser.revision||'FENIE',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
-  recordFenieHistoryShadow(legacy,fenieHistoryFromNormalized(model,file));
- }catch(error){recordFenieHistoryShadow(legacy,null,error)}
- return legacy;
+  const portable=fenieHistoryFromNormalized(model,file),comparison=compareFenieHistoryModels(legacy,portable);
+  recordFenieHistoryShadow(legacy,portable);
+  return comparison.ok?portable:legacy;
+ }catch(error){recordFenieHistoryShadow(legacy,null,error);return legacy}
 }
 function fenieShadowStatus(){
  const host=$('#dropZone');if(!host)return;

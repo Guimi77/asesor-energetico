@@ -157,11 +157,14 @@ test('modelo FENIE normalizado mantiene null para precio unitario cero como el h
   assert.equal(normalized.energy.periods[0].retailer_price_eur_kwh,0.03);
 });
 
-test('comparación en sombra FENIE no cambia todavía la persistencia histórica',()=>{
+test('FENIE portable pasa a salida principal solo con paridad total y conserva fallback legacy',()=>{
   assert(xtra.includes('function extractFenieLegacy(d,file)'));
   assert(xtra.includes('function extractFenie(d,file)'));
   assert(xtra.includes('parser.parseNormalized(d,file'));
-  assert(xtra.includes('return legacy;'));
+  assert(xtra.includes('comparison=compareFenieHistoryModels(legacy,portable)'));
+  assert(xtra.includes('return comparison.ok?portable:legacy;'));
+  assert(xtra.includes("recordFenieHistoryShadow(legacy,null,new Error('parseNormalized no disponible'));return legacy"));
+  assert(xtra.includes('catch(error){recordFenieHistoryShadow(legacy,null,error);return legacy}'));
   assert(xtra.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
   assert(xtra.includes('FENIE portable:'));
 });

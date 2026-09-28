@@ -165,14 +165,17 @@ test('El cargador muestra el detalle de las facturas históricas a revisar',()=>
  assert(source.includes("historyReview:x.assessment==='needs_review'"));
 });
 
-test('FENIE compara modelo portable y legado en sombra sin cambiar lo que se persiste',()=>{
+test('FENIE usa el modelo portable solo con paridad total y conserva fallback legacy',()=>{
  assert(source.includes('const FENIE_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function fenieHistoryFromNormalized(model,file)'));
  assert(source.includes('function compareFenieHistoryModels(legacy,portable)'));
  assert(source.includes('function extractFenieLegacy(d,file)'));
  assert(source.includes('parser.parseNormalized(d,file'));
- assert(source.includes('recordFenieHistoryShadow(legacy,fenieHistoryFromNormalized(model,file))'));
- assert(source.includes('return legacy;'));
+ assert(source.includes('const portable=fenieHistoryFromNormalized(model,file),comparison=compareFenieHistoryModels(legacy,portable);'));
+ assert(source.includes('recordFenieHistoryShadow(legacy,portable);'));
+ assert(source.includes('return comparison.ok?portable:legacy;'));
+ assert(source.includes("recordFenieHistoryShadow(legacy,null,new Error('parseNormalized no disponible'));return legacy"));
+ assert(source.includes('catch(error){recordFenieHistoryShadow(legacy,null,error);return legacy}'));
  assert(source.includes("el.textContent='FENIE portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
 });
 
