@@ -290,9 +290,9 @@ function fenieShadowStatus(){
  if(summary.mismatches)el.title=summary.details.map(x=>(x.invoiceNumber||'sin factura')+' ['+(x.tariff||'sin tarifa')+']: '+(x.fields||[]).join(', ')).join('\n');
 }
 
-function extractEndesaLegacy(d,file){
+function extractEndesaLegacy(d,file,rowOverride=null){
 const formats=window.IBTInvoiceFormats;if(!formats?.parseEndesa)return null;
-const row=formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
+const row=rowOverride||formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify});if(!row||row.unsupported)return null;
 const periodText=norm(row.period),period=parsePeriod(periodText),tariff=norm(row.tariff),periods=row.periods||{},contracted=row.contracted||{},mx=row.maximeters||{};
 const energyPeriods=Object.entries(periods).filter(([key])=>/^P[1-6]$/.test(key)).map(([key,value])=>({period:Number(key.slice(1)),consumption_kwh:Number(value?.consumption)||0,energy_cost_eur:value?.cost==null?null:Number(value.cost),unit_price_eur_kwh:value?.price==null?null:Number(value.price)}));
 const powerEntries=row.powerDetail?.entries||[],powerKeys=Object.keys(contracted).filter(key=>/^P[1-6]$/.test(key)).sort((a,b)=>Number(a.slice(1))-Number(b.slice(1)));
@@ -325,10 +325,13 @@ function endesaHistoryShadowSummary(){
 }
 function resetEndesaHistoryShadow(){ENDESA_HISTORY_SHADOW.clear()}
 function extractEndesa(d,file){
- const legacy=extractEndesaLegacy(d,file),formats=window.IBTInvoiceFormats;
- if(!legacy||!formats?.parseEndesaNormalized){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('parseEndesaNormalized no disponible'));return legacy}
+ const formats=window.IBTInvoiceFormats;
+ if(!formats?.parseEndesa)return null;
+ const options={parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION};
+ const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row);
+ if(!legacy||!formats?.normalizeEndesaRow){if(legacy)recordEndesaHistoryShadow(legacy,null,new Error('normalizeEndesaRow no disponible'));return legacy}
  try{
-  const model=formats.parseEndesaNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
+  const model=formats.normalizeEndesaRow(row,options);
   recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file));
  }catch(error){recordEndesaHistoryShadow(legacy,null,error)}
  return legacy;
