@@ -134,6 +134,29 @@ test('modelo FENIE normalizado conserva el núcleo económico y añade estructur
   assert.equal(normalized.validation.completeness.version,'energy-test.1');
 });
 
+test('modelo FENIE normalizado mantiene null para precio unitario cero como el histórico legacy',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA',
+    'Nº Factura: TEST-ZERO-PRICE',
+    'Razón Social: CLIENTE SINTETICO',
+    'CUPS: ES0000000000000000AA',
+    'Tarifa: 3.0TD',
+    'Periodo Facturación: 01/03/2026 - 31/03/2026 (31 días)',
+    'Término de energía',
+    'P1: 0,00 kWh 0,010000 '+euro+' / kWh 0,020000 '+euro+' / kWh 0,030000 '+euro+' / kWh 0,000000 '+euro+' / kWh 0,00 '+euro,
+    'Término de potencia',
+    'TOTAL FACTURA 0,00 '+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\\n')};
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-zero-price.pdf'},{completenessVersion:'energy-test.1'});
+  assert.equal(normalized.energy.periods.length,1);
+  assert.equal(normalized.energy.periods[0].unit_price_eur_kwh,null);
+  assert.equal(normalized.energy.periods[0].toll_price_eur_kwh,0.01);
+  assert.equal(normalized.energy.periods[0].charges_price_eur_kwh,0.02);
+  assert.equal(normalized.energy.periods[0].retailer_price_eur_kwh,0.03);
+});
+
 test('comparación en sombra FENIE no cambia todavía la persistencia histórica',()=>{
   assert(xtra.includes('function extractFenieLegacy(d,file)'));
   assert(xtra.includes('function extractFenie(d,file)'));
