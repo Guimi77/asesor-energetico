@@ -40,3 +40,12 @@ test('la auditoría común considera el número de factura parte de la identidad
   assert.match(audit,/!!invoice&&invoice!=='Por identificar'/);
   assert.match(audit,/nº factura, empresa, CUPS, periodo, tarifa o total/);
 });
+
+
+test('la auditoría inicia la descarga antes de mostrar el resumen y no bloquea writeFile',()=>{
+  const download=audit.indexOf("const result=prev(auditBook(a),'Auditoria_Parser_Instalacions_BT.xlsx')");
+  const notify=audit.indexOf('setTimeout(()=>show(a),0)');
+  assert.ok(download>=0,'la auditoría debe generar el XLSX con writeFile');
+  assert.ok(notify>download,'el resumen debe mostrarse después de iniciar la descarga');
+  assert.match(audit,/try\{[\s\S]*const a=auditWorkbook\(wb\);[\s\S]*return result;[\s\S]*\}catch\(error\)/);
+});

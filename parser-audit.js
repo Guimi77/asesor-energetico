@@ -103,7 +103,17 @@ window.addEventListener('DOMContentLoaded',()=>{
   const prev=XLSX.writeFile.bind(XLSX);
   XLSX.writeFile=function(wb,name,opt){
     if(auditMode&&name==='Informe_Energetico_Instalacions_BT.xlsx'){
-      auditMode=false;const a=auditWorkbook(wb);show(a);return prev(auditBook(a),'Auditoria_Parser_Instalacions_BT.xlsx');
+      auditMode=false;
+      try{
+        const a=auditWorkbook(wb);
+        const result=prev(auditBook(a),'Auditoria_Parser_Instalacions_BT.xlsx');
+        setTimeout(()=>show(a),0);
+        return result;
+      }catch(error){
+        console.error('No se pudo generar la auditoría del parser',error);
+        alert('No se pudo generar la auditoría del parser: '+(error?.message||error));
+        return;
+      }
     }
     return prev(wb,name,opt);
   };
