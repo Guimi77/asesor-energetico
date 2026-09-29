@@ -14,6 +14,7 @@
     supplies: [],
     invoiceCounts: new Map(),
     supplyDependencyCounts: new Map(),
+    latestInvoiceBySupply: new Map(),
     showArchivedClients: false,
     showArchivedSupplies: false,
     loading: false,
@@ -24,7 +25,7 @@
     const style = document.createElement('style');
     style.id = 'adminDataManagementStyles';
     style.textContent = `
-      .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}}
+      .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}.db-mismatch{display:block;margin-top:5px;color:#9a5b00;font-weight:800}.db-mismatch-ok{display:block;margin-top:5px;color:#237a45;font-weight:700}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -117,6 +118,27 @@
     bindLifecycleButtons(host);
   }
 
+  function taxKey(value) {
+    return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  }
+
+  function holderInvoiceRelation(holder, invoice) {
+    if (!holder || !invoice) return { kind: 'unknown' };
+    const holderTax = taxKey(holder.tax_id);
+    const invoiceTax = taxKey(invoice.source_holder_tax_id);
+    if (!holderTax || !invoiceTax) return { kind: 'review' };
+    if (holderTax === invoiceTax) {
+      return norm(holder.legal_name) === norm(invoice.source_holder_name)
+        ? { kind: 'coherent' }
+        : { kind: 'rename' };
+    }
+    return { kind: 'holder_change' };
+  }
+
+  function invoiceEffectiveDate(invoice) {
+    return String(invoice?.issue_date || invoice?.billing_end || invoice?.billing_start || invoice?.created_at || '');
+  }
+
   function renderSupplies() {
     const host = $('#centralSuppliesList');
     if (!host || !isAdmin()) return;
@@ -137,10 +159,27 @@
       const deps = supplyDependencies(supply.id);
       const dependencyTotal = Object.values(deps).reduce((sum, value) => sum + value, 0);
       const archived = supply.status === 'archived';
+      const latest = state.latestInvoiceBySupply.get(supply.id);
+      const currentHolder = holders.get(supply.holder_id);
+      const relation = holderInvoiceRelation(currentHolder, latest);
+
+      const holderNotice = relation.kind === 'holder_change'
+        ? `<span class="db-mismatch">⚠ La última factura válida indica otro titular fiscal: ${esc(latest.source_holder_name || 'titular distinto')}${latest.source_holder_tax_id ? ` · ${esc(latest.source_holder_tax_id)}` : ''}</span>`
+        : relation.kind === 'rename'
+          ? `<span class="db-mismatch">⚠ Misma identidad fiscal con nombre actualizado: ${esc(latest.source_holder_name || '')}</span>`
+          : relation.kind === 'review'
+            ? '<span class="db-mismatch">⚠ Titular pendiente de revisión: falta identificación fiscal en el maestro o en la última factura.</span>'
+            : (latest ? '<span class="db-mismatch-ok">Titular coherente con la última factura válida</span>' : '');
+
+      const holderActions = !archived && currentHolder
+        ? `<button class="secondary" data-db-action="edit_holder" data-id="${esc(currentHolder.id)}" data-supply-id="${esc(supply.id)}" data-name="${esc(currentHolder.legal_name)}">Editar titular</button>${relation.kind === 'holder_change' ? `<button class="secondary db-warning" data-db-action="apply_latest_invoice_holder" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Aplicar titular de última factura</button>` : ''}${relation.kind === 'rename' ? `<button class="secondary db-warning" data-db-action="sync_holder_name" data-id="${esc(currentHolder.id)}" data-supply-id="${esc(supply.id)}" data-name="${esc(currentHolder.legal_name)}">Actualizar nombre</button>` : ''}`
+        : '';
+
       const actions = archived
         ? `<button class="secondary db-restore" data-db-action="restore_supply" data-id="${esc(supply.id)}">Restaurar</button>${dependencyTotal === 0 ? `<button class="secondary db-danger" data-db-action="delete_supply" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Eliminar definitivamente</button>` : '<span class="db-locked">Con histórico: no se puede borrar</span>'}`
-        : `<button class="secondary db-warning" data-db-action="archive_supply" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Archivar</button>`;
-      return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(supply.cups)}</strong><small class="db-admin-meta">${esc(supply.clientName || 'Cliente sin identificar')} · ${esc(supply.holderName || 'Titular sin identificar')}</small></div><div>${esc(supply.supply_name || supply.address || 'Suministro')}<small class="db-admin-meta">${esc(supply.city || '')} · ${state.invoiceCounts.get(supply.id) || 0} factura${(state.invoiceCounts.get(supply.id) || 0) === 1 ? '' : 's'} · <span class="db-status ${archived ? 'archived' : ''}">${esc(supply.status)}</span></small></div><div class="db-admin-actions">${actions}</div></div>`;
+        : `${holderActions}<button class="secondary db-warning" data-db-action="archive_supply" data-id="${esc(supply.id)}" data-name="${esc(supply.cups)}">Archivar</button>`;
+
+      return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(supply.cups)}</strong><small class="db-admin-meta">${esc(supply.clientName || 'Cliente sin identificar')} · ${esc(supply.holderName || 'Titular sin identificar')}</small>${holderNotice}</div><div>${esc(supply.supply_name || supply.address || 'Suministro')}<small class="db-admin-meta">${esc(supply.city || '')} · ${state.invoiceCounts.get(supply.id) || 0} factura${(state.invoiceCounts.get(supply.id) || 0) === 1 ? '' : 's'} · <span class="db-status ${archived ? 'archived' : ''}">${esc(supply.status)}</span></small></div><div class="db-admin-actions">${actions}</div></div>`;
     }).join('') : '<div class="db-empty">No hay suministros que coincidan con este filtro.</div>';
 
     bindLifecycleButtons(host);
@@ -153,9 +192,9 @@
       const supabase = window.ibtSupabase;
       const results = await Promise.all([
         supabase.from('clients').select('id,name,tax_id,status').order('name'),
-        supabase.from('holders').select('id,client_id,legal_name,status').order('legal_name'),
+        supabase.from('holders').select('id,client_id,legal_name,tax_id,status').order('legal_name'),
         supabase.from('supplies').select('id,holder_id,cups,supply_name,address,city,status').order('cups'),
-        supabase.from('invoices').select('id,supply_id'),
+        supabase.from('invoices').select('id,supply_id,billing_start,billing_end,issue_date,created_at,validation_status,superseded_by,source_holder_name,source_holder_tax_id'),
         supabase.from('incidents').select('id,supply_id'),
         supabase.from('recommendations').select('id,supply_id'),
         supabase.from('supply_events').select('id,supply_id'),
@@ -167,6 +206,14 @@
       state.supplies = results[2].data || [];
       state.invoiceCounts = new Map();
       state.supplyDependencyCounts = new Map();
+      state.latestInvoiceBySupply = new Map();
+      for (const invoice of results[3].data || []) {
+        if (!invoice.supply_id || invoice.validation_status !== 'valid' || invoice.superseded_by || !norm(invoice.source_holder_name)) continue;
+        const current = state.latestInvoiceBySupply.get(invoice.supply_id);
+        if (!current || invoiceEffectiveDate(invoice) > invoiceEffectiveDate(current)) {
+          state.latestInvoiceBySupply.set(invoice.supply_id, invoice);
+        }
+      }
       const add = (rows, key) => {
         for (const row of rows || []) {
           if (!row.supply_id) continue;
@@ -193,10 +240,10 @@
     }
   }
 
-  async function invoke(action, id) {
+  async function invoke(action, id, extra = {}) {
     const supabase = window.ibtSupabase;
     if (!supabase) throw new Error('Supabase no está disponible.');
-    const { data, error } = await supabase.functions.invoke('admin-data-lifecycle', { body: { action, id } });
+    const { data, error } = await supabase.functions.invoke('admin-data-lifecycle', { body: { action, id, ...extra } });
     if (error) {
       let payload = error.context?.body;
       if (typeof payload === 'string') {
@@ -206,6 +253,17 @@
       const deps = payload?.dependencies;
       if (code === 'client_not_empty') throw new Error(`No se puede eliminar: tiene ${deps?.holders || 0} titulares, ${deps?.supplies || 0} suministros y ${deps?.invoices || 0} facturas.`);
       if (code === 'supply_has_history') throw new Error('No se puede eliminar este CUPS porque tiene histórico o registros relacionados. Archívalo en su lugar.');
+      if (code === 'tax_identity_change_requires_reassignment') throw new Error('Un NIF/CIF distinto corresponde a otro titular. Usa el cambio de titular, no edites la identidad fiscal existente.');
+      if (code === 'holder_tax_conflict') throw new Error('Ese NIF/CIF ya pertenece a otro titular del maestro.');
+      if (code === 'holder_name_conflict') throw new Error('Ya existe otro titular con ese nombre dentro del mismo cliente.');
+      if (code === 'current_holder_tax_missing') throw new Error('El titular actual no tiene NIF/CIF. Debe revisarse antes de aplicar un cambio automático.');
+      if (code === 'latest_holder_identity_missing') throw new Error('La última factura válida no contiene nombre e identificación fiscal suficientes.');
+      if (code === 'latest_valid_invoice_not_found') throw new Error('No hay una factura válida reciente que permita determinar el nuevo titular.');
+      if (code === 'same_legal_identity') throw new Error('La identificación fiscal no ha cambiado. Es el mismo titular; actualiza el nombre si procede.');
+      if (code === 'target_holder_not_found') throw new Error('El nuevo titular fiscal de la factura todavía no existe en el maestro central. Se ha bloqueado el cambio para no inventar relaciones.');
+      if (code === 'target_holder_ambiguous') throw new Error('Hay más de un titular con esa identificación fiscal. Revisa el maestro antes de continuar.');
+      if (code === 'target_holder_not_active') throw new Error('El titular de destino existe, pero está archivado o inactivo.');
+      if (code === 'target_client_not_active') throw new Error('El cliente de destino está archivado o inactivo.');
       if (code === 'cannot_delete_self') throw new Error('No puedes eliminar la cuenta con la que estás conectado.');
       if (code === 'last_admin') throw new Error('No se puede eliminar el último administrador activo.');
       throw new Error(payload?.message || code || 'Operación rechazada.');
@@ -242,6 +300,53 @@
     const name = button.dataset.name || '';
     if (!action || !id) return;
 
+    if (action === 'edit_holder' || action === 'sync_holder_name') {
+      const holder = state.holders.find((item) => item.id === id);
+      if (!holder) return;
+      const supplyId = button.dataset.supplyId;
+      const latest = state.latestInvoiceBySupply.get(supplyId);
+
+      let legalName = holder.legal_name || '';
+      let taxId = holder.tax_id || '';
+
+      if (action === 'sync_holder_name') {
+        if (!latest?.source_holder_name) return;
+        legalName = String(latest.source_holder_name).trim();
+        taxId = String(latest.source_holder_tax_id || holder.tax_id || '').trim();
+        if (!confirm(`¿Actualizar el nombre del titular de “${holder.legal_name}” a “${legalName}” según la última factura válida? El histórico de facturas no se modifica.`)) return;
+      } else {
+        const nextName = prompt('Nombre legal del titular:', legalName);
+        if (nextName == null || !String(nextName).trim()) return;
+        const nextTax = prompt('NIF/CIF del titular:', taxId);
+        if (nextTax == null) return;
+        legalName = String(nextName).trim();
+        taxId = String(nextTax).trim();
+      }
+
+      button.disabled = true;
+      setMessage('#centralSuppliesMsg', 'Actualizando titular…');
+      try {
+        await invoke('update_holder', id, { legal_name: legalName, tax_id: taxId || null });
+        setMessage('#centralSuppliesMsg', 'Titular actualizado. El histórico anterior permanece intacto.', 'ok');
+        await window.CentralSupabaseMaster?.reload?.();
+        await loadState();
+        window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action: 'update_holder', id } }));
+      } catch (error) {
+        console.error(action, error);
+        setMessage('#centralSuppliesMsg', error?.message || String(error), 'error');
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (action === 'apply_latest_invoice_holder') {
+      const supply = state.supplies.find((item) => item.id === id);
+      const latest = state.latestInvoiceBySupply.get(id);
+      if (!supply || !latest) return;
+      if (!confirm(`¿Cambiar el titular actual del CUPS ${supply.cups} al titular fiscal de la última factura válida: ${latest.source_holder_name} · ${latest.source_holder_tax_id || 'sin NIF/CIF'}? Las facturas anteriores conservarán su titular histórico.`)) return;
+    }
+
     const hardDelete = action.startsWith('delete_');
     const archive = action.startsWith('archive_');
     if (hardDelete) {
@@ -260,10 +365,16 @@
       const supplyCups = action === 'archive_supply' || action === 'delete_supply'
         ? [state.supplies.find((item) => item.id === id)?.cups].filter(Boolean)
         : [];
-      await invoke(action, id);
+      const result = await invoke(action, id);
       localMasterRemoveCups(clientCups);
       localMasterRemoveCups(supplyCups);
-      setMessage(msgTarget, 'Cambio guardado correctamente.', 'ok');
+      const successMessage = action === 'apply_latest_invoice_holder'
+        ? (result?.old_holder_active_supplies === 0
+          ? 'Cambio de titular aplicado. El titular anterior ya no tiene CUPS activos; puede archivarse cuando corresponda.'
+          : 'Cambio de titular aplicado y trazado en el histórico.')
+        : 'Cambio guardado correctamente.';
+      setMessage(msgTarget, successMessage, 'ok');
+      if (action === 'apply_latest_invoice_holder') await window.CentralSupabaseMaster?.reload?.();
       await loadState();
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action, id } }));
       if (window.ibtCurrentProfile) window.dispatchEvent(new CustomEvent('ibt-role-changed', { detail: { profile: window.ibtCurrentProfile } }));
