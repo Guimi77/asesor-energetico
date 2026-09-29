@@ -83,6 +83,30 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (action === "update_holder") {
+      const legalName = String(body?.legal_name || "").trim();
+      const taxId = body?.tax_id == null ? null : String(body.tax_id).trim() || null;
+      if (!legalName) return json({ error: "invalid_holder_name" }, 400);
+
+      const { data, error } = await userClient.rpc("admin_update_holder_identity", {
+        p_holder_id: id,
+        p_legal_name: legalName,
+        p_tax_id: taxId,
+      });
+      if (error) throw error;
+      if (!data?.ok) return json({ error: data?.reason || "holder_update_rejected", details: data }, 409);
+      return json(data);
+    }
+
+    if (action === "apply_latest_invoice_holder") {
+      const { data, error } = await userClient.rpc("admin_apply_latest_invoice_holder", {
+        p_supply_id: id,
+      });
+      if (error) throw error;
+      if (!data?.ok) return json({ error: data?.reason || "holder_reassignment_rejected", details: data }, 409);
+      return json(data);
+    }
+
     if (action === "archive_client" || action === "restore_client") {
       const status = action === "archive_client" ? "archived" : "active";
       const { data, error } = await admin.from("clients").update({ status }).eq("id", id).select("id,name,status").maybeSingle();
