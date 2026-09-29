@@ -57,7 +57,7 @@ test('la auditoría masiva no intenta volcar todos los items PDF.js al XLSX',()=
   assert.match(app,/linesForInvoices:/);
   assert.match(app,/statsForInvoices:/);
   assert.match(audit,/const MAX_DIAGNOSTIC_ROWS=10000/);
-  assert.match(audit,/Detalle bruto limitado a facturas con incidencias/);
+  assert.match(audit,/Detalle bruto limitado a documentos con incidencias/);
   assert.match(audit,/Sin incidencias: se omite el detalle bruto PDF\.js para evitar generar millones de celdas/);
   assert.match(audit,/itemsForInvoices\?\.\(invoices,MAX_DIAGNOSTIC_ROWS\)/);
   assert.match(audit,/linesForInvoices\?\.\(invoices,MAX_DIAGNOSTIC_ROWS\)/);
