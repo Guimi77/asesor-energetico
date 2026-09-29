@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='som-2026.09.29.2';
+  const REVISION='som-2026.09.29.3';
   const RETAILER='Som Energia, SCCL';
 
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
@@ -43,6 +43,20 @@
       if(!re.test(line))continue;
       const vals=euroValues(line);
       if(vals.length)return vals.at(-1);
+    }
+    return null;
+  }
+
+  function moneyNearLabel(lines,re,maxNext=2){
+    const source=lines||[];
+    const start=source.findIndex(line=>re.test(line));
+    if(start<0)return null;
+    const own=euroValues(source[start]);
+    if(own.length)return own.at(-1);
+    for(let i=start+1;i<=Math.min(source.length-1,start+maxNext);i++){
+      const vals=euroValues(source[i]);
+      if(vals.length)return vals.at(-1);
+      if(/^(?:Peatges|C[aà]rrecs|Bo\s+social|Compensaci[oó]|Impost\s+de|Lloguer\s+de|IVA\b|TOTAL\b)/i.test(source[i]))break;
     }
     return null;
   }
@@ -171,14 +185,22 @@
     }
     const price=(priceLine.match(/Preu\s+energia\s*\[€\/kWh\]\s*([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i)||[]);
     const costs=euroValues(costLine);
+    const costIndex=costLine?source.indexOf(costLine,qIndex):-1;
+    let total=costs.length>=4?costs[3]:null;
+    if(total==null&&costIndex>=0){
+      for(let i=costIndex+1;i<=Math.min(source.length-1,costIndex+2);i++){
+        const vals=euroValues(source[i]);
+        if(vals.length===1){total=vals[0];break;}
+        if(/^(?:Impost\s+de|Lloguer\s+de|IVA\b|TOTAL\b)/i.test(source[i]))break;
+      }
+    }
     const quantities=q?[numEs(q[1]),numEs(q[2]),numEs(q[3])]:[];
     const prices=price.length?[numEs(price[1]),numEs(price[2]),numEs(price[3])]:[];
     const periods={};
-    for(let i=0;i<3;i++)if(quantities[i]!=null)periods['P'+(i+1)]={excessKwh:Math.abs(quantities[i]),price:prices[i]??null,amount:costs.length>=4?costs[i]:null};
-    const total=costs.length>=4?costs[3]:null;
+    for(let i=0;i<3;i++)if(quantities[i]!=null)periods['P'+(i+1)]={excessKwh:Math.abs(quantities[i]),price:prices[i]??null,amount:costs.length>=3?costs[i]:null};
     const exportedKwh=quantities.length===3?round3(quantities.reduce((s,v)=>s+Math.abs(v||0),0)):null;
-    const sum=costs.length>=4?round2(costs.slice(0,3).reduce((s,v)=>s+v,0)):null;
-    const reliable=total!=null&&(sum==null||Math.abs(sum-total)<=.03);
+    const sum=costs.length>=3?round2(costs.slice(0,3).reduce((s,v)=>s+v,0)):null;
+    const reliable=total!=null&&sum!=null&&Math.abs(sum-total)<=.03;
     return{present:true,total,periods,exportedKwh,reliable};
   }
 
@@ -195,7 +217,7 @@
   }
 
   function parseFinancials(text,lines,energy,power){
-    const adjustment=moneyAfterLabel(lines,/Serveis\s+d['’]Ajust/i);
+    const adjustment=moneyNearLabel(lines,/Serveis\s+d['’]Ajust/i,2);
     const social=moneyAfterLabel(lines,/^Bo\s+social\b/i);
     const compensation=parseCompensation(text,lines);
 
