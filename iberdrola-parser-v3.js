@@ -53,7 +53,7 @@
     const fix=s=>String(s||'').replace(/\s+/g,'').replace(/[Oo]/g,'0').replace(/[Il]/g,'1');
     return String(value||'').replace(/([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*(\d{4})/g,(m,d,mo,y)=>`${fix(d).padStart(2,'0')}/${fix(mo).padStart(2,'0')}/${y}`);
   }
-  const moneyVals=s=>[...String(s||'').matchAll(/(-?\s*\d[\d\s.,]*?)\s*(?:Duplicado\s*)?€(?!\s*\/)/gi)].map(m=>num(m[1])).filter(v=>v!=null);
+  const moneyVals=s=>[...String(s||'').matchAll(/(?<!\d)(-?\s*(?:(?:\d\s*){1,4}|(?:\d\s*){1,3}(?:(?:\.\s*)(?:\d\s*){3})+),\s*(?:\d\s*){2})\s*(?:Duplicado\s*)?€(?!\s*\/)/gi)].map(m=>num(m[1])).filter(v=>v!=null);
   const lastMoney=s=>{const v=moneyVals(s);return v.length?v.at(-1):null;};
   const normalizeTariff=s=>{const m=String(s||'').match(/\b(2\s*\.\s*0\s*TD|3\s*\.\s*0\s*TD|6\s*\.\s*[1-4]\s*TD)\b/i);return m?m[1].replace(/\s+/g,'').toUpperCase():'—';};
   const normalizeCups=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
