@@ -9,6 +9,7 @@ const auth = fs.readFileSync(path.join(root, 'auth.js'), 'utf8');
 const pilot = fs.readFileSync(path.join(root, 'supabase-xtra-pilot.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'), 'utf8');
 const holderMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260929093000_safe_holder_reassignment.sql'), 'utf8');
+const holderLifecycleMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260929111500_safe_holder_admin_lifecycle.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/admin-data-lifecycle/index.ts'), 'utf8');
 
 test('admin lifecycle browser script parses', () => {
@@ -23,6 +24,9 @@ test('destructive lifecycle actions are guarded and server-backed', () => {
   assert.match(adminUi, /delete_supply/);
   assert.match(adminUi, /archive_client/);
   assert.match(adminUi, /archive_supply/);
+  assert.match(adminUi, /archive_holder/);
+  assert.match(adminUi, /restore_holder/);
+  assert.match(adminUi, /delete_holder/);
 });
 
 test('local cache is cleared only after the server accepts the change', () => {
@@ -73,4 +77,64 @@ test('validated holder reassignment is transactional and does not invent target 
   assert.doesNotMatch(holderMigration, /insert into public\.clients/i);
   assert.doesNotMatch(holderMigration, /insert into public\.holders/i);
   assert.match(edge, /admin_apply_latest_invoice_holder/);
+});
+
+
+test('holder administration exposes a separate searchable lifecycle panel', () => {
+  assert.match(adminUi, /Administrar titulares/);
+  assert.match(adminUi, /centralHolderSearch/);
+  assert.match(adminUi, /showArchivedHolders/);
+  assert.match(adminUi, /function holderCounts/);
+  assert.match(adminUi, /function renderHolders/);
+  assert.match(adminUi, /data-db-action="edit_holder"/);
+  assert.match(adminUi, /data-db-action="archive_holder"/);
+  assert.match(adminUi, /data-db-action="restore_holder"/);
+  assert.match(adminUi, /data-db-action="delete_holder"/);
+  assert.match(adminUi, /Tiene CUPS activos/);
+  assert.match(adminUi, /Con suministros: no se puede borrar/);
+});
+
+test('holder lifecycle UI binds every rendered action button', () => {
+  assert.match(adminUi, /\$\$\('\[data-db-action\]', root\)\.forEach/);
+});
+
+test('holder lifecycle RPC is admin-only, transactional and leaves client/supply/invoice identity untouched', () => {
+  assert.match(holderLifecycleMigration, /admin_manage_holder_lifecycle/);
+  assert.match(holderLifecycleMigration, /role = 'admin'/);
+  assert.match(holderLifecycleMigration, /pg_advisory_xact_lock/);
+  assert.match(holderLifecycleMigration, /count\(\*\) filter \(where status = 'active'\)/);
+  assert.match(holderLifecycleMigration, /holder_has_active_supplies/);
+  assert.match(holderLifecycleMigration, /holder_has_supplies/);
+  assert.match(holderLifecycleMigration, /holder_must_be_archived/);
+  assert.match(holderLifecycleMigration, /target_client_not_active/);
+  assert.match(holderLifecycleMigration, /insert into public\.audit_log/s);
+  assert.match(holderLifecycleMigration, /delete from public\.holders/s);
+  assert.doesNotMatch(holderLifecycleMigration, /update public\.clients/i);
+  assert.doesNotMatch(holderLifecycleMigration, /update public\.supplies/i);
+  assert.doesNotMatch(holderLifecycleMigration, /update public\.invoices/i);
+  assert.doesNotMatch(holderLifecycleMigration, /delete from public\.supplies/i);
+  assert.doesNotMatch(holderLifecycleMigration, /delete from public\.invoices/i);
+});
+
+test('holder deletion requires archived state and zero supplies', () => {
+  const archivedGate = holderLifecycleMigration.indexOf("v_holder.status <> 'archived'");
+  const supplyGate = holderLifecycleMigration.indexOf('v_supply_count > 0');
+  const holderDelete = holderLifecycleMigration.indexOf('delete from public.holders');
+  assert.ok(archivedGate >= 0 && supplyGate > archivedGate && holderDelete > supplyGate);
+});
+
+test('holder restore requires its parent client to remain active', () => {
+  assert.match(holderLifecycleMigration, /select \*\s+into v_client\s+from public\.clients/s);
+  assert.match(holderLifecycleMigration, /v_client\.status <> 'active'/);
+});
+
+test('edge holder lifecycle is routed through the audited SQL function', () => {
+  assert.match(edge, /\["archive_holder", "restore_holder", "delete_holder"\]\.includes\(action\)/);
+  assert.match(edge, /userClient\.rpc\("admin_manage_holder_lifecycle"/);
+  assert.match(edge, /p_holder_id: id/);
+  assert.match(edge, /p_action: lifecycleAction/);
+});
+
+test('holder admin browser cache marker matches the new lifecycle UI', () => {
+  assert.match(auth, /admin-data-management\.js\?v=0e1c3e21ccd0/);
 });
