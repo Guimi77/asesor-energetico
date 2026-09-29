@@ -4,7 +4,7 @@
   else root.IBTIberdrolaParser=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const REVISION='2026.09.29.3';
+  const REVISION='2026.09.29.4';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=s=>String(s??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   function canonicalText(value){
@@ -38,9 +38,24 @@
     return num(s);
   };
   const optionalAmountMatch=(a,b,tol=.05)=>a==null&&b==null||(a!=null&&b!=null&&Math.abs(Number(a)-Number(b))<=tol);
-  const moneyVals=s=>[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*(?:Duplicado\s*)?€(?!\s*\/)/gi)].map(m=>num(m[1])).filter(v=>v!=null);
+  function numericOcrText(value){
+    let s=String(value||''),prev='';
+    while(s!==prev){
+      prev=s;
+      s=s.replace(/(\d)\s*,\s*(\d)/g,'$1,$2');
+      s=s.replace(/(\d)\s*\.\s*(\d)/g,'$1.$2');
+      s=s.replace(/([,.]\d)\s+(\d)/g,'$1$2');
+      s=s.replace(/(^|[^\d])(-?\d)\s+(\d)(?=[,.]\d{2}\b)/g,'$1$2$3');
+    }
+    return s;
+  }
+  function repairDateTokens(value){
+    const fix=s=>String(s||'').replace(/\s+/g,'').replace(/[Oo]/g,'0').replace(/[Il]/g,'1');
+    return String(value||'').replace(/([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*(\d{4})/g,(m,d,mo,y)=>`${fix(d).padStart(2,'0')}/${fix(mo).padStart(2,'0')}/${y}`);
+  }
+  const moneyVals=s=>[...String(s||'').matchAll(/(?<!\d)(-?\s*(?:(?:\d\s*){1,4}|(?:\d\s*){1,3}(?:(?:\.\s*)(?:\d\s*){3})+),\s*(?:\d\s*){2})\s*(?:Duplicado\s*)?€(?!\s*\/)/gi)].map(m=>num(m[1])).filter(v=>v!=null);
   const lastMoney=s=>{const v=moneyVals(s);return v.length?v.at(-1):null;};
-  const normalizeTariff=s=>{const m=String(s||'').match(/\b(2\.0\s*TD|3\.0\s*TD|6\.[1-4]\s*TD)\b/i);return m?m[1].replace(/\s+/g,'').toUpperCase():'—';};
+  const normalizeTariff=s=>{const m=String(s||'').match(/\b(2\s*\.\s*0\s*TD|3\s*\.\s*0\s*TD|6\s*\.\s*[1-4]\s*TD)\b/i);return m?m[1].replace(/\s+/g,'').toUpperCase():'—';};
   const normalizeCups=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const toIso=s=>{const m=String(s||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:'';};
   const MONTHS={enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',setiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
@@ -73,13 +88,14 @@
   function detect(d){
     const s=norm(allText(d)).toUpperCase();
     if(/ENDESA ENERGIA|FENIE ENERGIA/.test(s))return false;
-    // Commercial simulations are not invoices and must never enter historical persistence.
-    if(/SIMULACION\s+Y\s+COMPARATIVA|OFERTA\s+PARA\s+COMPARAR|FACTURA\s+COMPARATIVA/.test(s))return false;
+    // Commercial simulations and extraordinary rights invoices are different document variants.
+    // This periodic-energy parser must not partially interpret either one.
+    if(/SIMULACION\s+Y\s+COMPARATIVA|OFERTA\s+PARA\s+COMPARAR|FACTURA\s+COMPARATIVA|FACTURA\s+EXTRAORDINARIA/.test(s))return false;
     return /\bIBERDROLA\b/.test(s)&&/\bCLIENTES\b/.test(s)&&/\bFACTURA\b/.test(s)&&(/\bELECTRICIDAD\b/.test(s)||/RESUMEN DE FACTURA/.test(s));
   }
   function strictCups(s){const m=String(s||'').match(/(?:CUPS|punto\s+de\s+suministro)[\s\S]{0,180}?\b(ES(?:\s*\d){16}(?:\s*[A-Z]){2}(?:(?:\s*\d)(?:\s*[A-Z]))?)/i)||String(s||'').match(/\bES(?:\s*\d){16}(?:\s*[A-Z]){2}(?:(?:\s*\d)(?:\s*[A-Z]))?(?![A-Z0-9])/i);return normalizeCups(m?.[1]||m?.[0]||'');}
   function periodInfo(rows){
-    const text=rows.map(r=>r.text).join('\n'),m=text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);if(!m)return{label:'Por identificar',start:'',end:'',days:null};
+    const text=repairDateTokens(rows.map(r=>r.text).join('\n')),m=text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);if(!m)return{label:'Por identificar',start:'',end:'',days:null};
     let days=null;
     const di=findRow(rows,/D[IÍ]AS\s+FACTURADOS/i);
     if(di>=0){
@@ -110,15 +126,19 @@
       const direct=rows[i].text.match(/N[º°o.]?\s*FACTURA\s*:?\s*(\d{10,22})\b/i);
       if(direct)return direct[1];
       for(let n=i+1;n<Math.min(rows.length,i+6);n++){
-        const dated=rows[n].text.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
+        const repaired=repairDateTokens(rows[n].text);
+        const dated=repaired.match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}\s+(\d{10,22})\b/);
         if(dated)return dated[1];
       }
     }
-    const text=rows.map(r=>r.text).join('\n');
+    const text=repairDateTokens(rows.map(r=>r.text).join('\n'));
     const dated=text.match(/PERIODO\s+DE\s+FACTURACION[\s\S]{0,420}?N[º°o.]?\s*FACTURA[\s\S]{0,420}?(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\s+(\d{10,22})\b/i);
     return dated?.[3]||'Por identificar';
   }
-  function contractNumber(rows){const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*DE\s*CONTRATO\s*:?\s*(?:\n\s*)?(\d{6,20})/i);return m?.[1]||'';}
+  function contractNumber(rows){
+    const text=rows.map(r=>r.text).join('\n'),m=text.match(/N[º°o.]?\s*DE\s*CONTRATO\s*:?\s*(?:\n\s*)?((?:\d[\s_\-]*){6,20})/i);
+    return m?String(m[1]).replace(/\D/g,''):'';
+  }
   function holder(rows){
     const texts=rows.map(r=>r.text);
     const banned=/IBERDROLA|CLIENTES|FACTURA|ELECTRICIDAD|CONTRATO|REMIT|TITULAR|DIRECCI[ÓO]N|POTENCIA|RESPONSABLE|SOSTENIBLE|PLAN\s+ESTABLE|CON\s+GARANTIA|ORIGEN|SIMULACION|COMPARATIVA|DATOS\s+DE\s+FACTURA|RESUMEN/i;
@@ -162,7 +182,7 @@
     const parseRange=(start,end,prefixRe)=>{
       const map=new Map();
       for(let i=start;i<end;i++){
-        const t=rows[i].text,m=t.match(new RegExp(`(?:${prefixRe})?(P[1-6]|Punta|Valle)?\\s*([\\d.,]+)\\s*kW\\s*[x×]\\s*(\\d+)\\s*d[ií]as?\\s*[x×]\\s*([\\d.,]+)\\s*€\\s*\\/\\s*kW\\s*d[ií]a\\s*(-?[\\d.]+,\\d{2})\\s*€`,'i'));
+        const t=numericOcrText(rows[i].text),m=t.match(new RegExp(`(?:${prefixRe})?(P[1-6]|Punta|Valle)?\\s*([\\d.,]+)\\s*kW\\s*[x×]\\s*(\\d+)\\s*d[ií]as?\\s*[x×]\\s*([\\d.,]+)\\s*€\\s*\\/\\s*kW\\s*d[ií]a\\s*(-?[\\d.]+,\\d{2})\\s*€`,'i'));
         if(!m)continue;
         let p;if(/^P[1-6]$/i.test(m[1]||''))p=Number(m[1].slice(1));else if(/Punta/i.test(m[1]||''))p=1;else if(/Valle/i.test(m[1]||''))p=2;else p=map.size+1;
         if(!map.has(p))map.set(p,{period:p,contractedKw:num(m[2]),days:Number(m[3]),price:num(m[4]),amount:num(m[5])});
@@ -174,7 +194,7 @@
     if(expected===2){
       const segments=[];
       for(const row of rows){
-        const m=row.text.match(/(?:Potencia\s+facturada(?:\s*\([^)]*\))?\s+)?(Punta|Valle)\s+([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*[x×]\s*([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a\s*(-?[\d.]+,\d{2})\s*€/i);
+        const m=numericOcrText(row.text).match(/(?:Potencia\s+facturada(?:\s*\([^)]*\))?\s+)?(Punta|Valle)\s+([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*[x×]\s*([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a\s*(-?[\d.]+,\d{2})\s*€/i);
         if(!m)continue;
         segments.push({period:/Punta/i.test(m[1])?1:2,contractedKw:num(m[2]),days:Number(m[3]),price:num(m[4]),amount:num(m[5])});
       }
@@ -220,7 +240,7 @@
     const activeKeys=Object.keys(active||{}).filter(k=>/^P[1-6]$/.test(k));
     const singles=[];
     for(const row of rows){
-      const m=row.text.match(/Energ[ií]a\s+consumida(?:\s*\([^)]*\))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.,]+)\s*€\s*\/\s*kWh\s*([\d.]+,\d{2})\s*€/i);
+      const m=numericOcrText(row.text).match(/Energ[ií]a\s+consumida(?:\s*\([^)]*\))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.,]+)\s*€\s*\/\s*kWh\s*([\d.]+,\d{2})\s*€/i);
       if(m)singles.push({kwh:qty(m[1]),price:num(m[2]),amount:num(m[3])});
     }
     if(singles.length){
@@ -229,7 +249,8 @@
       if(/^2\.0TD$/i.test(tariff)){
         let breakdown=null;
         for(const row of all.flat()){
-          const b=row.text.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*llano\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*valle\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh/i);
+          const loose=numericOcrText(row.text).replace(/desagrega\s+dos/gi,'desagregados').replace(/va\s+l\s+le/gi,'valle').replace(/lla\s+no/gi,'llano');
+          const b=loose.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*llano\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*valle\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh/i);
           if(b){breakdown={P1:qty(b[1]),P2:qty(b[2]),P3:qty(b[3])};break;}
         }
         const prices=[...new Set(singles.map(x=>x.price))],price=prices.length===1?prices[0]:null;
@@ -281,7 +302,9 @@
 
   function parseSummary(p1){
     const i=findRow(p1,/RESUMEN\s+DE\s+(?:FACTURA|FACTURACION)/i),rows=i>=0?p1.slice(i):p1;
-    return{energy:labelledAmount(rows,/^ENERG[IÍ]A\b/i),discount:labelledAmount(rows,/DESCUENTOS\s+ENERG[IÍ]A/i),normative:labelledAmount(rows,/CARGOS\s+NORMATIVOS/i),services:labelledAmount(rows,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),vat:labelledAmount(rows,/^IVA\b/i),total:labelledAmount(rows,/^TOTAL\b/i)};
+    const scopedTotal=labelledAmount(rows,/^TOTAL\b/i);
+    const pageTotal=labelledAmount(p1,/TOTAL\s+IMPORTE\s+FACTURA\b/i)??labelledAmount(p1,/TOTAL\s+A\s+PAGAR\b/i);
+    return{energy:labelledAmount(rows,/^ENERG[IÍ]A\b/i),discount:labelledAmount(rows,/DESCUENTOS\s+ENERG[IÍ]A/i),normative:labelledAmount(rows,/CARGOS\s+NORMATIVOS/i),services:labelledAmount(rows,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),vat:labelledAmount(rows,/^IVA\b/i),total:scopedTotal??pageTotal};
   }
   function parseDetailConcepts(p2){
     const discountRows=p2.filter(r=>/Descuento\s+sobre\b/i.test(r.text)&&rowAmount(r)!=null),discount=discountRows.length?round2(discountRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
@@ -324,5 +347,5 @@
     let issueDate='';const idate=text.match(/FECHA\s+DE\s+EMISION(?:\s+DE\s+FACTURA)?\s*:?[^\n]*?(?:\n[^\n]*?)?\b(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/i);if(idate)issueDate=`${idate[3]}-${MONTHS[idate[2].toLowerCase()]||''}-${String(idate[1]).padStart(2,'0')}`;
     return{file:file?.name||'',invoiceNumber:invoice,company,cups,period:period.label,tariff,kwh:energy.kwh,energy:energy.energy,power:power.value,excess:excessCost??0,reactive:reactiveCost??0,compensation:0,social:social??0,rental,integratorAdjustment:0,regularizationReactive:0,fneeRegularization:fneeRegularization??0,other,tax,vat,igic:0,distributorCharges:0,total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':`Falta o revisar: ${missing.join(', ')}`,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel||'',avg:energy.kwh&&total?total/energy.kwh:0,opportunity:'Sin alertas',periods:energy.periods,contracted,maximeters:mx,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:power,energyPricingMode:energy.pricingMode,sourceFormat:'iberdrola',supplier:'IBERDROLA CLIENTES, S.A.U.',retailer:'IBERDROLA CLIENTES, S.A.U.',commercializer:'IBERDROLA CLIENTES, S.A.U.',taxId,supplyAddress:addr,supplyCity:place.city,supplyProvince:place.province,contract,contractNumber:contract,accessContract,distributor,renewalDate,permanence,meterNumber,issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,discounts,reactivePeriods:parseReactive(all,'Energ[ií]a\\s+reactiva'),capacitivePeriods:parseReactive(all,'Energ[ií]a\\s+capacitiva'),activeReadings:active,validation:checks};
   }
-  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,rowsFromItems,rowsFromLines,parsePower,parseEnergy,parseSummary,parseDetailConcepts,parseFneeRegularization,parseExcessCost,periodInfo,invoiceNumber}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,numericOcrText,repairDateTokens,rowsFromItems,rowsFromLines,parsePower,parseEnergy,parseSummary,parseDetailConcepts,parseFneeRegularization,parseExcessCost,periodInfo,invoiceNumber}});
 });

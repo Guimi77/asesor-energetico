@@ -594,3 +594,69 @@ test('Iberdrola rejects commercial simulations even when they contain invoice-li
   const d=doc(['IBERDROLA CLIENTES, S.A.U.','SIMULACIÓN Y COMPARATIVA','Oferta para comparar','DATOS DE FACTURA COMPARATIVA','TOTAL IMPORTE FACTURA IBERDROLA 107,03 €','ELECTRICIDAD']);
   assert.equal(parser.detect(d),false);
 });
+
+
+function degradedLegacyTwoZero(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
+    'CLIENTE PRUEBA LEGACY','Titular Potencia:',
+    'Dirección de suministro: C/ EJEMPLO LEGACY, 6 07000 CIUDAD (ILLES BALEARS)',
+    'Nº DE CONTRATO: 6 0 0 0 0 0 0 0 6','RESUMEN DE FACTURA',
+    'PERIODO DE FACTURACIÓN: Nº FACTURA:','1 7 /Ol/2024 - 1 8/ 02/2024 21240000000000106',
+    'DIAS FACTURADOS: FECHA DE EMISIÓN:','32 26 de febrero de 2024',
+    'ENERGÍA 425,91 €','DESCUENTOS ENERGÍA - 13,16 €','CARGOS NORMATIVOS 0 ,20 €',
+    'SERVICIOS Y OTROS CONCEPTOS 2,02 €','IVA 41,63 €','TOTAL','456,60 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada Punta 4,4 kW x 32 días x 0,091604 €/kW día 12 , 90 €',
+    'Valle 4,4 kW x 32 días x 0,013871 €/kW día 1, 95 €',
+    'Total importe potencia hasta 18/02/2024 14,85 €',
+    'Energía consumida 1.836,88 kWh x 0,218297 €/kWh 400,99 €',
+    'Descuento sobre consumo 15% 15% s/87,72 € -1 3, 16 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 32 días x 0,006282 €/día 0,20 €',
+    'Impuesto sobre electricidad 2,5% s/402,88 € 10 , 07 €',
+    'TOTAL ENERGÍA 41 2, 95 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 32 días x 0,02655738 €/día 0,85 €',
+    'Servicio sintético 1,07 meses x 1,09 €/mes 1 ,1 7 €',
+    'TOTAL SERVICIOS Y OTROS CONCEPTOS 2, 02 €',
+    'IMPORTE TOTAL 414,97 €','IVA Reducido (*) 10 % s/413,8 € 41,38 €','IVA 21 % s/1,17 € 0, 25 €',
+    'TOTAL IMPORTE FACTURA 456 , 60 €',
+    'Peaje de acceso a la red (ATR): 2. 0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0006 AA',
+    'Sus consumos desagrega dos han sido punta: 343,73 kWh; llano: 392,43 kWh; va l le 1.100,72 kWh.'
+  ]);
+}
+
+test('Iberdrola legacy OCR repairs spaced dates and monetary digits without relaxing validation',()=>{
+  const r=parser.parse(degradedLegacyTwoZero(),{name:'legacy-ocr-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.invoiceNumber,'21240000000000106');
+  assert.equal(r.period,'17/01/2024 - 18/02/2024 (32 días)');
+  assert.equal(r.tariff,'2.0TD');
+  assert.equal(r.power,14.85);
+  assert.equal(r.energy,400.99);
+  assert.equal(r.kwh,1836.88);
+  assert.equal(r.discounts,-13.16);
+  assert.equal(r.vat,41.63);
+  assert.equal(r.total,456.6);
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption],[343.73,392.43,1100.72]);
+});
+
+test('Iberdrola summary total can come from the invoice header before the summary block',()=>{
+  const rows=parser._test.rowsFromLines([
+    'TOTAL IMPORTE FACTURA: 213,96 €',
+    'RESUMEN DE FACTURACIÓN',
+    'ENERGÍA 165,85 €',
+    'DESCUENTOS ENERGÍA -22,32 €',
+    'CARGOS NORMATIVOS 0,19 €',
+    'SERVICIOS Y OTROS CONCEPTOS 10,98 €',
+    'IVA 37,13 €'
+  ]);
+  assert.equal(parser._test.parseSummary(rows).total,213.96);
+});
+
+test('Iberdrola extraordinary rights invoices remain fail-closed until their dedicated variant exists',()=>{
+  const d=doc(['FACTURA','EXTRAORDINARIA','IBERDROLA CLIENTES, S.A.U.','RESUMEN DE FACTURA','Derechos de enganche 9,04 €','Derechos de acceso 100,00 €','TOTAL IMPORTE FACTURA 131,94 €','ELECTRICIDAD']);
+  assert.equal(parser.detect(d),false);
+});
