@@ -436,7 +436,7 @@ for(const tr of document.querySelectorAll('#resultsBody tr')){
 return null;
 }
 async function waitForMainRow(cups,periodText){for(let i=0;i<600;i++){const r=rowSnapshot(cups,periodText);if(r)return r;await new Promise(r=>setTimeout(r,100))}return null}
-const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente'};
+const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente',existing_invoice_differs:'diferencias con el histórico que requieren revisión'};
 const HISTORY_EXCLUSIONS=[{source:'uenergia',billingStart:'2026-07-04',billingEnd:'2026-08-04',kwh:83,power:11.88,total:52.73,reason:'Cambio de titular · factura anterior no deseada en histórico'}];
 function excludedHistoryInvoice(x){return HISTORY_EXCLUSIONS.find(item=>item.source==='uenergia'&&item.billingStart===x?.period?.start&&item.billingEnd===x?.period?.end&&same(item.kwh,x?.kwh,.02)&&same(item.power,x?.power,.02)&&same(item.total,x?.total,.02))||null;}
 function skipSummary(reasons){
@@ -489,7 +489,7 @@ source_holder_name:x.holderName,source_holder_tax_id:x.holderTaxId,source_supply
 consumption_kwh:x.kwh,energy_cost_eur:x.energy,power_cost_eur:x.power,excess_cost_eur:x.excess,reactive_cost_eur:x.reactive,compensation_eur:x.compensation,social_bonus_eur:x.social,meter_rental_eur:x.rental,distributor_charges_eur:x.distributorCharges,electricity_tax_eur:x.tax,vat_eur:x.vat,igic_eur:x.igic,other_cost_eur:x.other,total_eur:x.total,accounted_eur:x.accounted,difference_eur:x.diff,average_total_eur_kwh:x.kwh?x.total/x.kwh:null,
 parser_version:window.IBT_PARSER_VERSION||'FENIE',validation_message:'Validado contra parser principal antes de guardar histórico',completeness_assessment_status:x.assessment,source_completeness:x.completeness,
 energy_periods:x.energyPeriods,power_periods:x.powerPeriods,maximeters:x.maximeterRows,excess_periods:x.excessPeriods,reactive_periods:x.reactivePeriods,tax_lines:x.taxLines,distributor_rights:x.distributorRights,adjustments:x.adjustments};
-const {data,error}=await supabase.rpc('upsert_xtra_energy_history',{p_payload:payload});if(error)throw error;
+const {data,error}=await supabase.rpc('upsert_xtra_energy_history_v2',{p_payload:payload});if(error)throw error;
 let result=data||{ok:false};
 if(result?.ok){
   try{
@@ -524,11 +524,11 @@ historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review
 for(const file of list){
 try{const r=await persistOne(file);if(r?.ok){saved++;if(r.completeness==='complete')complete++;else{review++;if(r.historyReview)reviewItems.push(r.historyReview)}}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
 catch(e){failed++;console.warn('Histórico XTRA:',file.name,e)}
-done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,'review');
+done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,'review');
 await new Promise(resolve=>setTimeout(resolve,0));
 }
 await renderSummary();
-historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} omitidas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
+historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
 historyReviewDetails(reviewItems);
 fenieShadowStatus();endesaShadowStatus();
 window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary(),endesaShadow:endesaHistoryShadowSummary()}}));

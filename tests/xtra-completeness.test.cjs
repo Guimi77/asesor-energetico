@@ -8,6 +8,8 @@ const compactCss=fs.readFileSync('ui-compact.css','utf8');
 const compactJs=fs.readFileSync('ui-compact.js','utf8');
 const folderUpload=fs.readFileSync('folder-upload.js','utf8');
 const bulkPerformance=fs.readFileSync('bulk-performance.js','utf8');
+const appSource=fs.readFileSync('app.js','utf8');
+const refreshPolicySql=fs.readFileSync('supabase/migrations/20260929074500_refresh_improved_or_rectified_invoices.sql','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
@@ -90,14 +92,14 @@ test('Existing validated invoices refresh completeness without changing core amo
  const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
- assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
+ assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
  assert(source.includes("const COMPLETENESS_VERSION='energy-2026.09.28.1'"));
 });
 
 test('Automatic history write cannot bypass the validated main parser row',()=>{
  const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);assert(start>=0&&end>start);
  for(const check of ["/Correcta/i.test(ui.status)","ui.balance==='OK'","same(ui.kwh,x.kwh,.02)","same(ui.energy,x.energy)","same(ui.power,x.power)","same(ui.excess,x.excess)","same(ui.reactive,x.reactive)","same(ui.total,x.total)"])assert(persist.includes(check),check);
- assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history'"));
+ assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'"));
 });
 test('2.0TD reactive absence is not fabricated as zero measured reactive detail',()=>{
  assert(source.includes("const reactiveApplicable=!/^2\\.0TD$/i.test(tariff);"));
@@ -172,6 +174,33 @@ test('El progreso masivo no incrusta el texto del histórico en su propio estado
  assert(bulk.includes("document.querySelector('#historyUploadStatus')"));
 });
 
+
+test('Los motivos de no guardado del histórico se muestran en español claro',()=>{
+ assert(source.includes("existing_invoice_differs:'diferencias con el histórico que requieren revisión'"));
+ assert(source.includes('no guardadas${skipSummary(skipReasons)}'));
+ assert(!source.includes('omitidas${skipSummary(skipReasons)}'));
+});
+
+test('El histórico refresca lecturas mejoradas sin depender de la comercializadora',()=>{
+ assert(appSource.includes("const PARSER_VERSION='2026.09.29.1';"));
+ assert(refreshPolicySql.includes("private.parser_version_is_newer"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'better_completeness'"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'newer_parser'"));
+ assert(refreshPolicySql.includes("v_result := public.upsert_xtra_energy_history_legacy(p_payload)"));
+ assert(source.includes("supabase.rpc('upsert_xtra_energy_history_v2',{p_payload:payload})"));
+ assert(refreshPolicySql.includes("'invoice_refreshed'"));
+ assert(refreshPolicySql.includes("'mode','existing_refreshed'"));
+});
+
+test('Una factura rectificada posterior puede sustituir la anterior aunque cambie el consumo',()=>{
+ assert(refreshPolicySql.includes("supersession_reason='same_supply_period_later_issue_date'"));
+ assert(refreshPolicySql.includes("v_issue_date > i.issue_date"));
+ assert(refreshPolicySql.includes("i.billing_start=v_billing_start"));
+ assert(refreshPolicySql.includes("i.billing_end=v_billing_end"));
+ assert(refreshPolicySql.includes("superseded_by=v_new_invoice"));
+ assert(refreshPolicySql.includes("'invoice_superseded'"));
+});
 
 test('Los motivos de revisión histórica se traducen a lenguaje útil',()=>{
  const reasons=plain(ctx.api.reviewReasons({
