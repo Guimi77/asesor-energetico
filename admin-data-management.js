@@ -16,6 +16,7 @@
     supplyDependencyCounts: new Map(),
     latestInvoiceBySupply: new Map(),
     showArchivedClients: false,
+    showArchivedHolders: false,
     showArchivedSupplies: false,
     loading: false,
   };
@@ -48,6 +49,22 @@
       anchor?.insertAdjacentElement('beforebegin', panel);
     }
 
+    if (clientsView && !$('#centralHoldersAdmin')) {
+      const panel = document.createElement('section');
+      panel.id = 'centralHoldersAdmin';
+      panel.className = 'card db-admin-card';
+      panel.innerHTML = `
+        <div class="db-admin-head">
+          <div><p class="eyebrow">Base central</p><h2>Administrar titulares</h2><p>El titular actual puede cambiar sin reescribir las facturas antiguas. Archivar conserva la relación histórica; eliminar solo se permite cuando ya no existe ningún suministro asociado.</p></div>
+          <div class="db-admin-tools"><input id="centralHolderSearch" class="db-admin-search" placeholder="Buscar titular, NIF/CIF o cliente…"><label><input id="showArchivedHolders" type="checkbox"> Mostrar archivados</label></div>
+        </div>
+        <div id="centralHoldersList" class="db-admin-list"></div>
+        <div id="centralHoldersMsg" class="db-admin-msg" role="status" aria-live="polite"></div>
+        <div class="db-admin-note">Un titular con CUPS activos no puede archivarse. Un titular solo puede eliminarse después de archivarlo y cuando no tenga ningún suministro asociado.</div>`;
+      const anchor = $('#clientEditor', clientsView) || clientsView.firstElementChild;
+      anchor?.insertAdjacentElement('beforebegin', panel);
+    }
+
     const cupsView = $('#cupsView');
     if (cupsView && !$('#centralSuppliesAdmin')) {
       const panel = document.createElement('section');
@@ -64,8 +81,10 @@
     }
 
     $('#centralClientSearch')?.addEventListener('input', renderClients);
+    $('#centralHolderSearch')?.addEventListener('input', renderHolders);
     $('#centralSupplySearch')?.addEventListener('input', renderSupplies);
     $('#showArchivedClients')?.addEventListener('change', (e) => { state.showArchivedClients = e.target.checked; renderClients(); });
+    $('#showArchivedHolders')?.addEventListener('change', (e) => { state.showArchivedHolders = e.target.checked; renderHolders(); });
     $('#showArchivedSupplies')?.addEventListener('change', (e) => { state.showArchivedSupplies = e.target.checked; renderSupplies(); });
   }
 
@@ -96,6 +115,13 @@
     return state.supplyDependencyCounts.get(supplyId) || { invoices: 0, incidents: 0, recommendations: 0, supply_events: 0 };
   }
 
+  function holderCounts(holderId) {
+    const supplies = state.supplies.filter((supply) => supply.holder_id === holderId);
+    const activeSupplies = supplies.filter((supply) => supply.status === 'active').length;
+    const invoices = supplies.reduce((sum, supply) => sum + (state.invoiceCounts.get(supply.id) || 0), 0);
+    return { supplies: supplies.length, activeSupplies, invoices };
+  }
+
   function renderClients() {
     const host = $('#centralClientsList');
     if (!host || !isAdmin()) return;
@@ -114,6 +140,30 @@
         : `<button class="secondary db-warning" data-db-action="archive_client" data-id="${esc(client.id)}" data-name="${esc(client.name)}">Archivar</button>`;
       return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(client.name)}</strong><small class="db-admin-meta">${esc(client.tax_id || 'Sin NIF/CIF')} · <span class="db-status ${archived ? 'archived' : ''}">${esc(client.status)}</span></small></div><div>${counts.holders} titular${counts.holders === 1 ? '' : 'es'} · ${counts.supplies} suministro${counts.supplies === 1 ? '' : 's'} · ${counts.invoices} factura${counts.invoices === 1 ? '' : 's'}</div><div class="db-admin-actions">${actions}</div></div>`;
     }).join('') : '<div class="db-empty">No hay clientes que coincidan con este filtro.</div>';
+
+    bindLifecycleButtons(host);
+  }
+
+  function renderHolders() {
+    const host = $('#centralHoldersList');
+    if (!host || !isAdmin()) return;
+    const clients = clientMap();
+    const needle = norm($('#centralHolderSearch')?.value);
+    const rows = state.holders
+      .map((holder) => ({ ...holder, client: clients.get(holder.client_id) || null }))
+      .filter((holder) => state.showArchivedHolders || holder.status === 'active')
+      .filter((holder) => !needle || [holder.legal_name, holder.tax_id, holder.client?.name].some((value) => norm(value).includes(needle)))
+      .sort((a, b) => String(a.client?.name || '').localeCompare(String(b.client?.name || ''), 'es') || String(a.legal_name).localeCompare(String(b.legal_name), 'es'));
+
+    host.innerHTML = rows.length ? rows.map((holder) => {
+      const counts = holderCounts(holder.id);
+      const archived = holder.status === 'archived';
+      const parentActive = holder.client?.status === 'active';
+      const actions = archived
+        ? `${parentActive ? `<button class="secondary db-restore" data-db-action="restore_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Restaurar</button>` : '<span class="db-locked">Cliente archivado: no se puede restaurar</span>'}${counts.supplies === 0 ? `<button class="secondary db-danger" data-db-action="delete_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Eliminar definitivamente</button>` : '<span class="db-locked">Con suministros: no se puede borrar</span>'}`
+        : `<button class="secondary" data-db-action="edit_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}" data-msg-target="#centralHoldersMsg">Editar</button>${counts.activeSupplies === 0 ? `<button class="secondary db-warning" data-db-action="archive_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Archivar</button>` : '<span class="db-locked">Tiene CUPS activos</span>'}`;
+      return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(holder.legal_name)}</strong><small class="db-admin-meta">${esc(holder.tax_id || 'Sin NIF/CIF')} · ${esc(holder.client?.name || 'Cliente sin identificar')} · <span class="db-status ${archived ? 'archived' : ''}">${esc(holder.status)}</span></small></div><div>${counts.supplies} suministro${counts.supplies === 1 ? '' : 's'} · ${counts.activeSupplies} activo${counts.activeSupplies === 1 ? '' : 's'} · ${counts.invoices} factura${counts.invoices === 1 ? '' : 's'}</div><div class="db-admin-actions">${actions}</div></div>`;
+    }).join('') : '<div class="db-empty">No hay titulares que coincidan con este filtro.</div>';
 
     bindLifecycleButtons(host);
   }
@@ -228,12 +278,14 @@
       add(results[5].data, 'recommendations');
       add(results[6].data, 'supply_events');
       renderClients();
+      renderHolders();
       renderSupplies();
       pruneArchivedUserOptions();
       window.dispatchEvent(new CustomEvent('ibt-central-data-ready', { detail: { supplies: state.supplies.length } }));
     } catch (error) {
       console.error('Gestión central', error);
       setMessage('#centralClientsMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
+      setMessage('#centralHoldersMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
       setMessage('#centralSuppliesMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
     } finally {
       state.loading = false;
@@ -253,6 +305,9 @@
       const deps = payload?.dependencies;
       if (code === 'client_not_empty') throw new Error(`No se puede eliminar: tiene ${deps?.holders || 0} titulares, ${deps?.supplies || 0} suministros y ${deps?.invoices || 0} facturas.`);
       if (code === 'supply_has_history') throw new Error('No se puede eliminar este CUPS porque tiene histórico o registros relacionados. Archívalo en su lugar.');
+      if (code === 'holder_has_active_supplies') throw new Error(`No se puede archivar este titular porque todavía tiene ${deps?.active_supplies || 0} CUPS activo(s). Cambia primero el titular de esos suministros.`);
+      if (code === 'holder_has_supplies') throw new Error(`No se puede eliminar este titular porque todavía tiene ${deps?.supplies || 0} suministro(s) asociado(s).`);
+      if (code === 'holder_must_be_archived') throw new Error('Antes de eliminar un titular debes archivarlo.');
       if (code === 'tax_identity_change_requires_reassignment') throw new Error('Un NIF/CIF distinto corresponde a otro titular. Usa el cambio de titular, no edites la identidad fiscal existente.');
       if (code === 'holder_tax_conflict') throw new Error('Ese NIF/CIF ya pertenece a otro titular del maestro.');
       if (code === 'holder_name_conflict') throw new Error('Ya existe otro titular con ese nombre dentro del mismo cliente.');
@@ -323,17 +378,18 @@
         taxId = String(nextTax).trim();
       }
 
+      const holderMsgTarget = button.dataset.msgTarget || '#centralSuppliesMsg';
       button.disabled = true;
-      setMessage('#centralSuppliesMsg', 'Actualizando titular…');
+      setMessage(holderMsgTarget, 'Actualizando titular…');
       try {
         await invoke('update_holder', id, { legal_name: legalName, tax_id: taxId || null });
-        setMessage('#centralSuppliesMsg', 'Titular actualizado. El histórico anterior permanece intacto.', 'ok');
+        setMessage(holderMsgTarget, 'Titular actualizado. El histórico anterior permanece intacto.', 'ok');
         await window.CentralSupabaseMaster?.reload?.();
         await loadState();
         window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action: 'update_holder', id } }));
       } catch (error) {
         console.error(action, error);
-        setMessage('#centralSuppliesMsg', error?.message || String(error), 'error');
+        setMessage(holderMsgTarget, error?.message || String(error), 'error');
       } finally {
         button.disabled = false;
       }
@@ -358,7 +414,8 @@
 
     button.disabled = true;
     const isClientAction = action.endsWith('_client');
-    const msgTarget = isClientAction ? '#centralClientsMsg' : '#centralSuppliesMsg';
+    const isHolderAction = action.endsWith('_holder');
+    const msgTarget = isClientAction ? '#centralClientsMsg' : isHolderAction ? '#centralHoldersMsg' : '#centralSuppliesMsg';
     setMessage(msgTarget, 'Aplicando cambio…');
     try {
       const clientCups = action === 'archive_client' || action === 'delete_client' ? cupsForClient(id) : [];
@@ -482,6 +539,7 @@
     ensurePanels();
     const admin = profile?.role === 'admin';
     $('#centralClientsAdmin')?.classList.toggle('visible', admin);
+    $('#centralHoldersAdmin')?.classList.toggle('visible', admin);
     $('#centralSuppliesAdmin')?.classList.toggle('visible', admin);
     if (admin) {
       loadState();
