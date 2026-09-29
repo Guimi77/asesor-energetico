@@ -82,6 +82,29 @@ test('fase mínima extrae identidad, suministro, consumo, potencia y total sin u
   assert.equal(r.validation.stage,'minimal');
 });
 
+test('detalle económico alimenta Otros/descuentos y mantiene el cuadre visible',()=>{
+  const d=sample();
+  const i=d.pages[1].indexOf('TOTAL FACTURA 54,35 €');
+  d.pages[1].splice(i,0,
+    'Bo social 30 dies x 0,006282 €/dia 0,19 € 10%',
+    'Compensació','per','electricitat','excedentària',
+    'Electricitat excedentària [kWh] -37,42 -40,55 -29,93',
+    'Preu energia [€/kWh] 0,03 0,03 0,03',
+    'kWh x €/kWh (del 01/04/2026 al 30/04/2026) -1,12 € -1,22 € -0,9 € -3,24 €',
+    'Impost de',"l'electricitat",'48,37 € x 0,5%','0,24 € 10%',
+    'Lloguer de','comptador','30 dies x 0,02663 €/dia 0,80 € 10%',
+    'IVA 10% 49,41 € (BASE IMPOSABLE) 4,94 €'
+  );
+  d.text=d.pages.flat().join('\n');
+  const r=parser.parse(d,{name:'economic.pdf'});
+  assert.equal(r.readOk,true,r.readMessage);
+  assert.equal(r.other,0.99);
+  assert.equal(r.compensation,-3.24);
+  assert.equal(r.other+r.compensation,-2.25);
+  assert.equal(r.accounted,54.35);
+  assert.equal(r.balanced,true);
+});
+
 test('prioriza NIF/CIF del titular y no el CIF de la cooperativa',()=>{
   const r=parser.parse(sample(),{name:'holder.pdf'});
   assert.equal(r.taxId,'00000001R');
