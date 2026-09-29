@@ -295,7 +295,7 @@
       file:file?.name||'',invoiceNumber:id.invoice,company:id.holder||'Por identificar',taxId:id.taxId,cups:contract.cups,
       period:periodLabel,tariff:contract.tariff||'—',kwh:energy.kwh,energy:energy.energy,power:power.total,
       excess:0,reactive:0,compensation:fin.compensation.total,social:fin.social,rental:fin.rental,integratorAdjustment:fin.adjustment,
-      regularizationReactive:null,other:fin.cooperativeTotal||null,tax:fin.tax,vat:fin.vat,igic:null,distributorCharges:null,
+      regularizationReactive:null,other:round2((fin.adjustment||0)+(fin.social||0)+(fin.rental||0)+(fin.cooperativeTotal||0)),tax:fin.tax,vat:fin.vat,igic:null,distributorCharges:null,
       total:fin.total,accounted:fin.accounted,diff:fin.diff,balanced:fin.balanced,readOk,
       readMessage:readOk?(economicFull?'Lectura correcta':'Lectura mínima Som Energia correcta · detalle económico pendiente'):('Falta o revisar: '+missing.join(', ')),
       readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,avg:energy.kwh&&fin.total?fin.total/energy.kwh:0,
