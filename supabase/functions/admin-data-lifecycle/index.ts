@@ -107,6 +107,26 @@ Deno.serve(async (req: Request) => {
       return json(data);
     }
 
+    if (["archive_holder", "restore_holder", "delete_holder"].includes(action)) {
+      const lifecycleAction = action.replace("_holder", "");
+      const { data, error } = await userClient.rpc("admin_manage_holder_lifecycle", {
+        p_holder_id: id,
+        p_action: lifecycleAction,
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        return json({
+          error: data?.reason || "holder_lifecycle_rejected",
+          dependencies: {
+            supplies: Number(data?.supplies || 0),
+            active_supplies: Number(data?.active_supplies || 0),
+          },
+          details: data,
+        }, 409);
+      }
+      return json(data);
+    }
+
     if (action === "archive_client" || action === "restore_client") {
       const status = action === "archive_client" ? "archived" : "active";
       const { data, error } = await admin.from("clients").update({ status }).eq("id", id).select("id,name,status").maybeSingle();
