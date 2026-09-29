@@ -188,12 +188,13 @@ test('El histórico refresca lecturas mejoradas sin depender de la comercializad
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_parser'"));
  assert(refreshPolicySql.includes("v_result := public.upsert_xtra_energy_history_legacy(p_payload)"));
+ assert(source.includes("supabase.rpc('upsert_xtra_energy_history_v2',{p_payload:payload})"));
  assert(refreshPolicySql.includes("'invoice_refreshed'"));
  assert(refreshPolicySql.includes("'mode','existing_refreshed'"));
 });
 
 test('Una factura rectificada posterior puede sustituir la anterior aunque cambie el consumo',()=>{
- assert(refreshPolicySql.includes("v_supersession_reason := 'same_supply_period_later_issue_date'"));
+ assert(refreshPolicySql.includes("supersession_reason='same_supply_period_later_issue_date'"));
  assert(refreshPolicySql.includes("v_issue_date > i.issue_date"));
  assert(refreshPolicySql.includes("i.billing_start=v_billing_start"));
  assert(refreshPolicySql.includes("i.billing_end=v_billing_end"));
