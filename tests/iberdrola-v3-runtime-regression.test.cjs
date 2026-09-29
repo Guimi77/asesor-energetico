@@ -306,7 +306,7 @@ test('Iberdrola geometry parser ignores consumption infographic euros and reads 
 function classicThreeZeroSingleRate(){
   return doc([
     'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','PLAN ESTABLE',
-    'CLIENTE SINTETICO CLASICO','Titular C/ PRUEBA CLASICA, 1','07000 CIUDAD (ILLES BALEARS)',
+    'CLIENTE SINTETICO CLASICO, S.L.','Titular C/ PRUEBA CLASICA, 1','07000 CIUDAD (ILLES BALEARS)',
     'Dirección de suministro:','C/ PRUEBA CLASICA, 1 07000 CIUDAD (ILLES BALEARS)',
     'Número de factura 21240000000000001','Nº DE CONTRATO: 600000001',
     'RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: 01/01/2024 - 30/01/2024',
@@ -383,13 +383,13 @@ function modernThreeZeroThousands(){
 
 function twoZeroThousandsWithService(){
   return doc([
-    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','Energía','Pack sintético 99,99 €',
     'CLIENTE SINTETICO DOS CERO','Titular Potencia: C/ PRUEBA DOS, 3',
     'Dirección de suministro: C/ PRUEBA DOS, 3 07000 CIUDAD (ILLES BALEARS)',
     'Nº DE CONTRATO: 600000003','RESUMEN DE FACTURA',
     'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/06/2026 - 01/07/2026 21260000000000103',
     'DIAS FACTURADOS: 30','ENERGÍA 211,75 €','DESCUENTOS ENERGÍA -17,93 €',
-    'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,00 €',
+    'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,00 Duplicado €',
     'IVA 41,86 €','TOTAL 241,18 €'
   ],[
     'DETALLE DE FACTURA','ENERGÍA',
@@ -439,7 +439,7 @@ function referencedThreeZero(){
     'P2 200 kWh x 0,150000 €/kWh 30,00 €',
     'P6 300 kWh x 0,100000 €/kWh 30,00 €',
     'Total Energía Referenciada 80,00 €',
-    'Total exceso potencia 3,00 €','Total energía reactiva 2,00 €',
+    'Exceso de potencia 3,00 €','Total energía reactiva 2,00 €',
     'CARGOS NORMATIVOS','Financiación bono social fijo 0,50 €',
     'Impuesto sobre electricidad 5,00 €',
     'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 1,00 €',
@@ -459,7 +459,7 @@ function referencedThreeZero(){
 test('Iberdrola classic 3.0TD reads dotted thousands, old invoice label, repeated discounts and full services total',()=>{
   const r=parser.parse(classicThreeZeroSingleRate(),{name:'classic-synthetic.pdf'});
   assert.equal(r.readOk,true,JSON.stringify(r));
-  assert.equal(r.company,'CLIENTE SINTETICO CLASICO');
+  assert.equal(r.company,'CLIENTE SINTETICO CLASICO, S.L.');
   assert.equal(r.invoiceNumber,'21240000000000001');
   assert.equal(r.kwh,1545);
   assert.equal(r.energy,309);
@@ -509,4 +509,88 @@ test('Iberdrola referenced 3.0TD combines toll and charge power, excess and reac
   assert.equal(r.total,132.86);
   assert.equal(r.diff,0);
   assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[100,200,0,0,0,300]);
+});
+
+
+function splitTwoZero(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
+    'CLIENTE PRUEBA SPLIT','Titular Potencia: C/ EJEMPLO SPLIT, 5',
+    'Dirección de suministro: C/ EJEMPLO SPLIT, 5 07000 CIUDAD (ILLES BALEARS)',
+    'Nº DE CONTRATO: 600000005','RESUMEN DE FACTURA',
+    'PERIODO DE FACTURACIÓN: Nº FACTURA:','03/12/2025 - 07/01/2026 21260000000000105',
+    'DIAS FACTURADOS: FECHA DE EMISIÓN:','36 12 de enero de 2026',
+    'ENERGÍA 205,67 €','DESCUENTOS ENERGÍA -22,13 €','CARGOS NORMATIVOS 0,49 €',
+    'SERVICIOS Y OTROS CONCEPTOS 3,38 €','IVA 39,36 €','TOTAL 226,77 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada (03/12/2025-31/12/2025) Punta 9 kW x 28 días x 0,108192 €/kW día 27,26 €',
+    'Valle 9 kW x 28 días x 0,046548 €/kW día 11,73 €',
+    'Total importe potencia hasta 31/12/2025 38,99 €',
+    'Potencia facturada (31/12/2025-07/01/2026) Punta 9 kW x 7 días x 0,113621 €/kW día 7,16 €',
+    'Valle 9 kW x 7 días x 0,048095 €/kW día 3,03 €',
+    'Total importe potencia hasta 07/01/2026 10,19 €',
+    'Energía consumida (03/12/2025-31/12/2025) 671 kWh x 0,174875 €/kWh 117,34 €',
+    'Energía consumida (31/12/2025-07/01/2026) 166 kWh x 0,181957 €/kWh 30,20 €',
+    'Descuento sobre consumo 15% 15 % s/147,54 € -22,13 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 0,49 €',
+    'Impuesto sobre electricidad 8,95 €','TOTAL ENERGÍA 184,03 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 1,56 €',
+    'Servicio sintético 1,82 €','TOTAL SERVICIOS Y OTROS CONCEPTOS 3,38 €',
+    'IVA 21 % 39,36 €','TOTAL IMPORTE FACTURA 226,77 €',
+    'Peaje de acceso a la red (ATR): 2.0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0005 AA',
+    'Sus consumos desagregados han sido punta: 137 kWh; llano: 88 kWh; valle 612 kWh.'
+  ]);
+}
+
+function fneeVariant(){
+  const d=modernThreeZeroThousands();
+  d.pages[0]=d.pages[0].map(x=>x
+    .replace('ENERGÍA 2.728,00 €','ENERGÍA 2.738,00 €')
+    .replace('TOTAL 2.824,14 €','TOTAL 2.834,14 €'));
+  const at=d.pages[1].findIndex(x=>x.includes('Descuento sobre consumo'));
+  d.pages[1].splice(at,0,'Regularización FNEE (*) 10.000 kWh x 0,001000 €/kWh 10,00 €');
+  d.pages[1]=d.pages[1].map(x=>x.replace('TOTAL IMPORTE FACTURA 2.824,14 €','TOTAL IMPORTE FACTURA 2.834,14 €'));
+  d.text=d.pages.flat().join('\n');
+  return d;
+}
+
+test('Iberdrola detail concepts add power discounts and multiple VAT lines without losing cents',()=>{
+  const rows=parser._test.rowsFromLines([
+    'Descuento sobre consumo 15% 15 % s/141,15 € -21,17 €',
+    'Descuento sobre T. Potencia 5% s/22,94 € -1,15 €',
+    'IVA Reducido (*) 10 % s/189,70 € 18,97 €',
+    'IVA 21 % s/7,28 € 1,53 €'
+  ]);
+  const d=parser._test.parseDetailConcepts(rows);
+  assert.equal(d.discount,-22.32);
+  assert.equal(d.vat,20.5);
+});
+
+test('Iberdrola 2.0TD aggregates split power and energy sub-periods and preserves printed billed days',()=>{
+  const r=parser.parse(splitTwoZero(),{name:'split-2.0-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.billingDays,36);
+  assert.equal(r.period,'03/12/2025 - 07/01/2026 (36 días)');
+  assert.equal(r.power,49.18);
+  assert.equal(r.energy,147.54);
+  assert.equal(r.kwh,837);
+  assert.equal(r.energyPricingMode,'split_single_rate');
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption],[137,88,612]);
+});
+
+test('Iberdrola includes FNEE regularization as an explicit adjustment in the economic balance',()=>{
+  const r=parser.parse(fneeVariant(),{name:'fnee-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.fneeRegularization,10);
+  assert.equal(r.other,-384);
+  assert.equal(r.total,2834.14);
+  assert.equal(r.diff,0);
+});
+
+test('Iberdrola rejects commercial simulations even when they contain invoice-like labels',()=>{
+  const d=doc(['IBERDROLA CLIENTES, S.A.U.','SIMULACIÓN Y COMPARATIVA','Oferta para comparar','DATOS DE FACTURA COMPARATIVA','TOTAL IMPORTE FACTURA IBERDROLA 107,03 €','ELECTRICIDAD']);
+  assert.equal(parser.detect(d),false);
 });
