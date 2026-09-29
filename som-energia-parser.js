@@ -158,21 +158,40 @@
   }
 
   function parseCompensation(text,lines){
-    const block=sectionText(text,/Compensaci[oó]\s*per\s*electricitat\s*excedent[aà]ria/i,/Impost\s+de\s+l['’]electricitat/i,1800);
-    if(!block)return{present:false,total:null,periods:{},exportedKwh:null,reliable:true};
-    const q=block.match(/Electricitat\s+excedent[aà]ria\s*\[kWh\]\s*(-?[\d.,]+)\s+(-?[\d.,]+)\s+(-?[\d.,]+)/i);
-    const price=(block.match(/Preu\s+energia\s*\[€\/kWh\]\s*([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i)||[]);
-    const costLine=(lines||[]).find(line=>/kWh\s*x\s*€\/kWh/i.test(line)&&/-[\d.,]+\s*€/.test(line))||'';
+    const source=lines||[];
+    const qIndex=source.findIndex(line=>/Electricitat\s+excedent[aà]ria\s*\[kWh\]/i.test(line));
+    if(qIndex<0)return{present:false,total:null,periods:{},exportedKwh:null,reliable:true};
+    const q=source[qIndex].match(/Electricitat\s+excedent[aà]ria\s*\[kWh\]\s*(-?[\d.,]+)\s+(-?[\d.,]+)\s+(-?[\d.,]+)/i);
+    let priceLine='',costLine='';
+    for(let i=qIndex+1;i<Math.min(source.length,qIndex+7);i++){
+      const line=source[i];
+      if(!priceLine&&/Preu\s+energia\s*\[€\/kWh\]/i.test(line))priceLine=line;
+      if(/kWh\s*x\s*€\/kWh/i.test(line)&&/-[\d.,]+\s*€/.test(line)){costLine=line;break;}
+      if(/^(?:Impost\s+de|Lloguer\s+de|IVA\b)/i.test(line))break;
+    }
+    const price=(priceLine.match(/Preu\s+energia\s*\[€\/kWh\]\s*([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i)||[]);
     const costs=euroValues(costLine);
     const quantities=q?[numEs(q[1]),numEs(q[2]),numEs(q[3])]:[];
     const prices=price.length?[numEs(price[1]),numEs(price[2]),numEs(price[3])]:[];
     const periods={};
     for(let i=0;i<3;i++)if(quantities[i]!=null)periods['P'+(i+1)]={excessKwh:Math.abs(quantities[i]),price:prices[i]??null,amount:costs.length>=4?costs[i]:null};
-    const total=costs.length>=4?costs[3]:(()=>{const vals=euroValues(block);return vals.length?vals.at(-1):null;})();
+    const total=costs.length>=4?costs[3]:null;
     const exportedKwh=quantities.length===3?round3(quantities.reduce((s,v)=>s+Math.abs(v||0),0)):null;
     const sum=costs.length>=4?round2(costs.slice(0,3).reduce((s,v)=>s+v,0)):null;
     const reliable=total!=null&&(sum==null||Math.abs(sum-total)<=.03);
     return{present:true,total,periods,exportedKwh,reliable};
+  }
+
+  function collectBlock(lines,startRe,endRe,maxLines=8){
+    const start=(lines||[]).findIndex(line=>startRe.test(line));
+    if(start<0)return'';
+    const out=[];
+    for(let i=start;i<Math.min(lines.length,start+maxLines);i++){
+      const line=lines[i];
+      if(i>start&&endRe&&endRe.test(line))break;
+      out.push(line);
+    }
+    return out.join('\n');
   }
 
   function parseFinancials(text,lines,energy,power){
@@ -180,11 +199,11 @@
     const social=moneyAfterLabel(lines,/^Bo\s+social\b/i);
     const compensation=parseCompensation(text,lines);
 
-    const taxBlock=sectionText(text,/Impost\s+de\s+l['’]electricitat/i,/Lloguer\s+de\s+comptador/i,1400);
+    const taxBlock=collectBlock(lines,/^Impost\s+de\b/i,/^(?:Lloguer\s+de|IVA\b)/i,7);
     const taxEuros=euroValues(taxBlock),tax=taxEuros.length?taxEuros.at(-1):null,taxBase=taxEuros.length>=2?taxEuros[0]:null;
     const taxRateMatch=taxBlock.match(/([\d.,]+)\s*%/),taxRate=taxRateMatch?numEs(taxRateMatch[1]):null;
 
-    const rentalBlock=sectionText(text,/Lloguer\s+de\s+comptador/i,/\bIVA\b/i,800);
+    const rentalBlock=collectBlock(lines,/^Lloguer\s+de\b/i,/^IVA\b/i,6);
     const rentalVals=euroValues(rentalBlock),rental=rentalVals.length?rentalVals.at(-1):null;
 
     const vatLine=lines.find(line=>/^IVA\s+\d/i.test(line))||'';
@@ -242,7 +261,7 @@
     if(!detect(value))return null;
     const id=parseIdentity(text,lines),contract=parseContract(text,lines),energy=parseEnergyPeriods(text,lines),power=parsePower(text,lines),fin=parseFinancials(text,lines,energy,power);
     const periodLabel=id.periodMatch?id.periodMatch[1]+' - '+id.periodMatch[2]+(id.billingDays?' ('+id.billingDays+' días)':''):'Por identificar';
-    const economicFull=/(?:Bo\s+social|Compensaci[oó]\s*per\s*electricitat\s*excedent[aà]ria|Impost\s+de\s+l['’]electricitat|Lloguer\s+de\s+comptador|\bIVA\s+\d+\s*%)/i.test(text);
+    const economicFull=/(?:Bo\s+social|Electricitat\s+excedent[aà]ria\s*\[kWh\]|Impost\s+de|Lloguer\s+de|\bIVA\s+\d+\s*%)/i.test(text);
 
     const missing=[];
     if(!id.holder)missing.push('titular');
@@ -255,9 +274,9 @@
     if(!energy.costReliable)missing.push(energy.message||'coste energía P1-P3');
     if(!power.reliable)missing.push('potencia');
     if(/Bo\s+social/i.test(text)&&fin.social==null)missing.push('bo social');
-    if(/Compensaci[oó]\s*per\s*electricitat\s*excedent[aà]ria/i.test(text)&&(!fin.compensation.present||!fin.compensation.reliable))missing.push('compensación excedentes');
-    if(/Impost\s+de\s+l['’]electricitat/i.test(text)&&fin.tax==null)missing.push('impuesto electricidad');
-    if(/Lloguer\s+de\s+comptador/i.test(text)&&fin.rental==null)missing.push('alquiler contador');
+    if(/Electricitat\s+excedent[aà]ria\s*\[kWh\]/i.test(text)&&(!fin.compensation.present||!fin.compensation.reliable))missing.push('compensación excedentes');
+    if(/Impost\s+de\b/i.test(text)&&fin.tax==null)missing.push('impuesto electricidad');
+    if(/Lloguer\s+de\b/i.test(text)&&fin.rental==null)missing.push('alquiler contador');
     if(/\bIVA\s+\d+\s*%/i.test(text)&&fin.vat==null)missing.push('IVA');
     if(fin.total==null)missing.push('total');
     if(economicFull&&!fin.balanced)missing.push('cuadre económico');
