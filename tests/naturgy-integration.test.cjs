@@ -46,7 +46,7 @@ test('Naturgy history remains behind the validated main-row crosscheck',()=>{
   const persist=history.slice(start,end);
   const crosscheck=persist.indexOf("const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'");
   const reject=persist.indexOf("if(!validated)return {skipped:true,reason:'crosscheck_failed'}");
-  const write=persist.indexOf("supabase.rpc('upsert_xtra_energy_history'");
+  const write=persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'");
   assert(crosscheck>=0&&reject>crosscheck&&write>reject);
   for(const token of ['same(ui.kwh,x.kwh,.02)','same(ui.energy,x.energy)','same(ui.power,x.power)','same(ui.total,x.total)'])assert(persist.includes(token),token);
 });
