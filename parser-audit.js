@@ -48,13 +48,22 @@ function auditWorkbook(wb){
   const summary=getRows(wb,'Resumen').filter(r=>txt(r[1]));
   const detail=getRows(wb,'Detalle P1-P6').filter(r=>txt(r[0]));
   const byInvoice=new Map(detail.map(r=>[txt(r[0]),r]));
-  const issues=[];let identityOk=0,consumptionOk=0,energyOk=0,economicOk=0,periodOk=0;
-  for(const r of summary){
+  const issues=[];const issueDocuments=new Set();let supported=0,unsupported=0,identityOk=0,consumptionOk=0,energyOk=0,economicOk=0,periodOk=0;
+  for(let rowIndex=0;rowIndex<summary.length;rowIndex++){
+    const r=summary[rowIndex];
     const invoice=txt(r[1]),company=txt(r[2]),cups=txt(r[3]),period=txt(r[4]),tariff=txt(r[5]);
     const consumption=n(r[6]),energy=n(r[7]),power=n(r[8]),excess=n(r[9]),reactive=n(r[10]),comp=n(r[11]),other=n(r[12]),dist=n(r[13]),tax=n(r[14]),vat=n(r[15]),igic=n(r[16]),total=n(r[17]);
     const d=byInvoice.get(invoice)||[];
-    const add=(type,msg,severity='REVISAR')=>issues.push([severity,invoice,company,cups,period,tariff,type,msg]);
-    const parserStatus=txt(r[0]);if(!/^CORRECTA$/i.test(parserStatus))add('ESTADO PARSER',`La fila está marcada como ${parserStatus||'SIN ESTADO'} por el parser principal.`, 'ERROR');
+    const documentKey=`row:${rowIndex}`;
+    const add=(type,msg,severity='REVISAR')=>{issues.push([severity,invoice,company,cups,period,tariff,type,msg]);issueDocuments.add(documentKey)};
+    const parserStatus=txt(r[0]);
+    if(/^NO\s+COMPATIBLE$/i.test(parserStatus)){
+      unsupported++;
+      add('DOCUMENTO NO COMPATIBLE','El documento está fuera de los formatos soportados. No se evalúa como fallo de identidad, consumo, energía, cuadre o periodos.','NO COMPATIBLE');
+      continue;
+    }
+    supported++;
+    if(!/^CORRECTA$/i.test(parserStatus))add('ESTADO PARSER',`La fila está marcada como ${parserStatus||'SIN ESTADO'} por el parser principal.`, 'ERROR');
     const idGood=!!invoice&&invoice!=='Por identificar'&&!!company&&!!cups&&/^ES[A-Z0-9]{16,24}$/i.test(cups)&&!!period&&period!=='Por identificar'&&!!tariff&&tariff!=='—'&&total>0;
     if(idGood)identityOk++; else add('IDENTIDAD','Falta o parece inválido algún dato esencial: nº factura, empresa, CUPS, periodo, tarifa o total.','ERROR');
     let pkwh=0,pcost=0,periodsGood=true,periodConsumptionCells=0,periodCostCells=0;
@@ -87,21 +96,26 @@ function auditWorkbook(wb){
     if(total>0&&power===0&&consumption===0)add('FACTURA SIN CONSUMO','Factura con importe y 0 kWh: comprobar que potencia/derechos/otros conceptos estén capturados.');
   }
   const total=summary.length,diagnostic=diagnosticStats();
-  return{version:parserVersion(),total,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticPages:diagnostic.pages,diagnosticItems:diagnostic.items,diagnosticLines:diagnostic.lines};
+  return{version:parserVersion(),total,supported,unsupported,issueDocuments:issueDocuments.size,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticPages:diagnostic.pages,diagnosticItems:diagnostic.items,diagnosticLines:diagnostic.lines};
 }
 function auditBook(a){
   const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser ${a.version}`};
-  const pct=x=>a.total?x/a.total:0;
+  const pct=x=>a.supported?x/a.supported:0;
   const overview=[
     ['AUDITORÍA DEL PARSER · INSTAL·LACIONS BT'],
     [`Objetivo: detectar incoherencias antes de guardar histórico en Supabase · Parser ${a.version}`],
     ['Control','Correctas','Total','%'],
-    ['Identidad esencial',a.identityOk,a.total,pct(a.identityOk)],
-    ['Consumo P1-P6 = consumo total',a.consumptionOk,a.total,pct(a.consumptionOk)],
-    ['Detalle energético coherente',a.energyOk,a.total,pct(a.energyOk)],
-    ['Cuadre económico completo',a.economicOk,a.total,pct(a.economicOk)],
-    ['Coherencia de periodos/tarifa',a.periodOk,a.total,pct(a.periodOk)],
-    [],['Incidencias detectadas',a.issues.length],
+    ['Identidad esencial',a.identityOk,a.supported,pct(a.identityOk)],
+    ['Consumo P1-P6 = consumo total',a.consumptionOk,a.supported,pct(a.consumptionOk)],
+    ['Detalle energético coherente',a.energyOk,a.supported,pct(a.energyOk)],
+    ['Cuadre económico completo',a.economicOk,a.supported,pct(a.economicOk)],
+    ['Coherencia de periodos/tarifa',a.periodOk,a.supported,pct(a.periodOk)],
+    [],
+    ['Documentos procesados',a.total],
+    ['Facturas compatibles',a.supported],
+    ['Documentos no compatibles',a.unsupported],
+    ['Documentos con incidencias',a.issueDocuments],
+    ['Comprobaciones/incidencias',a.issues.length],
     ['Items PDF.js capturados',a.diagnosticItems],
     ['Líneas reconstruidas capturadas',a.diagnosticLines]
   ];
@@ -111,7 +125,7 @@ function auditBook(a){
   const wi=XLSX.utils.aoa_to_sheet(ih);wi['!cols']=[{wch:12},{wch:20},{wch:32},{wch:27},{wch:25},{wch:10},{wch:24},{wch:80}];XLSX.utils.book_append_sheet(wb,wi,'Incidencias auditoría');
   const invoices=issueInvoices(a),issueStats=diagnosticIssueStats(invoices);
   const scope=invoices.length
-    ? `Detalle bruto limitado a facturas con incidencias: ${invoices.length} factura(s). Items ${issueStats.items}; líneas ${issueStats.lines}. Máximo ${MAX_DIAGNOSTIC_ROWS} filas por hoja.`
+    ? `Detalle bruto limitado a documentos con incidencias: ${a.issueDocuments} documento(s). Items ${issueStats.items}; líneas ${issueStats.lines}. Máximo ${MAX_DIAGNOSTIC_ROWS} filas por hoja.`
     : `Sin incidencias: se omite el detalle bruto PDF.js para evitar generar millones de celdas. Capturados en memoria: ${a.diagnosticItems} items y ${a.diagnosticLines} líneas.`;
   const di=diagnosticSheetRows(invoices),wdi=XLSX.utils.aoa_to_sheet([['ALCANCE DEL DIAGNÓSTICO',scope],[],di.header].concat(di.rows));
   wdi['!cols']=[{wch:34},{wch:22},{wch:14},{wch:18},{wch:8},{wch:14},{wch:90},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:10},{wch:18},...Array(6).fill({wch:12}),{wch:14},{wch:14}];
@@ -123,7 +137,7 @@ function auditBook(a){
 }
 function show(a){
   const bad=a.issues.length;
-  const msg=`Auditoría terminada\n\nParser: ${a.version}\nFacturas: ${a.total}\nIdentidad: ${a.identityOk}/${a.total}\nConsumos: ${a.consumptionOk}/${a.total}\nEnergía: ${a.energyOk}/${a.total}\nCuadre económico: ${a.economicOk}/${a.total}\nPeriodos/tarifa: ${a.periodOk}/${a.total}\n\nDiagnóstico PDF.js: ${a.diagnosticItems} items · ${a.diagnosticLines} líneas\nComprobaciones a revisar: ${bad}`;
+  const msg=`Auditoría terminada\n\nParser: ${a.version}\nDocumentos: ${a.total}\nCompatibles: ${a.supported}\nNo compatibles: ${a.unsupported}\nIdentidad: ${a.identityOk}/${a.supported}\nConsumos: ${a.consumptionOk}/${a.supported}\nEnergía: ${a.energyOk}/${a.supported}\nCuadre económico: ${a.economicOk}/${a.supported}\nPeriodos/tarifa: ${a.periodOk}/${a.supported}\n\nDiagnóstico PDF.js: ${a.diagnosticItems} items · ${a.diagnosticLines} líneas\nDocumentos con incidencias: ${a.issueDocuments}\nComprobaciones a revisar: ${bad}`;
   alert(msg);
 }
 window.addEventListener('DOMContentLoaded',()=>{
