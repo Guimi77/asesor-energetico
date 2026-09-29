@@ -242,6 +242,7 @@
     if(!detect(value))return null;
     const id=parseIdentity(text,lines),contract=parseContract(text,lines),energy=parseEnergyPeriods(text,lines),power=parsePower(text,lines),fin=parseFinancials(text,lines,energy,power);
     const periodLabel=id.periodMatch?id.periodMatch[1]+' - '+id.periodMatch[2]+(id.billingDays?' ('+id.billingDays+' días)':''):'Por identificar';
+    const economicFull=/(?:Bo\s+social|Compensaci[oó]\s*per\s*electricitat\s*excedent[aà]ria|Impost\s+de\s+l['’]electricitat|Lloguer\s+de\s+comptador|\bIVA\s+\d+\s*%)/i.test(text);
 
     const missing=[];
     if(!id.holder)missing.push('titular');
@@ -259,7 +260,7 @@
     if(/Lloguer\s+de\s+comptador/i.test(text)&&fin.rental==null)missing.push('alquiler contador');
     if(/\bIVA\s+\d+\s*%/i.test(text)&&fin.vat==null)missing.push('IVA');
     if(fin.total==null)missing.push('total');
-    if(!fin.balanced)missing.push('cuadre económico');
+    if(economicFull&&!fin.balanced)missing.push('cuadre económico');
 
     const readOk=!missing.length;
     const reading={status:/Electricitat\s+utilitzada\s*\[kWh\]\s*\(real\)/i.test(text)?'actual':'unknown',sourceLabel:'Electricitat utilitzada (real) · Som Energia'};
@@ -277,7 +278,7 @@
       excess:0,reactive:0,compensation:fin.compensation.total,social:fin.social,rental:fin.rental,integratorAdjustment:fin.adjustment,
       regularizationReactive:null,other:fin.cooperativeTotal||null,tax:fin.tax,vat:fin.vat,igic:null,distributorCharges:null,
       total:fin.total,accounted:fin.accounted,diff:fin.diff,balanced:fin.balanced,readOk,
-      readMessage:readOk?'Lectura correcta':('Falta o revisar: '+missing.join(', ')),
+      readMessage:readOk?(economicFull?'Lectura correcta':'Lectura mínima Som Energia correcta · detalle económico pendiente'):('Falta o revisar: '+missing.join(', ')),
       readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,avg:energy.kwh&&fin.total?fin.total/energy.kwh:0,
       opportunity:fin.adjustment!=null?('Concepto identificado: Serveis d’Ajust '+fin.adjustment.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'):'Sin alertas',
       periods:energy.periods,contracted:power.contracted,maximeters:{},parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:{reliable:power.reliable},
@@ -288,7 +289,7 @@
       paymentTotal:fin.total,externalPayments,customerPayableEur,paymentAdjustments:externalPayments,
       cooperativeConcepts:fin.cooperativeConcepts,adjustments,taxLines,
       otherConcepts:{socialFinancing:fin.social,meterRental:fin.rental,systemAdjustment:fin.adjustment,cooperativeConcepts:fin.cooperativeConcepts},
-      validation:{minimalIdentity:!!id.holder&&!!id.taxId&&!!contract.cups&&id.invoice!=='Por identificar',consumptionPeriods:energy.reliable,energyCost:energy.costReliable,power:power.reliable,compensation:fin.compensation.reliable,economicBalance:fin.balanced,stage:'economic_full'}
+      validation:{minimalIdentity:!!id.holder&&!!id.taxId&&!!contract.cups&&id.invoice!=='Por identificar',consumptionPeriods:energy.reliable,energyCost:energy.costReliable,power:power.reliable,compensation:fin.compensation.reliable,economicBalance:economicFull?fin.balanced:null,stage:economicFull?'economic_full':'minimal'}
     };
   }
 
