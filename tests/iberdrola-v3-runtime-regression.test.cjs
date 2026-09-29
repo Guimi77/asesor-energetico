@@ -301,3 +301,212 @@ test('Iberdrola geometry parser ignores consumption infographic euros and reads 
   assert.equal(dr.diff,0);
   assert.deepEqual([dr.periods.P1.consumption,dr.periods.P2.consumption,dr.periods.P3.consumption,dr.periods.P4.consumption,dr.periods.P5.consumption,dr.periods.P6.consumption],[0,28,14,6,2,15]);
 });
+
+
+function classicThreeZeroSingleRate(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','PLAN ESTABLE',
+    'CLIENTE SINTETICO CLASICO','Titular C/ PRUEBA CLASICA, 1','07000 CIUDAD (ILLES BALEARS)',
+    'Dirección de suministro:','C/ PRUEBA CLASICA, 1 07000 CIUDAD (ILLES BALEARS)',
+    'Número de factura 21240000000000001','Nº DE CONTRATO: 600000001',
+    'RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: 01/01/2024 - 30/01/2024',
+    'DIAS FACTURADOS: 29','ENERGÍA 379,67 €','DESCUENTOS ENERGÍA -46,35 €',
+    'CARGOS NORMATIVOS 0,60 €','SERVICIOS Y OTROS CONCEPTOS 5,00 €',
+    'IVA 71,17 €','TOTAL 410,09 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada P1 10 kW x 29 días x 0,050000 €/kW día 14,50 €',
+    'P2 10 kW x 29 días x 0,040000 €/kW día 11,60 €',
+    'P3 10 kW x 29 días x 0,030000 €/kW día 8,70 €',
+    'P4 10 kW x 29 días x 0,025000 €/kW día 7,25 €',
+    'P5 10 kW x 29 días x 0,020000 €/kW día 5,80 €',
+    'P6 10 kW x 29 días x 0,015000 €/kW día 4,35 €',
+    'Total importe potencia hasta 30/01/2024 52,20 €',
+    'Energía consumida 1.545 kWh x 0,200000 €/kWh 309,00 €',
+    'Descuento sobre consumo 5% 5 % s/309,00 € -15,45 €',
+    'Descuento sobre consumo 10% 10 % s/309,00 € -30,90 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 29 días 0,60 €',
+    'Impuesto sobre electricidad 18,47 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 1,00 €',
+    'Protección eléctrica negocio 4,00 €','TOTAL SERVICIOS Y OTROS CONCEPTOS 5,00 €',
+    'IVA 21 % 71,17 €','TOTAL IMPORTE FACTURA 410,09 €',
+    'Energía activa P1 01/01/2024 100 30/01/2024 200 100 kWh',
+    'Energía activa P2 01/01/2024 200 30/01/2024 400 200 kWh',
+    'Energía activa P3 01/01/2024 300 30/01/2024 600 300 kWh',
+    'Energía activa P4 01/01/2024 400 30/01/2024 800 400 kWh',
+    'Energía activa P5 01/01/2024 500 30/01/2024 750 250 kWh',
+    'Energía activa P6 01/01/2024 600 30/01/2024 895 295 kWh',
+    'Peaje de acceso a la red (ATR): 3.0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0001 AA',
+    'NIF: B00000001'
+  ]);
+}
+
+function modernThreeZeroThousands(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CON GARANTIA DE',
+    'CLIENTE SINTETICO MODERNO','Titular Potencia: C/ PRUEBA MODERNA, 2',
+    'Dirección de suministro: C/ PRUEBA MODERNA, 2 07000 CIUDAD (ILLES BALEARS)',
+    'Nº DE CONTRATO: 600000002','RESUMEN DE FACTURA',
+    'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/05/2026 - 31/05/2026 21260000000000102',
+    'DIAS FACTURADOS: 30','ENERGÍA 2.728,00 €','DESCUENTOS ENERGÍA -400,00 €',
+    'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,50 €',
+    'IVA 490,14 €','TOTAL 2.824,14 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada P1 10 kW x 30 días x 0,100000 €/kW día 30,00 €',
+    'P2 10 kW x 30 días x 0,080000 €/kW día 24,00 €',
+    'P3 10 kW x 30 días x 0,060000 €/kW día 18,00 €',
+    'P4 10 kW x 30 días x 0,040000 €/kW día 12,00 €',
+    'P5 10 kW x 30 días x 0,030000 €/kW día 9,00 €',
+    'P6 10 kW x 30 días x 0,020000 €/kW día 6,00 €',
+    'Total importe potencia hasta 31/05/2026 99,00 €',
+    'Energía consumida 12.345 kWh x 0,200000 €/kWh 2.469,00 €',
+    'Descuento sobre consumo 400,00 € -400,00 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 0,50 €',
+    'Energía reactiva P4 100 kVArh x 0,200000 €/kVArh 20,00 €',
+    'Total energía reactiva 20,00 €',
+    'Impuesto sobre electricidad 140,00 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 5,50 €',
+    'TOTAL SERVICIOS Y OTROS CONCEPTOS 5,50 €',
+    'IVA 21 % 490,14 €','TOTAL IMPORTE FACTURA 2.824,14 €',
+    'Energía activa P1 01/05/2026 1.000 31/05/2026 1.000 0 kWh',
+    'Energía activa P2 01/05/2026 2.000 31/05/2026 2.000 0 kWh',
+    'Energía activa P3 01/05/2026 3.000 31/05/2026 3.000 0 kWh',
+    'Energía activa P4 01/05/2026 4.000 31/05/2026 8.000 4.000 kWh',
+    'Energía activa P5 01/05/2026 5.000 31/05/2026 8.000 3.000 kWh',
+    'Energía activa P6 01/05/2026 6.000 31/05/2026 11.345 5.345 kWh',
+    'Peaje de acceso a la red (ATR): 3.0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0002 AA'
+  ]);
+}
+
+function twoZeroThousandsWithService(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
+    'CLIENTE SINTETICO DOS CERO','Titular Potencia: C/ PRUEBA DOS, 3',
+    'Dirección de suministro: C/ PRUEBA DOS, 3 07000 CIUDAD (ILLES BALEARS)',
+    'Nº DE CONTRATO: 600000003','RESUMEN DE FACTURA',
+    'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/06/2026 - 01/07/2026 21260000000000103',
+    'DIAS FACTURADOS: 30','ENERGÍA 211,75 €','DESCUENTOS ENERGÍA -17,93 €',
+    'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,00 €',
+    'IVA 41,86 €','TOTAL 241,18 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada Punta 5 kW x 30 días x 0,100000 €/kW día 15,00 €',
+    'Valle 5 kW x 30 días x 0,050000 €/kW día 7,50 €',
+    'Total importe potencia hasta 01/07/2026 22,50 €',
+    'Energía consumida 1.195 kWh x 0,150000 €/kWh 179,25 €',
+    'Descuento sobre consumo 10% 10 % s/179,25 € -17,93 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 0,50 €',
+    'Impuesto sobre electricidad 10,00 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 1,00 €',
+    'Servicio adicional sintético 4,00 €','TOTAL SERVICIOS Y OTROS CONCEPTOS 5,00 €',
+    'IVA 21 % 41,86 €','TOTAL IMPORTE FACTURA 241,18 €',
+    'Peaje de acceso a la red (ATR): 2.0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0003 AA',
+    'Sus consumos desagregados han sido punta: 235 kWh; llano: 142 kWh; valle 818 kWh.'
+  ]);
+}
+
+function referencedThreeZero(){
+  return doc([
+    'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
+    'CLIENTE SINTETICO REFERENCIADO','Titular Potencia: C/ PRUEBA INDEXADA, 4',
+    'Dirección de suministro: C/ PRUEBA INDEXADA, 4 07000 CIUDAD (ILLES BALEARS)',
+    'Nº DE CONTRATO: 600000004','RESUMEN DE FACTURA',
+    'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/07/2026 - 31/07/2026 21260000000000104',
+    'DIAS FACTURADOS: 30','ENERGÍA 108,30 €',
+    'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 1,00 €',
+    'IVA 23,06 €','TOTAL 132,86 €'
+  ],[
+    'DETALLE DE FACTURA','ENERGÍA',
+    'Potencia facturada peajes P1 10 kW x 30 días x 0,010000 €/kW día 3,00 €',
+    'P2 10 kW x 30 días x 0,009000 €/kW día 2,70 €',
+    'P3 10 kW x 30 días x 0,008000 €/kW día 2,40 €',
+    'P4 10 kW x 30 días x 0,007000 €/kW día 2,10 €',
+    'P5 10 kW x 30 días x 0,006000 €/kW día 1,80 €',
+    'P6 10 kW x 30 días x 0,005000 €/kW día 1,50 €',
+    'Total términos de potencia peajes 13,50 €',
+    'Potencia facturada (cargos) P1 10 kW x 30 días x 0,005000 €/kW día 1,50 €',
+    'P2 10 kW x 30 días x 0,004000 €/kW día 1,20 €',
+    'P3 10 kW x 30 días x 0,003000 €/kW día 0,90 €',
+    'P4 10 kW x 30 días x 0,002000 €/kW día 0,60 €',
+    'P5 10 kW x 30 días x 0,001000 €/kW día 0,30 €',
+    'P6 10 kW x 30 días x 0,001000 €/kW día 0,30 €',
+    'Total importes de potencia (cargos) 4,80 €',
+    'Energía Referenciada P1 100 kWh x 0,200000 €/kWh 20,00 €',
+    'P2 200 kWh x 0,150000 €/kWh 30,00 €',
+    'P6 300 kWh x 0,100000 €/kWh 30,00 €',
+    'Total Energía Referenciada 80,00 €',
+    'Total exceso potencia 3,00 €','Total energía reactiva 2,00 €',
+    'CARGOS NORMATIVOS','Financiación bono social fijo 0,50 €',
+    'Impuesto sobre electricidad 5,00 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 1,00 €',
+    'TOTAL SERVICIOS Y OTROS CONCEPTOS 1,00 €',
+    'IVA 21 % 23,06 €','TOTAL IMPORTE FACTURA 132,86 €',
+    'Energía activa P1 01/07/2026 100 31/07/2026 200 100 kWh',
+    'Energía activa P2 01/07/2026 200 31/07/2026 400 200 kWh',
+    'Energía activa P3 01/07/2026 300 31/07/2026 300 0 kWh',
+    'Energía activa P4 01/07/2026 400 31/07/2026 400 0 kWh',
+    'Energía activa P5 01/07/2026 500 31/07/2026 500 0 kWh',
+    'Energía activa P6 01/07/2026 600 31/07/2026 900 300 kWh',
+    'Peaje de acceso a la red (ATR): 3.0TD',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0004 AA'
+  ]);
+}
+
+test('Iberdrola classic 3.0TD reads dotted thousands, old invoice label, repeated discounts and full services total',()=>{
+  const r=parser.parse(classicThreeZeroSingleRate(),{name:'classic-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.company,'CLIENTE SINTETICO CLASICO');
+  assert.equal(r.invoiceNumber,'21240000000000001');
+  assert.equal(r.kwh,1545);
+  assert.equal(r.energy,309);
+  assert.equal(r.power,52.2);
+  assert.equal(r.discounts,-46.35);
+  assert.equal(r.other,-40.75);
+  assert.equal(r.total,410.09);
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[100,200,300,400,250,295]);
+});
+
+test('Iberdrola modern 3.0TD reads thousands from meter rows and billed reactive separately',()=>{
+  const r=parser.parse(modernThreeZeroThousands(),{name:'modern-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.company,'CLIENTE SINTETICO MODERNO');
+  assert.equal(r.kwh,12345);
+  assert.equal(r.energy,2469);
+  assert.equal(r.power,99);
+  assert.equal(r.reactive,20);
+  assert.equal(r.total,2824.14);
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[0,0,0,4000,3000,5345]);
+});
+
+test('Iberdrola 2.0TD keeps dotted thousands as quantities and accounts for services beyond meter rental',()=>{
+  const r=parser.parse(twoZeroThousandsWithService(),{name:'2.0-thousands-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.kwh,1195);
+  assert.equal(r.energy,179.25);
+  assert.equal(r.power,22.5);
+  assert.equal(r.rental,1);
+  assert.equal(r.other,-12.43);
+  assert.equal(r.total,241.18);
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption],[235,142,818]);
+});
+
+test('Iberdrola referenced 3.0TD combines toll and charge power, excess and reactive without inventing missing periods',()=>{
+  const r=parser.parse(referencedThreeZero(),{name:'referenced-synthetic.pdf'});
+  assert.equal(r.readOk,true,JSON.stringify(r));
+  assert.equal(r.energyPricingMode,'referenced_periods');
+  assert.equal(r.kwh,600);
+  assert.equal(r.energy,80);
+  assert.equal(r.power,18.3);
+  assert.equal(r.excess,3);
+  assert.equal(r.reactive,2);
+  assert.equal(r.total,132.86);
+  assert.equal(r.diff,0);
+  assert.deepEqual([r.periods.P1.consumption,r.periods.P2.consumption,r.periods.P3.consumption,r.periods.P4.consumption,r.periods.P5.consumption,r.periods.P6.consumption],[100,200,0,0,0,300]);
+});
