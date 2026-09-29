@@ -173,6 +173,12 @@ test('El progreso masivo no incrusta el texto del histórico en su propio estado
 });
 
 
+test('Los motivos de no guardado del histórico se muestran en español claro',()=>{
+ assert(source.includes("existing_invoice_differs:'ya existen en el histórico con datos distintos'"));
+ assert(source.includes('no guardadas${skipSummary(skipReasons)}'));
+ assert(!source.includes('omitidas${skipSummary(skipReasons)}'));
+});
+
 test('Los motivos de revisión histórica se traducen a lenguaje útil',()=>{
  const reasons=plain(ctx.api.reviewReasons({
   power_price_components:'unreliable',
