@@ -4,7 +4,7 @@
   else root.IBTIberdrolaParser=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const REVISION='2026.09.29.4';
+  const REVISION='2026.09.29.5';
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const clean=s=>String(s??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   function canonicalText(value){
@@ -52,6 +52,19 @@
   function repairDateTokens(value){
     const fix=s=>String(s||'').replace(/\s+/g,'').replace(/[Oo]/g,'0').replace(/[Il]/g,'1');
     return String(value||'').replace(/([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*([0-9OIl](?:\s*[0-9OIl])?)\s*\/\s*(\d{4})/g,(m,d,mo,y)=>`${fix(d).padStart(2,'0')}/${fix(mo).padStart(2,'0')}/${y}`);
+  }
+  function labelOcrText(value){
+    return String(value||'')
+      .replace(/\bdesagrega\s+dos\b/gi,'desagregados')
+      .replace(/\bsi\s+do\b/gi,'sido')
+      .replace(/\bva\s+l\s+le\b/gi,'valle')
+      .replace(/\blla\s+no\b/gi,'llano')
+      .replace(/\bT\s+OTAL\b|\bTOT\s+AL\b/gi,'TOTAL')
+      .replace(/\bSERVI\s+CIOS\b/gi,'SERVICIOS')
+      .replace(/\bOTR\s+OS\b/gi,'OTROS')
+      .replace(/\bCO\s+NC\s+EPTOS\b/gi,'CONCEPTOS')
+      .replace(/\bequi\s+pos\b/gi,'equipos')
+      .replace(/\bNORMATIV\s+OS\b/gi,'NORMATIVOS');
   }
   const moneyVals=s=>[...String(s||'').matchAll(/(?<!\d)(-?\s*(?:(?:\d\s*){1,4}|(?:\d\s*){1,3}(?:(?:\.\s*)(?:\d\s*){3})+),\s*(?:\d\s*){2})\s*(?:Duplicado\s*)?€(?!\s*\/)/gi)].map(m=>num(m[1])).filter(v=>v!=null);
   const lastMoney=s=>{const v=moneyVals(s);return v.length?v.at(-1):null;};
@@ -249,7 +262,7 @@
       if(/^2\.0TD$/i.test(tariff)){
         let breakdown=null;
         for(const row of all.flat()){
-          const loose=numericOcrText(row.text).replace(/desagrega\s+dos/gi,'desagregados').replace(/va\s+l\s+le/gi,'valle').replace(/lla\s+no/gi,'llano');
+          const loose=labelOcrText(numericOcrText(row.text));
           const b=loose.match(/consumos\s+desagregados\s+han\s+sido\s+punta\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*llano\s*:\s*([\d.]+(?:,\d+)?)\s*kWh\s*;?\s*valle\s*:?\s*([\d.]+(?:,\d+)?)\s*kWh/i);
           if(b){breakdown={P1:qty(b[1]),P2:qty(b[2]),P3:qty(b[3])};break;}
         }
@@ -307,10 +320,11 @@
     return{energy:labelledAmount(rows,/^ENERG[IÍ]A\b/i),discount:labelledAmount(rows,/DESCUENTOS\s+ENERG[IÍ]A/i),normative:labelledAmount(rows,/CARGOS\s+NORMATIVOS/i),services:labelledAmount(rows,/SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),vat:labelledAmount(rows,/^IVA\b/i),total:scopedTotal??pageTotal};
   }
   function parseDetailConcepts(p2){
-    const discountRows=p2.filter(r=>/Descuento\s+sobre\b/i.test(r.text)&&rowAmount(r)!=null),discount=discountRows.length?round2(discountRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
-    const tax=labelledAmount(p2,/Impuesto\s+sobre\s+electricidad/i),rental=labelledAmount(p2,/Alquiler\s+equipos?\s+medida/i),servicesTotal=labelledAmount(p2,/TOTAL\s+SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),total=labelledAmount(p2,/TOTAL\s+IMPORTE\s+FACTURA/i);
-    const vatRows=p2.filter(r=>/^IVA(?:\s|\()/i.test(r.text)&&rowAmount(r)!=null),vat=vatRows.length?round2(vatRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
-    const socialRows=p2.filter(r=>/Financiaci[oó]n\s+bono\s+social/i.test(r.text)&&rowAmount(r)!=null),social=socialRows.length?round2(socialRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
+    const rows=p2.map(r=>({...r,text:labelOcrText(r.text)}));
+    const discountRows=rows.filter(r=>/Descuento\s+sobre\b/i.test(r.text)&&rowAmount(r)!=null),discount=discountRows.length?round2(discountRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
+    const tax=labelledAmount(rows,/Impuesto\s+sobre\s+electricidad/i),rental=labelledAmount(rows,/Alquiler\s+equipos?\s+medida/i),servicesTotal=labelledAmount(rows,/TOTAL\s+SERVICIOS\s+Y\s+OTROS\s+CONCEPTOS/i),total=labelledAmount(rows,/TOTAL\s+IMPORTE\s+FACTURA/i);
+    const vatRows=rows.filter(r=>/^IVA(?:\s|\()/i.test(r.text)&&rowAmount(r)!=null),vat=vatRows.length?round2(vatRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
+    const socialRows=rows.filter(r=>/Financiaci[oó]n\s+bono\s+social/i.test(r.text)&&rowAmount(r)!=null),social=socialRows.length?round2(socialRows.reduce((s,r)=>s+Number(rowAmount(r)||0),0)):null;
     return{discount,social,tax,rental,services:servicesTotal??rental,vat,total};
   }
   function parseFneeRegularization(rows){
@@ -347,5 +361,5 @@
     let issueDate='';const idate=text.match(/FECHA\s+DE\s+EMISION(?:\s+DE\s+FACTURA)?\s*:?[^\n]*?(?:\n[^\n]*?)?\b(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/i);if(idate)issueDate=`${idate[3]}-${MONTHS[idate[2].toLowerCase()]||''}-${String(idate[1]).padStart(2,'0')}`;
     return{file:file?.name||'',invoiceNumber:invoice,company,cups,period:period.label,tariff,kwh:energy.kwh,energy:energy.energy,power:power.value,excess:excessCost??0,reactive:reactiveCost??0,compensation:0,social:social??0,rental,integratorAdjustment:0,regularizationReactive:0,fneeRegularization:fneeRegularization??0,other,tax,vat,igic:0,distributorCharges:0,total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':`Falta o revisar: ${missing.join(', ')}`,readingStatus:reading.status,readingSourceLabel:reading.sourceLabel||'',avg:energy.kwh&&total?total/energy.kwh:0,opportunity:'Sin alertas',periods:energy.periods,contracted,maximeters:mx,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:power,energyPricingMode:energy.pricingMode,sourceFormat:'iberdrola',supplier:'IBERDROLA CLIENTES, S.A.U.',retailer:'IBERDROLA CLIENTES, S.A.U.',commercializer:'IBERDROLA CLIENTES, S.A.U.',taxId,supplyAddress:addr,supplyCity:place.city,supplyProvince:place.province,contract,contractNumber:contract,accessContract,distributor,renewalDate,permanence,meterNumber,issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,discounts,reactivePeriods:parseReactive(all,'Energ[ií]a\\s+reactiva'),capacitivePeriods:parseReactive(all,'Energ[ií]a\\s+capacitiva'),activeReadings:active,validation:checks};
   }
-  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,numericOcrText,repairDateTokens,rowsFromItems,rowsFromLines,parsePower,parseEnergy,parseSummary,parseDetailConcepts,parseFneeRegularization,parseExcessCost,periodInfo,invoiceNumber}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,numericOcrText,repairDateTokens,labelOcrText,rowsFromItems,rowsFromLines,parsePower,parseEnergy,parseSummary,parseDetailConcepts,parseFneeRegularization,parseExcessCost,periodInfo,invoiceNumber}});
 });

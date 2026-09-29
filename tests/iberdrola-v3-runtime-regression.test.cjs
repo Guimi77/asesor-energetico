@@ -613,17 +613,17 @@ function degradedLegacyTwoZero(){
     'Total importe potencia hasta 18/02/2024 14,85 €',
     'Energía consumida 1.836,88 kWh x 0,218297 €/kWh 400,99 €',
     'Descuento sobre consumo 15% 15% s/87,72 € -1 3, 16 €',
-    'CARGOS NORMATIVOS','Financiación bono social fijo 32 días x 0,006282 €/día 0,20 €',
+    'CARGOS NORMATIV OS','Financiación bono social fijo 32 días x 0,006282 €/día 0,20 €',
     'Impuesto sobre electricidad 2,5% s/402,88 € 10 , 07 €',
-    'TOTAL ENERGÍA 41 2, 95 €',
-    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equipos medida 32 días x 0,02655738 €/día 0,85 €',
+    'TOT AL ENERGÍA 41 2, 95 €',
+    'SERVICIOS Y OTROS CONCEPTOS','Alquiler equi pos medida 32 días x 0,02655738 €/día 0,85 €',
     'Servicio sintético 1,07 meses x 1,09 €/mes 1 ,1 7 €',
-    'TOTAL SERVICIOS Y OTROS CONCEPTOS 2, 02 €',
+    'T OTAL SERVI CIOS Y OTR OS CO NC EPTOS 2, 02 €',
     'IMPORTE TOTAL 414,97 €','IVA Reducido (*) 10 % s/413,8 € 41,38 €','IVA 21 % s/1,17 € 0, 25 €',
     'TOTAL IMPORTE FACTURA 456 , 60 €',
     'Peaje de acceso a la red (ATR): 2. 0TD',
     'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0006 AA',
-    'Sus consumos desagrega dos han sido punta: 343,73 kWh; llano: 392,43 kWh; va l le 1.100,72 kWh.'
+    'es tas lecturas reales. Sus consumos desagrega dos han si do punta: 343,73 kWh; llano: 392,43 kWh; va l le 1.100,72 kWh.'
   ]);
 }
 
@@ -637,6 +637,8 @@ test('Iberdrola legacy OCR repairs spaced dates and monetary digits without rela
   assert.equal(r.energy,400.99);
   assert.equal(r.kwh,1836.88);
   assert.equal(r.discounts,-13.16);
+  assert.equal(r.rental,0.85);
+  assert.equal(r.other,-10.94);
   assert.equal(r.vat,41.63);
   assert.equal(r.total,456.6);
   assert.equal(r.diff,0);
@@ -659,4 +661,14 @@ test('Iberdrola summary total can come from the invoice header before the summar
 test('Iberdrola extraordinary rights invoices remain fail-closed until their dedicated variant exists',()=>{
   const d=doc(['FACTURA','EXTRAORDINARIA','IBERDROLA CLIENTES, S.A.U.','RESUMEN DE FACTURA','Derechos de enganche 9,04 €','Derechos de acceso 100,00 €','TOTAL IMPORTE FACTURA 131,94 €','ELECTRICIDAD']);
   assert.equal(parser.detect(d),false);
+});
+
+
+test('Iberdrola label OCR repair is limited to known fragmented billing words',()=>{
+  const fixed=parser._test.labelOcrText('T OTAL SERVI CIOS Y OTR OS CO NC EPTOS · Alquiler equi pos medida · consumos desagrega dos han si do · va l le');
+  assert.match(fixed,/TOTAL SERVICIOS Y OTROS CONCEPTOS/);
+  assert.match(fixed,/Alquiler equipos medida/);
+  assert.match(fixed,/consumos desagregados han sido/);
+  assert.match(fixed,/valle/);
+  assert.equal(parser._test.labelOcrText('CLIENTE PRUEBA PARTIDO'),'CLIENTE PRUEBA PARTIDO');
 });
