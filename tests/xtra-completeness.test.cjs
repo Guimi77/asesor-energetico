@@ -103,15 +103,16 @@ test('2.0TD reactive absence is not fabricated as zero measured reactive detail'
  assert(source.includes("const reactiveApplicable=!/^2\\.0TD$/i.test(tariff);"));
  assert(source.includes("reactiveApplicable?'unreliable':'not_applicable'"));
 });
-test('Endesa compara modelo portable y legado en sombra sin cambiar aún la persistencia',()=>{
+test('Endesa usa el modelo portable solo con paridad total y conserva fallback legacy',()=>{
  assert(source.includes('const ENDESA_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function endesaHistoryFromNormalized(model,file)'));
  assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
  assert(source.includes('const row=formats.parseEndesa(d,file,options),legacy=extractEndesaLegacy(d,file,row)'));
- assert(source.includes('formats.normalizeEndesaRow(row,options)'));
- assert(source.includes('recordEndesaHistoryShadow(legacy,endesaHistoryFromNormalized(model,file))'));
- assert(source.includes('function extractEndesaLegacy(d,file,rowOverride=null)'));
- assert(source.includes('return legacy;'));
+ assert(source.includes('formats.normalizeEndesaRow(row,options),portable=endesaHistoryFromNormalized(model,file),comparison=compareFenieHistoryModels(legacy,portable)'));
+ assert(source.includes('recordEndesaHistoryShadow(legacy,portable)'));
+ assert(source.includes('return comparison.ok?portable:legacy;'));
+ assert(source.includes("recordEndesaHistoryShadow(legacy,null,new Error('normalizeEndesaRow no disponible'));return legacy"));
+ assert(source.includes('catch(error){recordEndesaHistoryShadow(legacy,null,error);return legacy}'));
  assert(source.includes("el.textContent='ENDESA portable: '+summary.matched+'/'+summary.checked+' coinciden · '+summary.mismatches+' diferencias'"));
  assert(source.includes('endesaShadowSummary:endesaHistoryShadowSummary'));
 });
