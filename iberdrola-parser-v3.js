@@ -59,7 +59,7 @@
       .replace(/\bsi\s+do\b/gi,'sido')
       .replace(/\bva\s+l\s+le\b/gi,'valle')
       .replace(/\blla\s+no\b/gi,'llano')
-      .replace(/\bTOT\s+AL\b/gi,'TOTAL')
+      .replace(/\bT\s+OTAL\b|\bTOT\s+AL\b/gi,'TOTAL')
       .replace(/\bSERVI\s+CIOS\b/gi,'SERVICIOS')
       .replace(/\bOTR\s+OS\b/gi,'OTROS')
       .replace(/\bCO\s+NC\s+EPTOS\b/gi,'CONCEPTOS')
