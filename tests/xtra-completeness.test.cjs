@@ -8,6 +8,8 @@ const compactCss=fs.readFileSync('ui-compact.css','utf8');
 const compactJs=fs.readFileSync('ui-compact.js','utf8');
 const folderUpload=fs.readFileSync('folder-upload.js','utf8');
 const bulkPerformance=fs.readFileSync('bulk-performance.js','utf8');
+const appSource=fs.readFileSync('app.js','utf8');
+const refreshPolicySql=fs.readFileSync('supabase/migrations/20260929074500_refresh_improved_or_rectified_invoices.sql','utf8');
 const beforePdf=source.slice(0,source.indexOf('async function readPdf')).replace(/^import[^\n]*\n/gm,'').replace(/^pdfjsLib\.GlobalWorkerOptions[^\n]*\n/gm,'');
 const ctx={document:{querySelector:()=>null},Number,Math,String,RegExp};
 vm.createContext(ctx);
@@ -174,9 +176,29 @@ test('El progreso masivo no incrusta el texto del histórico en su propio estado
 
 
 test('Los motivos de no guardado del histórico se muestran en español claro',()=>{
- assert(source.includes("existing_invoice_differs:'ya existen en el histórico con datos distintos'"));
+ assert(source.includes("existing_invoice_differs:'diferencias con el histórico que requieren revisión'"));
  assert(source.includes('no guardadas${skipSummary(skipReasons)}'));
  assert(!source.includes('omitidas${skipSummary(skipReasons)}'));
+});
+
+test('El histórico refresca lecturas mejoradas sin depender de la comercializadora',()=>{
+ assert(appSource.includes("const PARSER_VERSION='2026.09.29.1';"));
+ assert(refreshPolicySql.includes("private.parser_version_is_newer"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'better_completeness'"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));
+ assert(refreshPolicySql.includes("v_refresh_reason := 'newer_parser'"));
+ assert(refreshPolicySql.includes("v_result := public.upsert_xtra_energy_history_legacy(p_payload)"));
+ assert(refreshPolicySql.includes("'invoice_refreshed'"));
+ assert(refreshPolicySql.includes("'mode','existing_refreshed'"));
+});
+
+test('Una factura rectificada posterior puede sustituir la anterior aunque cambie el consumo',()=>{
+ assert(refreshPolicySql.includes("v_supersession_reason := 'same_supply_period_later_issue_date'"));
+ assert(refreshPolicySql.includes("v_issue_date > i.issue_date"));
+ assert(refreshPolicySql.includes("i.billing_start=v_billing_start"));
+ assert(refreshPolicySql.includes("i.billing_end=v_billing_end"));
+ assert(refreshPolicySql.includes("superseded_by=v_new_invoice"));
+ assert(refreshPolicySql.includes("'invoice_superseded'"));
 });
 
 test('Los motivos de revisión histórica se traducen a lenguaje útil',()=>{
