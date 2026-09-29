@@ -120,7 +120,7 @@
     };
     const usable=t=>{
       const s=dedupe(t);
-      return !!s&&!banned.test(s)&&!/^C\/?|^AV(?:DA)?\.?\b|^P(?:L|Z)ZA\b/i.test(s)&&!/\d/.test(s)&&nameRe.test(s);
+      return !!s&&!banned.test(s)&&!/^(?:C\/|C\.|CALLE\b|AV(?:DA)?\.?\b|P(?:L|Z)ZA\b|PSEO\b|PASEO\b|CTRA\b)/i.test(s)&&!/\d/.test(s)&&nameRe.test(s);
     };
     // Some classic invoices carry the legal name directly after the Titular label.
     for(const raw of texts){
