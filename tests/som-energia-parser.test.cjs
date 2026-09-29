@@ -6,7 +6,6 @@ const parser=require('../som-energia-parser.js');
 function sample(){
   const p1=[
     'Som Energia, SCCL',
-    'CIF: F00000000',
     'Comercialitzadora del Mercat Lliure',
     'DADES DE LA FACTURA',
     'IMPORT DE LA FACTURA: 54,35 €',
@@ -14,7 +13,7 @@ function sample(){
     'Data de la factura: 14/05/2026',
     'Període facturat: del 01/04/2026 al 30/04/2026',
     'Núm. de contracte: 600000001',
-    'Adreça de subministrament: C/ EXEMPLE, 1 07001 (PALMA)',
+    'Adreça de subministrament: C/ EJEMPLO, 1 07001 (PALMA)',
     'DADES DE LA TITULARITAT',
     'Nom del / de la titular del contracte: CLIENTE PRUEBA ALFA',
     'NIF/CIF: 00000001R',
