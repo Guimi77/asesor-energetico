@@ -35,6 +35,7 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('repsol-parser.js');
   assertCacheToken('uenergia-parser.js');
   assertCacheToken('naturgy-parser.js');
+  assertCacheToken('som-energia-parser.js');
   assertCacheToken('parser-audit.js');
   assertCacheToken('bulk-performance.js');
   assertCacheToken('auth-bootstrap.js');
