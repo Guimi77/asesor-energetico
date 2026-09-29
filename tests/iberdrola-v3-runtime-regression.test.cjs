@@ -308,7 +308,7 @@ function classicThreeZeroSingleRate(){
     'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','PLAN ESTABLE',
     'CLIENTE SINTETICO CLASICO','Titular C/ PRUEBA CLASICA, 1','07000 CIUDAD (ILLES BALEARS)',
     'Dirección de suministro:','C/ PRUEBA CLASICA, 1 07000 CIUDAD (ILLES BALEARS)',
-    'Número de factura 21240000000000001','Nº DE CONTRATO: 600000101',
+    'Número de factura 21240000000000001','Nº DE CONTRATO: 600000001',
     'RESUMEN DE FACTURA','PERIODO DE FACTURACIÓN: 01/01/2024 - 30/01/2024',
     'DIAS FACTURADOS: 29','ENERGÍA 379,67 €','DESCUENTOS ENERGÍA -46,35 €',
     'CARGOS NORMATIVOS 0,60 €','SERVICIOS Y OTROS CONCEPTOS 5,00 €',
@@ -337,7 +337,7 @@ function classicThreeZeroSingleRate(){
     'Energía activa P5 01/01/2024 500 30/01/2024 750 250 kWh',
     'Energía activa P6 01/01/2024 600 30/01/2024 895 295 kWh',
     'Peaje de acceso a la red (ATR): 3.0TD',
-    'Identificación punto de suministro (CUPS): ES 1111 1111 1111 1101 AA',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0001 AA',
     'NIF: B00000001'
   ]);
 }
@@ -347,7 +347,7 @@ function modernThreeZeroThousands(){
     'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.','CON GARANTIA DE',
     'CLIENTE SINTETICO MODERNO','Titular Potencia: C/ PRUEBA MODERNA, 2',
     'Dirección de suministro: C/ PRUEBA MODERNA, 2 07000 CIUDAD (ILLES BALEARS)',
-    'Nº DE CONTRATO: 600000102','RESUMEN DE FACTURA',
+    'Nº DE CONTRATO: 600000002','RESUMEN DE FACTURA',
     'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/05/2026 - 31/05/2026 21260000000000102',
     'DIAS FACTURADOS: 30','ENERGÍA 2.728,00 €','DESCUENTOS ENERGÍA -400,00 €',
     'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,50 €',
@@ -377,7 +377,7 @@ function modernThreeZeroThousands(){
     'Energía activa P5 01/05/2026 5.000 31/05/2026 8.000 3.000 kWh',
     'Energía activa P6 01/05/2026 6.000 31/05/2026 11.345 5.345 kWh',
     'Peaje de acceso a la red (ATR): 3.0TD',
-    'Identificación punto de suministro (CUPS): ES 1111 1111 1111 1102 AA'
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0002 AA'
   ]);
 }
 
@@ -386,7 +386,7 @@ function twoZeroThousandsWithService(){
     'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
     'CLIENTE SINTETICO DOS CERO','Titular Potencia: C/ PRUEBA DOS, 3',
     'Dirección de suministro: C/ PRUEBA DOS, 3 07000 CIUDAD (ILLES BALEARS)',
-    'Nº DE CONTRATO: 600000103','RESUMEN DE FACTURA',
+    'Nº DE CONTRATO: 600000003','RESUMEN DE FACTURA',
     'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/06/2026 - 01/07/2026 21260000000000103',
     'DIAS FACTURADOS: 30','ENERGÍA 211,75 €','DESCUENTOS ENERGÍA -17,93 €',
     'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 5,00 €',
@@ -404,7 +404,7 @@ function twoZeroThousandsWithService(){
     'Servicio adicional sintético 4,00 €','TOTAL SERVICIOS Y OTROS CONCEPTOS 5,00 €',
     'IVA 21 % 41,86 €','TOTAL IMPORTE FACTURA 241,18 €',
     'Peaje de acceso a la red (ATR): 2.0TD',
-    'Identificación punto de suministro (CUPS): ES 1111 1111 1111 1103 AA',
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0003 AA',
     'Sus consumos desagregados han sido punta: 235 kWh; llano: 142 kWh; valle 818 kWh.'
   ]);
 }
@@ -414,7 +414,7 @@ function referencedThreeZero(){
     'FACTURA DE','ELECTRICIDAD','IBERDROLA CLIENTES, S.A.U.',
     'CLIENTE SINTETICO REFERENCIADO','Titular Potencia: C/ PRUEBA INDEXADA, 4',
     'Dirección de suministro: C/ PRUEBA INDEXADA, 4 07000 CIUDAD (ILLES BALEARS)',
-    'Nº DE CONTRATO: 600000104','RESUMEN DE FACTURA',
+    'Nº DE CONTRATO: 600000004','RESUMEN DE FACTURA',
     'PERIODO DE FACTURACIÓN: Nº FACTURA:','01/07/2026 - 31/07/2026 21260000000000104',
     'DIAS FACTURADOS: 30','ENERGÍA 108,30 €',
     'CARGOS NORMATIVOS 0,50 €','SERVICIOS Y OTROS CONCEPTOS 1,00 €',
@@ -452,7 +452,7 @@ function referencedThreeZero(){
     'Energía activa P5 01/07/2026 500 31/07/2026 500 0 kWh',
     'Energía activa P6 01/07/2026 600 31/07/2026 900 300 kWh',
     'Peaje de acceso a la red (ATR): 3.0TD',
-    'Identificación punto de suministro (CUPS): ES 1111 1111 1111 1104 AA'
+    'Identificación punto de suministro (CUPS): ES 0000 0000 0000 0004 AA'
   ]);
 }
 
