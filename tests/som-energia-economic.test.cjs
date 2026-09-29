@@ -41,3 +41,30 @@ test('pago público explícito se clasifica sin alterar el coste',()=>{
  assert.equal(p.length,1);
  assert.equal(p[0].amountEur,10);
 });
+
+
+test('detalle económico tolera importes partidos por PDF.js',()=>{
+ const split=[
+  'Bo social 31 dies x 0,006282 €/dia 0,19 € 21%',
+  'Electricitat excedentària [kWh] -32,12 -34,26 -41,25',
+  'Compensació','per',
+  'Preu energia [€/kWh] 0,03 0,03 0,03',
+  'electricitat',
+  'excedentària kWh x €/kWh (periode prova) -0,96 € -1,03 € -1,24 € (1) 21%',
+  '-3,23 €',
+  "Serveis d'Ajust segons preu REE pel periode facturat (2) 21%",
+  '3,75 €',
+  'Impost de','39,76 € x 5,11269% 2,03 € 21%',"l'electricitat",
+  'Lloguer de','31 dies x 0,02663 €/dia 0,83 € 21%','comptador',
+  'IVA 21% 42,62 € (BASE IMPOSABLE) 8,95 €',
+  'TOTAL FACTURA 51,57 €'
+ ].join('\n');
+ const r=parser._test.parseFinancials(split,split.split('\n'),{energy:22.99},{total:16.06});
+ assert.equal(r.adjustment,3.75);
+ assert.equal(r.compensation.total,-3.23);
+ assert.equal(r.compensation.periods.P1.amount,-0.96);
+ assert.equal(r.compensation.periods.P3.amount,-1.24);
+ assert.equal(r.accounted,51.57);
+ assert.equal(r.diff,0);
+ assert.equal(r.balanced,true);
+});
