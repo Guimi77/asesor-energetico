@@ -35,7 +35,12 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  assert(ui.includes("actual:'Real confirmada'"));
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
- assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
+ const aggregate=chunk(ui,'  function aggregateMonthly','  // Coverage presentation');
+ assert(aggregate.includes("x.kwh += n(r.consumption_kwh)"));
+ assert(aggregate.includes("x.eur += n(r.total_eur)"));
+ assert(aggregate.includes("invoice_compensation_periods"));
+ assert(aggregate.includes("x.exportedKwh +="));
+ assert(aggregate.includes("x.compensationEur += compensation"));
  assert.equal(chunk(ui,'  function powerSignature','  function rowDetail'),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail'));
  const fetch=chunk(ui,'  async function fetchRecords','  function supplyById');
  for(const token of [
