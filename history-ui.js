@@ -397,6 +397,7 @@
       invoice_maximeters(period,maximeter_kw,reliable,source),
       invoice_excesses(period,excess_kw,amount_eur),
       invoice_reactive(period,reactive_kvarh,amount_eur),
+      invoice_compensation_periods(period,exported_kwh,unit_price_eur_kwh,amount_eur,vat_rate_pct),
       invoice_adjustments(concept,amount_eur,category)
     `).in('supply_id', supplyIds).order('billing_start', { ascending: true });
     const from = $('#historyFrom')?.value;
@@ -637,15 +638,17 @@
     const energy = [...(r.invoice_energy_periods || [])].sort((a,b)=>a.period-b.period);
     const power = [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period);
     const max = [...(r.invoice_maximeters || [])].sort((a,b)=>a.period-b.period);
+    const compensation = [...(r.invoice_compensation_periods || [])].sort((a,b)=>a.period-b.period);
     const adjustments = r.invoice_adjustments || [];
     const energyTable = energy.length ? `<table class="history-mini-table"><thead><tr><th>Periodo</th><th>kWh</th><th>€/kWh</th><th>Coste €</th></tr></thead><tbody>${energy.map(x=>`<tr><td>P${x.period}</td><td>${qty(x.consumption_kwh)}</td><td>${qty(x.unit_price_eur_kwh,6)}</td><td>${money(x.energy_cost_eur)}</td></tr>`).join('')}</tbody></table>` : '<div class="history-empty">Sin detalle P1-P6 de energía.</div>';
     const maxMap = new Map(max.map(x=>[x.period,x]));
     const powerTable = power.length ? `<table class="history-mini-table"><thead><tr><th>Periodo</th><th>Contratada kW</th><th>Maxímetro kW</th><th>Coste €</th></tr></thead><tbody>${power.map(x=>`<tr><td>P${x.period}</td><td>${qty(x.contracted_kw,3)}</td><td>${maxMap.has(x.period)?qty(maxMap.get(x.period).maximeter_kw,3):'—'}</td><td>${money(x.billed_power_eur)}</td></tr>`).join('')}</tbody></table>` : '<div class="history-empty">Sin detalle de potencia.</div>';
+    const compensationTable = compensation.length ? `<table class="history-mini-table"><thead><tr><th>Periodo</th><th>Excedentes kWh</th><th>€/kWh</th><th>Compensación €</th><th>IVA %</th></tr></thead><tbody>${compensation.map(x=>`<tr><td>P${x.period}</td><td>${qty(x.exported_kwh)}</td><td>${qty(x.unit_price_eur_kwh,6)}</td><td>${money(x.amount_eur)}</td><td>${x.vat_rate_pct==null?'—':qty(x.vat_rate_pct,2)}</td></tr>`).join('')}</tbody></table>` : '<div class="history-empty">Sin detalle de compensación por excedentes.</div>';
     const extras = [
       ['Excesos', r.excess_cost_eur], ['Reactiva', r.reactive_cost_eur], ['Compensación', r.compensation_eur], ['Bono social', r.social_bonus_eur], ['Alquiler contador', r.meter_rental_eur], ['Derechos distribuidora', r.distributor_charges_eur], ['Impuesto electricidad', r.electricity_tax_eur], ['IVA', r.vat_eur], ['IGIC', r.igic_eur], ['Otros', r.other_cost_eur]
     ].filter(([,v])=>Math.abs(n(v))>0.0001);
     const extraHtml = `<div>${extras.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #e3e9f0"><span>${esc(k)}</span><strong>${money(v)} €</strong></div>`).join('') || '<div class="history-empty">Sin conceptos adicionales.</div>'}${adjustments.map(a=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #e3e9f0"><span>${esc(a.concept)}</span><strong>${money(a.amount_eur)} €</strong></div>`).join('')}</div>`;
-    return `<div class="history-detail"><div class="history-section-head"><div><strong>${esc(r.invoice_number)}</strong> · ${dateES(r.billing_start)} – ${dateES(r.billing_end)}<div class="history-scope">Lectura: ${esc(readingLabel(r))}</div></div><span class="history-pill">${esc(r.tariff||'—')}</span></div><div class="history-detail-grid"><div><h4>Energía por periodos</h4>${energyTable}</div><div><h4>Potencia y maxímetros</h4>${powerTable}</div><div><h4>Otros conceptos</h4>${extraHtml}</div></div></div>`;
+    return `<div class="history-detail"><div class="history-section-head"><div><strong>${esc(r.invoice_number)}</strong> · ${dateES(r.billing_start)} – ${dateES(r.billing_end)}<div class="history-scope">Lectura: ${esc(readingLabel(r))}</div></div><span class="history-pill">${esc(r.tariff||'—')}</span></div><div class="history-detail-grid"><div><h4>Energía por periodos</h4>${energyTable}</div><div><h4>Potencia y maxímetros</h4>${powerTable}</div><div><h4>Compensación de excedentes</h4>${compensationTable}</div><div><h4>Otros conceptos</h4>${extraHtml}</div></div></div>`;
   }
 
   function renderRecommendations(records) {
