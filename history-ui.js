@@ -424,10 +424,16 @@
     for (const r of records) {
       const key = monthKey(r.billing_end || r.billing_start);
       if (!key) continue;
-      if (!map.has(key)) map.set(key, { key, kwh:0, eur:0 });
+      if (!map.has(key)) map.set(key, { key, kwh:0, eur:0, exportedKwh:0, compensationEur:0, hasCompensation:false, compensationDetailComplete:true });
       const x = map.get(key);
       x.kwh += n(r.consumption_kwh);
       x.eur += n(r.total_eur);
+      const detail = Array.isArray(r.invoice_compensation_periods) ? r.invoice_compensation_periods : [];
+      const compensation = n(r.compensation_eur);
+      x.exportedKwh += detail.reduce((sum,item)=>sum+n(item.exported_kwh),0);
+      x.compensationEur += compensation;
+      if (detail.length || compensation !== 0) x.hasCompensation = true;
+      if (compensation !== 0 && !detail.length) x.compensationDetailComplete = false;
     }
     return [...map.values()].sort((a,b) => a.key.localeCompare(b.key));
   }
@@ -457,6 +463,9 @@
       const missingKwh = rows.filter(r => !numeric(r.consumption_kwh)).length;
       const missingEur = rows.filter(r => !numeric(r.total_eur)).length;
       result.push({ key, kwh: rows.length && !missingKwh ? total.kwh : null, eur: rows.length && !missingEur ? total.eur : null,
+        exportedKwh: rows.length ? (total.compensationDetailComplete ? total.exportedKwh : null) : null,
+        compensationEur: rows.length ? total.compensationEur : null,
+        hasCompensation: !!total.hasCompensation,
         supplies: ids.length, supplySet: JSON.stringify(ids), records: rows.length, missingKwh, missingEur,
         zeroRecords: rows.filter(r => numeric(r.consumption_kwh) && Number(r.consumption_kwh) === 0).length });
       let y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) + 1;
@@ -536,7 +545,8 @@
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
     const scaleNote = '';
-    return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${field === 'kwh' ? 'Consumo registrado por mes' : 'Gasto registrado por mes'}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}${scaleNote}</svg>`;
+    const ariaLabel = ({kwh:'Consumo registrado por mes',eur:'Gasto registrado por mes',exportedKwh:'Excedentes compensados por mes',compensationEur:'Compensación económica por mes'})[field] || 'Evolución mensual';
+    return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${ariaLabel}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}${scaleNote}</svg>`;
   }
 
   // Rendered with the other charts, from the same filtered numeric records.
@@ -670,6 +680,11 @@
     const chartPoints = coverageView.points;
     const totalKwh = records.reduce((s,r)=>s+n(r.consumption_kwh),0);
     const totalEur = records.reduce((s,r)=>s+n(r.total_eur),0);
+    const compensationRecords = records.filter(r => (Array.isArray(r.invoice_compensation_periods) && r.invoice_compensation_periods.length) || n(r.compensation_eur) !== 0);
+    const hasCompensation = compensationRecords.length > 0;
+    const compensationDetailComplete = compensationRecords.every(r => n(r.compensation_eur) === 0 || (Array.isArray(r.invoice_compensation_periods) && r.invoice_compensation_periods.length));
+    const totalExportedKwh = compensationRecords.reduce((sum,r)=>sum+(r.invoice_compensation_periods||[]).reduce((s,item)=>s+n(item.exported_kwh),0),0);
+    const totalCompensationEur = compensationRecords.reduce((sum,r)=>sum+n(r.compensation_eur),0);
     const avg = totalKwh ? totalEur/totalKwh : 0;
     const latestBySupply = new Map();
     for (const r of records) {
@@ -705,19 +720,21 @@
         <div class="history-kpi"><small>Consumo acumulado</small><strong>${qty(totalKwh,0)} kWh</strong></div>
         <div class="history-kpi"><small>Gasto acumulado</small><strong>${money(totalEur)} €</strong></div>
         <div class="history-kpi"><small>Coste total medio</small><strong>${avg?qty(avg,4):'—'} €/kWh</strong></div>
+        ${hasCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(totalCompensationEur)} €</strong></div>` : ''}
         <div class="history-kpi"><small>Tarifa(s) más reciente(s)</small><strong>${esc(latestTariff)}</strong></div>
       </section>
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
         <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'eur',v=>`${money(v)} €`)}</div>
         <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(chartPoints)}</div>
+        ${hasCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`)}</div>` : ''}
       </section>
       ${renderChartCoverage(monthly, expectedSupplies, coverageView)}
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>
         <div id="historyPeriodsTableWrap" class="history-table-wrap" role="region" tabindex="0" aria-label="Periodos históricos. Desplazamiento vertical y horizontal" style="height:clamp(320px,44vh,430px);max-height:430px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable both-edges;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
-          <table class="history-table" style="width:max-content;min-width:100%;max-width:none;border-collapse:separate;border-spacing:0;"><thead style="position:sticky;top:0;z-index:20;background:#10233f;"><tr><th>Periodo</th><th>Titular</th><th>CUPS</th><th>Tarifa</th><th>kWh</th><th>Lectura</th><th>Energía €</th><th>Potencia €</th><th>Excesos €</th><th>Reactiva €</th><th>Otros/recargos €</th><th>Impuestos €</th><th>Total €</th><th>€/kWh</th><th></th></tr></thead><tbody>
-            ${records.length ? records.map(r=>{const s=supplyById(r.supply_id),h=holderForSupply(s);const other=n(r.compensation_eur)+n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur);const taxes=n(r.electricity_tax_eur)+n(r.vat_eur)+n(r.igic_eur);return `<tr data-history-id="${esc(r.id)}"><td>${dateES(r.billing_start)} – ${dateES(r.billing_end)}</td><td>${esc(h?.legal_name||'—')}</td><td>${esc(s?.cups||'—')}</td><td>${esc(r.tariff||'—')}</td><td>${qty(r.consumption_kwh)}</td><td>${esc(readingLabel(r))}</td><td>${money(r.energy_cost_eur)}</td><td>${money(r.power_cost_eur)}</td><td>${money(r.excess_cost_eur)}</td><td>${money(r.reactive_cost_eur)}</td><td>${money(other)}</td><td>${money(taxes)}</td><td><strong>${money(r.total_eur)}</strong></td><td>${n(r.average_total_eur_kwh)?qty(r.average_total_eur_kwh,4):'—'}</td><td><button class="history-detail-btn" data-id="${esc(r.id)}">Detalle</button></td></tr>`}).join('') : '<tr><td colspan="15" class="history-empty">No hay periodos históricos para la selección actual.</td></tr>'}
+          <table class="history-table" style="width:max-content;min-width:100%;max-width:none;border-collapse:separate;border-spacing:0;"><thead style="position:sticky;top:0;z-index:20;background:#10233f;"><tr><th>Periodo</th><th>Titular</th><th>CUPS</th><th>Tarifa</th><th>kWh</th><th>Lectura</th><th>Energía €</th><th>Potencia €</th><th>Excesos €</th><th>Reactiva €</th><th>Excedentes kWh</th><th>Compensación €</th><th>Otros/recargos €</th><th>Impuestos €</th><th>Total €</th><th>€/kWh</th><th></th></tr></thead><tbody>
+            ${records.length ? records.map(r=>{const s=supplyById(r.supply_id),h=holderForSupply(s);const exported=(r.invoice_compensation_periods||[]).reduce((sum,item)=>sum+n(item.exported_kwh),0);const compensation=n(r.compensation_eur);const other=n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur);const taxes=n(r.electricity_tax_eur)+n(r.vat_eur)+n(r.igic_eur);return `<tr data-history-id="${esc(r.id)}"><td>${dateES(r.billing_start)} – ${dateES(r.billing_end)}</td><td>${esc(h?.legal_name||'—')}</td><td>${esc(s?.cups||'—')}</td><td>${esc(r.tariff||'—')}</td><td>${qty(r.consumption_kwh)}</td><td>${esc(readingLabel(r))}</td><td>${money(r.energy_cost_eur)}</td><td>${money(r.power_cost_eur)}</td><td>${money(r.excess_cost_eur)}</td><td>${money(r.reactive_cost_eur)}</td><td>${exported?qty(exported,2):'—'}</td><td>${compensation?money(compensation):'—'}</td><td>${money(other)}</td><td>${money(taxes)}</td><td><strong>${money(r.total_eur)}</strong></td><td>${n(r.average_total_eur_kwh)?qty(r.average_total_eur_kwh,4):'—'}</td><td><button class="history-detail-btn" data-id="${esc(r.id)}">Detalle</button></td></tr>`}).join('') : '<tr><td colspan="17" class="history-empty">No hay periodos históricos para la selección actual.</td></tr>'}
           </tbody></table>
         </div>
         <div id="historyDetailHost"></div>
