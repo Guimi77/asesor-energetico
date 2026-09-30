@@ -78,6 +78,13 @@ test('fase mínima extrae identidad, suministro, consumo, potencia y total sin u
   assert.deepEqual(r.contracted,{P1:5.75,P2:5.75});
   assert.equal(r.accessContract,'500000000001');
   assert.equal(r.distributor,'EDISTRIBUCIÓN REDES DIGITALES S. L.');
+  assert.equal(r.supplyCity,'PALMA');
+  assert.equal(r.supplyProvince,'');
+  assert.equal(r.powerDetail.reliable,true);
+  assert.equal(r.powerDetail.entries.length,2);
+  assert.equal(r.powerDetail.entries[0].amount,14.15);
+  assert.equal(r.powerDetail.entries[0].annualPrice,29.934);
+  assert.ok(Math.abs(r.powerDetail.entries[0].dailyPrice-(29.934/365))<1e-12);
   assert.equal(r.readingStatus,'actual');
   assert.equal(r.validation.stage,'minimal');
 });

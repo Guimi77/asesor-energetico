@@ -64,7 +64,7 @@ test('Fenie calculations stay locked while the implementation moves out of app.j
  for(const token of ['chartCoverage','No determinada','LECTURA'])assert(report.includes(token),token);
  assert(app.includes("format==='endesa')return formats.parseEndesa"));
  assert(app.includes('Factura no compatible todavía'));
- assert(enricher.includes("format==='uenergia'?parseUenergiaSupply(pdfData,file):format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='naturgy'?parseNaturgySupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
+ assert(enricher.includes("format==='uenergia'?parseUenergiaSupply(pdfData,file):format==='iberdrola'?parseIberdrolaSupply(pdfData,file):format==='repsol'?parseRepsolSupply(pdfData,file):format==='naturgy'?parseNaturgySupply(pdfData,file):format==='som-energia'?parseSomEnergiaSupply(pdfData,file):format==='fenie'?parseSupply(allLines):format==='endesa'?parseEndesaSupply(pdfData.pages,file):{}"));
  assert(enricher.includes("retailer:'Endesa Energía S.A.U.'"));
  assert(audit.includes('const expectedEnergyPeriods='));
  assert(audit.includes('const hasAnyPeriodCost='));
