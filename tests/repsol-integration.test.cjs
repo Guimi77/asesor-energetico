@@ -31,5 +31,5 @@ test('Repsol mantiene histórico fail-closed detrás del cruce con fila principa
  const block=history.slice(start,end);
  assert(block.includes("if(!x.powerReliable)return {skipped:true,reason:'power_detail_unreliable'}"));
  assert(block.includes("if(!validated)return {skipped:true,reason:'crosscheck_failed'}"));
- assert(block.indexOf("crosscheck_failed")<block.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'"));
+ assert(block.indexOf("crosscheck_failed")<block.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'"));
 });
