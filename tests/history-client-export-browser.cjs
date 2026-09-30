@@ -61,6 +61,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   assert.equal(excessSheet.getCell('H5').value,147.08);
   assert.equal(excessSheet.getCell('I5').value,-4.42);
   assert.equal(excessSheet.getImages().length,6);
+  assert.equal(excessBook.getWorksheet('PERIODOS').getCell('AE5').value,147.08);
   const excessDetail=excessBook.getWorksheet('DETALLE P1-P6');
   assert.equal(excessDetail.getCell('S5').value,47.99);
   assert.equal(excessDetail.getCell('U5').value,-1.44);
