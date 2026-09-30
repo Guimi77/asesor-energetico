@@ -186,6 +186,28 @@ begin
     end if;
 
     v_saved := private.sync_invoice_compensation_periods(v_invoice,p_payload);
+
+    update public.invoices
+    set parser_version = coalesce(nullif(p_payload->>'parser_version',''), parser_version),
+        completeness_assessment_status = coalesce(nullif(p_payload->>'completeness_assessment_status',''), completeness_assessment_status),
+        source_completeness = coalesce(p_payload->'source_completeness', source_completeness),
+        validation_message = coalesce(nullif(p_payload->>'validation_message',''), validation_message),
+        updated_at = now()
+    where id = v_invoice;
+
+    insert into public.audit_log(actor_user_id,action,entity_type,entity_id,details)
+    values (
+      auth.uid(),
+      'invoice_compensation_detail_synced',
+      'invoice',
+      v_invoice,
+      jsonb_build_object(
+        'periods',v_saved,
+        'exported_kwh',nullif(p_payload->>'exported_kwh','')::numeric,
+        'parser_version',p_payload->>'parser_version'
+      )
+    );
+
     v_result := v_result || jsonb_build_object('compensation_periods_saved',v_saved);
   end if;
 
