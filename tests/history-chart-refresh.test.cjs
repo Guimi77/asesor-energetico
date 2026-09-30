@@ -28,6 +28,15 @@ test('Empty and all-zero selections still have a useful empty or missing state',
 test('Valid zero cost, small positive consumption and negative totals remain numerical values',()=>{
  for(const [kwh,eur,value] of [[100,0,0],[.001,.0001,.1],[100,-20,-.2]]){const html=ctx.chart([{key:'x',kwh,eur}]);assert(html.includes('data-cost="'+value+'"'));assert(!html.includes('history-cost-missing'));}
 });
+test('Compensated excesses are conditional visual data, not hidden inside other costs',()=>{
+ assert(ui.includes('Excedentes compensados'));
+ assert(ui.includes('Compensación acumulada'));
+ assert(ui.includes("svgChart(chartPoints,'exportedKwh'"));
+ assert(ui.includes("svgChart(chartPoints,'compensationEur'"));
+ assert(ui.includes('<th>Excedentes kWh</th><th>Compensación €</th>'));
+ assert(ui.includes("const other=n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur)"));
+ assert(!ui.includes("const other=n(r.compensation_eur)+n(r.social_bonus_eur)"));
+});
 test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
