@@ -44,8 +44,29 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   for(const n of files){const book=new ExcelJS.Workbook();await book.xlsx.load(await zipped.file(n).async('nodebuffer'));const w=book.getWorksheet('PERIODOS');assert.equal(new Set(w.getRows(5,w.rowCount-4).map(r=>r.getCell(2).value)).size,1);}
   await page.evaluate(()=>{window.testDB.clients=window.testDB.clients.filter(c=>c.id==='c');window.ibtCurrentProfile={id:'synthetic-client',role:'client'};window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));});await ready();assert.equal(await page.locator('#historyClient').count(),0);
   await page.locator('.history-detail-btn').first().click();assert.match(await page.locator('#historyDetailHost').innerText(),/periodos/i);assert.equal(await page.locator('.history-chart').count(),3);
+  const excessBytes=await page.evaluate(async()=>{
+    const db=window.testDB,row=structuredClone(db.invoices.find(x=>x.id==='A-JAN'));
+    row.compensation_eur=-4.42;
+    row.invoice_compensation_periods=[
+      {period:1,exported_kwh:47.99,unit_price_eur_kwh:.03,amount_eur:-1.44,vat_rate_pct:21},
+      {period:2,exported_kwh:56.56,unit_price_eur_kwh:.03,amount_eur:-1.70,vat_rate_pct:21},
+      {period:3,exported_kwh:42.53,unit_price_eur_kwh:.03,amount_eur:-1.28,vat_rate_pct:21}
+    ];
+    const saved=[];
+    await window.IBTHistoryClientExport.exportSelection({client:db.clients[0],holders:db.holders,supplies:db.supplies,records:[row]},{save:async(blob,name)=>saved.push([...new Uint8Array(await blob.arrayBuffer())])});
+    return saved[0];
+  });
+  const excessBook=new ExcelJS.Workbook();await excessBook.xlsx.load(Buffer.from(excessBytes));
+  const excessSheet=excessBook.getWorksheet('CUPS 1');
+  assert.equal(excessSheet.getCell('H5').value,147.08);
+  assert.equal(excessSheet.getCell('I5').value,-4.42);
+  assert.equal(excessSheet.getImages().length,6);
+  const excessDetail=excessBook.getWorksheet('DETALLE P1-P6');
+  assert.equal(excessDetail.getCell('S5').value,47.99);
+  assert.equal(excessDetail.getCell('U5').value,-1.44);
+  assert.equal(excessDetail.getCell('V5').value,21);
   await page.screenshot({path:'test-output/history-export-controls.png',fullPage:false});
   const collision=await page.evaluate(async()=>{const db=window.testDB;const result=[];await window.IBTHistoryClientExport.exportSelection({client:db.clients[0],holders:db.holders.map(h=>({...h,legal_name:'Same/name'})),supplies:db.supplies,records:db.invoices},{save:async(blob,name)=>{result.push(name,[...new Uint8Array(await blob.arrayBuffer())])}});return result;});assert.equal(Object.keys((await JSZip.loadAsync(Buffer.from(collision[1]))).files).filter(n=>n.endsWith('.xlsx')).length,2);
-  assert.deepEqual(errors,[]);console.log('PASS: real XLSX/ZIP generation, cached formulas, four Excel charts below tables, years, all four filters, query races, failed/empty states, per-holder isolation, scoped client access, preserved UI charts/detail, no PDF or browser-master access. Synthetic data only; production RLS not simulated.');
+  assert.deepEqual(errors,[]);console.log('PASS: real XLSX/ZIP generation, cached formulas, conditional excess charts/data, years, all four filters, query races, failed/empty states, per-holder isolation, scoped client access, preserved UI charts/detail, no PDF or browser-master access. Synthetic data only; production RLS not simulated.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
