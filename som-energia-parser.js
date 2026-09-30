@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='som-2026.09.29.3';
+  const REVISION='som-2026.09.30.1';
   const RETAILER='Som Energia, SCCL';
 
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
@@ -74,6 +74,13 @@
 
   function normalizeCups(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
   function isoDate(v){const m=String(v||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:'';}
+  function supplyPlace(address){
+    const s=clean(address);
+    const paren=s.match(/\b\d{5}\s*\(([^()]+)\)\s*$/);
+    if(paren)return{city:clean(paren[1]),province:''};
+    const plain=s.match(/\b\d{5}\s+([^,()]+?)(?:\s*,\s*([^,()]+))?\s*$/);
+    return plain?{city:clean(plain[1]),province:clean(plain[2]||'')}:{city:'',province:''};
+  }
   function daysBetweenInclusive(start,end){
     const a=Date.parse(start+'T00:00:00Z'),b=Date.parse(end+'T00:00:00Z');
     if(!Number.isFinite(a)||!Number.isFinite(b)||b<a)return null;
@@ -99,6 +106,7 @@
     const billingDays=billingStart&&billingEnd?daysBetweenInclusive(billingStart,billingEnd):null;
     const contract=(text.match(/N[uú]m\.?\s+de\s+contracte\s*:\s*([A-Z0-9._\/-]+)/i)||[])[1]||'';
     const address=clean((text.match(/Adre[cç]a\s+de\s+subministrament\s*:\s*([^\n]+)/i)||[])[1]||'');
+    const place=supplyPlace(address);
     const holder=clean((text.match(/Nom\s+del\s*\/\s*de\s+la\s+titular\s+del\s+contracte\s*:\s*([^\n]+)/i)||[])[1]||'');
     let taxId='';
     const holderIndex=lines.findIndex(line=>/Nom\s+del\s*\/\s*de\s+la\s+titular\s+del\s+contracte/i.test(line));
@@ -108,7 +116,7 @@
         if(m){taxId=m[1];break;}
       }
     }
-    return{invoice,issueDate:isoDate(issueDateRaw),periodMatch,billingStart,billingEnd,billingDays,contract,address,holder,taxId};
+    return{invoice,issueDate:isoDate(issueDateRaw),periodMatch,billingStart,billingEnd,billingDays,contract,address,supplyCity:place.city,supplyProvince:place.province,holder,taxId};
   }
 
   function valueAfterLabel(lines,re){
@@ -167,8 +175,19 @@
     const anchor=text.search(/Facturaci[oó]\s+per\s+pot[eè]ncia\s+contractada/i);
     const chunk=anchor>=0?text.slice(anchor,anchor+1000):text;
     const row=chunk.match(/kW\s*x\s*€\/kW\s*x\s*\([^)]*\)\s*dies[^\n]*?\s(-?[\d.]+,\d{2})\s*€?\s+(-?[\d.]+,\d{2})\s*€?\s+(-?[\d.]+,\d{2})\s*€/i);
+    const priceLine=(lines||[]).find(line=>/Preu\s+pot[eè]ncia\s+contractada\s*\[€\/kW\s+i\s+any\]/i.test(line))||'';
+    const priceMatch=priceLine.match(/\[€\/kW\s+i\s+any\]\s*([\d.,]+)\s+([\d.,]+)/i);
+    const annualPrices=priceMatch?[numEs(priceMatch[1]),numEs(priceMatch[2])]:[];
+    const amounts=row?[numEs(row[1]),numEs(row[2])]:[];
     const total=row?numEs(row[3]):moneyAfterLabel(lines,/^Pot[eè]ncia\s+contractada\b/i);
-    return{contracted,total,reliable:Object.keys(contracted).length===2&&total!=null};
+    const entries=[];
+    for(let p=1;p<=2;p++){
+      const key='P'+p;
+      if(contracted[key]==null)continue;
+      entries.push({period:p,contractedKw:contracted[key],amount:amounts[p-1]??null,annualPrice:annualPrices[p-1]??null,dailyPrice:annualPrices[p-1]==null?null:annualPrices[p-1]/365});
+    }
+    const reliable=Object.keys(contracted).length===2&&total!=null&&entries.length===2&&entries.every(e=>e.amount!=null&&e.annualPrice!=null);
+    return{contracted,total,entries,reliable};
   }
 
   function parseCompensation(text,lines){
@@ -322,9 +341,9 @@
       readMessage:readOk?(economicFull?'Lectura correcta':'Lectura mínima Som Energia correcta · detalle económico pendiente'):('Falta o revisar: '+missing.join(', ')),
       readingStatus:reading.status,readingSourceLabel:reading.sourceLabel,avg:energy.kwh&&fin.total?fin.total/energy.kwh:0,
       opportunity:fin.adjustment!=null?('Concepto identificado: Serveis d’Ajust '+fin.adjustment.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'):'Sin alertas',
-      periods:energy.periods,contracted:power.contracted,maximeters:{},parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:{reliable:power.reliable},
+      periods:energy.periods,contracted:power.contracted,maximeters:{},parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:{reliable:power.reliable,entries:power.entries},
       sourceFormat:'som-energia',sourceVariant:'som-2.0td-autoconsum-2026',supplier:RETAILER,retailer:RETAILER,commercializer:RETAILER,supplierLegalType:'cooperative',
-      supplyAddress:id.address,contract:id.contract,contractNumber:id.contract,accessContract:contract.accessContract,distributor:contract.distributor,meterNumber:contract.meterNumber,
+      supplyAddress:id.address,supplyCity:id.supplyCity,supplyProvince:id.supplyProvince,contract:id.contract,contractNumber:id.contract,accessContract:contract.accessContract,distributor:contract.distributor,meterNumber:contract.meterNumber,
       issueDate:id.issueDate,billingStart:id.billingStart,billingEnd:id.billingEnd,billingDays:id.billingDays,cnae:contract.cnae,renewalDate:contract.endDate,selfConsumptionType:contract.selfConsumptionType,cau:contract.cau,
       compensationPeriods:fin.compensation.periods,exportedKwh:fin.compensation.exportedKwh,solarFlow,
       paymentTotal:fin.total,externalPayments,customerPayableEur,paymentAdjustments:externalPayments,
