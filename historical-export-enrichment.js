@@ -76,6 +76,7 @@
       invoice_maximeters(period,maximeter_kw,reliable,source),
       invoice_excesses(period,excess_kw,amount_eur),
       invoice_reactive(period,reactive_kvarh,amount_eur),
+      invoice_compensation_periods(period,exported_kwh,unit_price_eur_kwh,amount_eur,vat_rate_pct),
       invoice_adjustments(concept,amount_eur,category)
     `;
     const out = [];

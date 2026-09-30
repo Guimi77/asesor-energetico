@@ -56,7 +56,7 @@ test('client portal observer remains idempotent and throttled to avoid login fre
 
 test('portal control is loaded and uploads use the guarded central history RPC',()=>{
   assert.match(bootstrap,/client-upload-access\.js\?v=20260915-loopfix1/);
-  assert.match(history,/rpc\('upsert_xtra_energy_history_v2'/);
+  assert.match(history,/rpc\('upsert_xtra_energy_history_v3'/);
 });
 
 

@@ -92,14 +92,14 @@ test('Existing validated invoices refresh completeness without changing core amo
  const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
- assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
+ assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
  assert(source.includes("const COMPLETENESS_VERSION='energy-2026.09.28.1'"));
 });
 
 test('Automatic history write cannot bypass the validated main parser row',()=>{
  const start=source.indexOf('async function persistOne'),end=source.indexOf('async function renderSummary',start);const persist=source.slice(start,end);assert(start>=0&&end>start);
  for(const check of ["/Correcta/i.test(ui.status)","ui.balance==='OK'","same(ui.kwh,x.kwh,.02)","same(ui.energy,x.energy)","same(ui.power,x.power)","same(ui.excess,x.excess)","same(ui.reactive,x.reactive)","same(ui.total,x.total)"])assert(persist.includes(check),check);
- assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'"));
+ assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'"));
 });
 test('2.0TD reactive absence is not fabricated as zero measured reactive detail',()=>{
  assert(source.includes("const reactiveApplicable=!/^2\\.0TD$/i.test(tariff);"));
@@ -188,7 +188,7 @@ test('El histórico refresca lecturas mejoradas sin depender de la comercializad
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_parser'"));
  assert(refreshPolicySql.includes("v_result := public.upsert_xtra_energy_history_legacy(p_payload)"));
- assert(source.includes("supabase.rpc('upsert_xtra_energy_history_v2',{p_payload:payload})"));
+ assert(source.includes("supabase.rpc('upsert_xtra_energy_history_v3',{p_payload:payload})"));
  assert(refreshPolicySql.includes("'invoice_refreshed'"));
  assert(refreshPolicySql.includes("'mode','existing_refreshed'"));
 });

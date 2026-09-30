@@ -126,7 +126,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-historical-export-enrichment]')){
     const script=document.createElement('script');
-    script.src='historical-export-enrichment.js?v=483845e87300';
+    script.src='historical-export-enrichment.js?v=903dbe24fe8d';
     script.dataset.historicalExportEnrichment='1';
     document.body.appendChild(script);
   }
@@ -141,7 +141,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!document.querySelector('script[data-xtra-history]')){
     const script=document.createElement('script');
     script.type='module';
-    script.src='xtra-history.js?v=679758a75ac3';
+    script.src='xtra-history.js?v=dd4a6b6840b1';
     script.dataset.xtraHistory='1';
     document.body.appendChild(script);
   }
@@ -185,7 +185,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=20260924-dropdownclose2';
+    script.src='history-ui.js?v=f55feed645e3';
     script.dataset.historyUi='1';
     script.onload=()=>{
       loadAnalysisUi();

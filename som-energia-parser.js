@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='som-2026.09.30.1';
+  const REVISION='som-2026.09.30.2';
   const RETAILER='Som Energia, SCCL';
 
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
@@ -204,6 +204,8 @@
     }
     const price=(priceLine.match(/Preu\s+energia\s*\[€\/kWh\]\s*([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/i)||[]);
     const costs=euroValues(costLine);
+    const vatRateMatch=costLine.match(/([\d.,]+)\s*%\s*$/);
+    const vatRatePct=vatRateMatch?numEs(vatRateMatch[1]):null;
     const costIndex=costLine?source.indexOf(costLine,qIndex):-1;
     let total=costs.length>=4?costs[3]:null;
     if(total==null&&costIndex>=0){
@@ -216,7 +218,7 @@
     const quantities=q?[numEs(q[1]),numEs(q[2]),numEs(q[3])]:[];
     const prices=price.length?[numEs(price[1]),numEs(price[2]),numEs(price[3])]:[];
     const periods={};
-    for(let i=0;i<3;i++)if(quantities[i]!=null)periods['P'+(i+1)]={excessKwh:Math.abs(quantities[i]),price:prices[i]??null,amount:costs.length>=3?costs[i]:null};
+    for(let i=0;i<3;i++)if(quantities[i]!=null)periods['P'+(i+1)]={excessKwh:Math.abs(quantities[i]),price:prices[i]??null,amount:costs.length>=3?costs[i]:null,vatRatePct};
     const exportedKwh=quantities.length===3?round3(quantities.reduce((s,v)=>s+Math.abs(v||0),0)):null;
     const sum=costs.length>=3?round2(costs.slice(0,3).reduce((s,v)=>s+v,0)):null;
     const reliable=total!=null&&sum!=null&&Math.abs(sum-total)<=.03;

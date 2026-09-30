@@ -112,6 +112,28 @@ test('detalle económico alimenta Otros/descuentos y mantiene el cuadre visible'
   assert.equal(r.balanced,true);
 });
 
+test('compensación por periodos conserva kWh, precio, importe e IVA',()=>{
+  const d=sample();
+  const i=d.pages[1].indexOf('TOTAL FACTURA 54,35 €');
+  d.pages[1].splice(i,0,
+    'Bo social 30 dies x 0,006282 €/dia 0,19 € 21%',
+    'Electricitat excedentària [kWh] -47,99 -56,56 -42,53',
+    'Preu energia [€/kWh] 0,03 0,03 0,03',
+    'kWh x €/kWh (del 01/06/2026 al 30/06/2026) -1,44 € -1,70 € -1,28 € (1) 21%',
+    '-4,42 €',
+    'Impost de',"l'electricitat",'39,76 € x 5,11269%','2,03 € 21%',
+    'Lloguer de','comptador','30 dies x 0,02663 €/dia 0,80 € 21%',
+    'IVA 21% 49,41 € (BASE IMPOSABLE) 10,38 €'
+  );
+  d.text=d.pages.flat().join('\n');
+  const r=parser.parse(d,{name:'compensation-detail.pdf'});
+  assert.equal(r.compensation,-4.42);
+  assert.equal(r.exportedKwh,147.08);
+  assert.deepEqual(r.compensationPeriods.P1,{excessKwh:47.99,price:0.03,amount:-1.44,vatRatePct:21});
+  assert.deepEqual(r.compensationPeriods.P2,{excessKwh:56.56,price:0.03,amount:-1.70,vatRatePct:21});
+  assert.deepEqual(r.compensationPeriods.P3,{excessKwh:42.53,price:0.03,amount:-1.28,vatRatePct:21});
+});
+
 test('prioriza NIF/CIF del titular y no el CIF de la cooperativa',()=>{
   const r=parser.parse(sample(),{name:'holder.pdf'});
   assert.equal(r.taxId,'00000001R');

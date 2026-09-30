@@ -99,7 +99,7 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  const s=source('xtra-history.js');
  const persist=slice(s,'async function persistOne','async function renderSummary');
  for(const token of ["/Correcta/i.test(ui.status)","ui.balance==='OK'","same(ui.kwh,x.kwh,.02)","same(ui.energy,x.energy)","same(ui.power,x.power)","same(ui.excess,x.excess)","same(ui.reactive,x.reactive)","same(ui.total,x.total)"])assert(persist.includes(token),token);
- assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'"));
+ assert(persist.indexOf('if(!validated)return')<persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'"));
  const payload=persist.slice(persist.indexOf('const payload={'),persist.indexOf("const {data,error}=await"));
  for(const forbidden of [/file\.name/,/arrayBuffer/,/getDocument/,/rawPages/,/pdfData/,/filename/i])assert(!forbidden.test(payload),String(forbidden));
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
@@ -108,7 +108,7 @@ test('Historical completeness persistence remains fail-closed, cross-checked and
  assert.equal(versionParts.length,4);
  assert(versionParts.every(v=>v!==''&&Number.isInteger(Number(v))));
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
- assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
+ assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
  assert(s.includes("if(format==='endesa')return extractEndesa(d,file)"));
  assert(s.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
  for(const state of ["'extracted'","'not_present'","'not_applicable'","'unreliable'","'needs_review'"])assert(s.includes(state),state);

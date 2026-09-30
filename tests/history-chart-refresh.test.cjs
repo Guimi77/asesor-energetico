@@ -36,8 +36,17 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
  assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
- assert.equal(chunk(ui,'  function powerSignature','  function renderRecommendations'),chunk(old('history-ui.js'),'  function powerSignature','  function renderRecommendations'));
- assert.equal(chunk(ui,'  async function fetchRecords','  function supplyById'),chunk(old('history-ui.js'),'  async function fetchRecords','  function supplyById'));
+ assert.equal(chunk(ui,'  function powerSignature','  function rowDetail'),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail'));
+ const fetch=chunk(ui,'  async function fetchRecords','  function supplyById');
+ for(const token of [
+  'invoice_energy_periods(period,consumption_kwh,energy_cost_eur,unit_price_eur_kwh)',
+  'invoice_power_periods(period,contracted_kw,billed_power_eur,unit_price_eur_kw_day)',
+  'invoice_maximeters(period,maximeter_kw,reliable,source)',
+  'invoice_excesses(period,excess_kw,amount_eur)',
+  'invoice_reactive(period,reactive_kvarh,amount_eur)',
+  'invoice_compensation_periods(period,exported_kwh,unit_price_eur_kwh,amount_eur,vat_rate_pct)',
+  'invoice_adjustments(concept,amount_eur,category)'
+ ]) assert(fetch.includes(token),token);
  // The FENIE supply parser stays byte-for-byte locked. Endesa has its own adapter after this boundary.
  const enricher=source('supply-enricher-v2.js'),oldEnricher=old('supply-enricher-v2.js');
  assert.equal(chunk(enricher,'function parseSupply(lines)','function endesaAddress'),chunk(oldEnricher,'function parseSupply(lines)','function endesaAddress'));
