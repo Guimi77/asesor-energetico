@@ -28,6 +28,15 @@ test('Empty and all-zero selections still have a useful empty or missing state',
 test('Valid zero cost, small positive consumption and negative totals remain numerical values',()=>{
  for(const [kwh,eur,value] of [[100,0,0],[.001,.0001,.1],[100,-20,-.2]]){const html=ctx.chart([{key:'x',kwh,eur}]);assert(html.includes('data-cost="'+value+'"'));assert(!html.includes('history-cost-missing'));}
 });
+test('Compensated excesses are conditional visual data, not hidden inside other costs',()=>{
+ assert(ui.includes('Excedentes compensados'));
+ assert(ui.includes('Compensación acumulada'));
+ assert(ui.includes("svgChart(chartPoints,'exportedKwh'"));
+ assert(ui.includes("svgChart(chartPoints,'compensationEur'"));
+ assert(ui.includes('<th>Excedentes kWh</th><th>Compensación €</th>'));
+ assert(ui.includes("const other=n(r.social_bonus_eur)+n(r.meter_rental_eur)+n(r.distributor_charges_eur)+n(r.other_cost_eur)"));
+ assert(!ui.includes("const other=n(r.compensation_eur)+n(r.social_bonus_eur)"));
+});
 test('Invalid numeric values never produce invalid SVG coordinates',()=>{
  for(const v of [null,undefined,NaN,Infinity,'',false]){const html=ctx.chart([{key:'x',kwh:v,eur:20}]);assert(!html.includes('<circle'));assert(!/NaN|Infinity/.test(html));}
 });
@@ -35,7 +44,12 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  assert(ui.includes("actual:'Real confirmada'"));
  assert(ui.includes("estimated:'Estimada'"));
  assert(ui.includes('Lectura: ${esc(readingLabel(r))}'));
- assert.equal(chunk(ui,'  function aggregateMonthly','  // Coverage presentation'),chunk(old('history-ui.js'),'  function aggregateMonthly','  // Coverage presentation'));
+ const aggregate=chunk(ui,'  function aggregateMonthly','  // Coverage presentation');
+ assert(aggregate.includes("x.kwh += n(r.consumption_kwh)"));
+ assert(aggregate.includes("x.eur += n(r.total_eur)"));
+ assert(aggregate.includes("invoice_compensation_periods"));
+ assert(aggregate.includes("x.exportedKwh +="));
+ assert(aggregate.includes("x.compensationEur += compensation"));
  assert.equal(chunk(ui,'  function powerSignature','  function rowDetail'),chunk(old('history-ui.js'),'  function powerSignature','  function rowDetail'));
  const fetch=chunk(ui,'  async function fetchRecords','  function supplyById');
  for(const token of [
