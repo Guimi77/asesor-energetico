@@ -465,7 +465,7 @@
       result.push({ key, kwh: rows.length && !missingKwh ? total.kwh : null, eur: rows.length && !missingEur ? total.eur : null,
         exportedKwh: rows.length ? (total.compensationDetailComplete ? total.exportedKwh : null) : null,
         compensationEur: rows.length ? total.compensationEur : null,
-        hasCompensation: !!total.hasCompensation,
+        hasCompensation: !!total?.hasCompensation,
         supplies: ids.length, supplySet: JSON.stringify(ids), records: rows.length, missingKwh, missingEur,
         zeroRecords: rows.filter(r => numeric(r.consumption_kwh) && Number(r.consumption_kwh) === 0).length });
       let y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) + 1;
