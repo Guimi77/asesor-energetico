@@ -69,7 +69,7 @@ test('Iberdrola historical persistence stays fail closed behind the validated ma
   const persist=history.slice(start,end);
   const crosscheck=persist.indexOf("const validated=/Correcta/i.test(ui.status)&&ui.balance==='OK'");
   const reject=persist.indexOf("if(!validated)return {skipped:true,reason:'crosscheck_failed'}");
-  const write=persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v2'");
+  const write=persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'");
   assert(crosscheck>=0&&reject>crosscheck&&write>reject);
   assert(persist.includes('same(ui.kwh,x.kwh,.02)'));
   assert(persist.includes('same(ui.energy,x.energy)'));
