@@ -21,7 +21,18 @@ test('la pantalla de Facturas enruta Som Energia antes del fallback FENIE',()=>{
   assert.match(app,/window\.IBTSomEnergiaParser\?\.detect\?\.\(original\)/);
 });
 
-test('esta fase no conecta Som Energia con histórico',()=>{
+test('histórico consume el parser portable de Som Energia sin reimplementar su lectura',()=>{
   const history=fs.readFileSync('xtra-history.js','utf8');
-  assert.doesNotMatch(history,/IBTSomEnergiaParser/);
+  assert.match(history,/function extractSomEnergia\(d,file\)/);
+  assert.match(history,/window\.IBTSomEnergiaParser/);
+  assert.match(history,/parser\.parse\(d,file/);
+  assert.match(history,/extractSomEnergia\(d,file\)/);
+  assert.doesNotMatch(history,/Electricitat\s+excedent[aà]ria\s*\[kWh\]/i);
+});
+
+test('maestro consume el mismo parser portable de Som Energia',()=>{
+  const enricher=fs.readFileSync('supply-enricher-v2.js','utf8');
+  assert.match(enricher,/function parseSomEnergiaSupply\(data,file\)/);
+  assert.match(enricher,/window\.IBTSomEnergiaParser/);
+  assert.match(enricher,/format==='som-energia'\?parseSomEnergiaSupply/);
 });
