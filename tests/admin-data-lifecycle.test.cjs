@@ -147,10 +147,16 @@ test('client screen uses one unified alias-holder-supply hierarchy', () => {
   assert.match(integratedUi, /function prepareClientHierarchy/);
   assert.match(integratedUi, /folder\.open = true/);
   assert.match(integratedUi, /addSupply\.textContent = '\+ Nuevo suministro'/);
+  assert.match(integratedUi, /const folders = \$\$\('\.holder-folder', card\)/);
+  assert.match(integratedUi, /\$\$\('#centralHoldersList \.db-admin-row'\)/);
+  assert.match(integratedUi, /\$\$\('#centralSuppliesList \.db-admin-row'\)/);
+  assert.match(integratedUi, /\$\$\('#companyGrid \.holder-supply-row\[data-cups\]'\)\.forEach/);
   assert.match(integratedUi, /function integrateHolderActions/);
   assert.match(integratedUi, /integrated-holder-edit/);
   assert.match(integratedUi, /Editar titular/);
   assert.match(integratedUi, /function integrateHolderChangeControls/);
+  assert.match(integratedUi, /card\.classList\.contains\('multi-client-group'\)/);
+  assert.match(integratedUi, /ensureHolderActions\(folder\)/);
   assert.match(integratedUi, /apply_latest_invoice_holder/);
   assert.match(integratedUi, /sync_holder_name/);
   assert.doesNotMatch(integratedUi, /simple-client-folder>summary\{display:none!important\}/);
