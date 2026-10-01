@@ -35,7 +35,7 @@
   }
 
   function prepareClientHierarchy(card) {
-    const folders = $('.holder-folder', card);
+    const folders = $$('.holder-folder', card);
     for (const folder of folders) {
       folder.open = true;
       folder.classList.remove('simple-client-folder');
@@ -55,7 +55,7 @@
 
   function holderSourceRows() {
     const rows = new Map();
-    for (const row of $('#centralHoldersList .db-admin-row')) {
+    for (const row of $$('#centralHoldersList .db-admin-row')) {
       const holderName = $('strong', row)?.textContent || '';
       const meta = $('.db-admin-meta', row)?.textContent || '';
       const parts = meta.split('·').map((part) => part.trim());
@@ -83,8 +83,8 @@
 
   function integrateHolderActions() {
     const sources = holderSourceRows();
-    $('#companyGrid .company-card-tree').forEach((card) => {
-      const folders = $('.holder-folder', card);
+    $$('#companyGrid .company-card-tree').forEach((card) => {
+      const folders = $$('.holder-folder', card);
       for (const folder of folders) {
         const holderName = $('summary strong', folder)?.textContent || '';
         const clientName = $('.add-supply-holder', folder)?.dataset.client || card.dataset.clientPrimary || '';
@@ -123,7 +123,7 @@
 
   function supplySourceRows() {
     const rows = new Map();
-    for (const row of $('#centralSuppliesList .db-admin-row')) {
+    for (const row of $$('#centralSuppliesList .db-admin-row')) {
       const cups = $('strong', row)?.textContent || '';
       if (cups) rows.set(norm(cups), row);
     }
@@ -132,7 +132,7 @@
 
   function integrateHolderChangeControls() {
     const sources = supplySourceRows();
-    $('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
+    $$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
       const source = sources.get(norm(row.dataset.cups || ''));
       if (!source) return;
 
@@ -187,7 +187,7 @@
   }
 
   function placeClientActionsInHierarchy() {
-    $('#companyGrid .company-card-tree').forEach((card) => {
+    $$('#companyGrid .company-card-tree').forEach((card) => {
       const topAdd = $('.client-tree-title .add-supply', card);
       if (topAdd) topAdd.style.display = 'none';
 
@@ -247,7 +247,7 @@
   }
 
   function integrateSupplyArchiveButtons() {
-    $$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
+    $$$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
       if (row.querySelector('.integrated-supply-archive')) return;
       const cups = row.dataset.cups;
       if (!cups) return;
