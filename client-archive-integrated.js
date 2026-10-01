@@ -187,9 +187,22 @@
   }
 
   function placeClientActionsInHierarchy() {
-    $$('#companyGrid .company-card-tree').forEach((card) => {
+    $('#companyGrid .company-card-tree').forEach((card) => {
       const topAdd = $('.client-tree-title .add-supply', card);
       if (topAdd) topAdd.style.display = 'none';
+
+      if (card.classList.contains('multi-client-group')) {
+        $('.client-group-member', card).forEach((memberRow) => {
+          const archive = $('.integrated-client-archive', memberRow);
+          const clientName = memberRow.dataset.clientName || '';
+          const folder = $('.holder-folder', card).find((candidate) =>
+            norm($('.add-supply-holder', candidate)?.dataset.client || '') === norm(clientName)
+          );
+          const actions = folder ? ensureHolderActions(folder) : null;
+          if (archive && actions && !actions.contains(archive)) actions.appendChild(archive);
+        });
+        return;
+      }
 
       if (!card.classList.contains('no-client-alias')) return;
       const title = $('.client-tree-title', card);
