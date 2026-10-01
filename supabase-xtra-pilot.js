@@ -44,9 +44,11 @@
     el.dataset.remoteStatus = type;
   }
 
-  function clientType(client, holderCount) {
+  function clientType(client) {
+    const explicit = norm(client?.client_type).toUpperCase();
+    if (['PARTICULAR','EMPRESA','GRUPO','PENDIENTE'].includes(explicit)) return explicit;
     if (naturalPersonTaxId(client?.tax_id)) return 'PARTICULAR';
-    if (holderCount > 1 || /\bGRUPO\b/i.test(norm(client?.name))) return 'GRUPO';
+    if (/\bGRUPO\b/i.test(norm(client?.name))) return 'GRUPO';
     return 'EMPRESA';
   }
 
@@ -262,7 +264,7 @@
       async function loadHierarchy() {
         const { data: clients, error: clientError } = await supabase
           .from('clients')
-          .select('id,name,tax_id,status')
+          .select('id,name,tax_id,status,client_type')
           .eq('status', 'active')
           .order('name');
         if (clientError) throw clientError;
@@ -311,18 +313,13 @@
 
       const clientById = new Map(activeClients.map((client) => [client.id, client]));
       const holderById = new Map(holders.map((holder) => [holder.id, holder]));
-      const holderCountByClient = new Map();
-      for (const holder of holders) {
-        holderCountByClient.set(holder.client_id, (holderCountByClient.get(holder.client_id) || 0) + 1);
-      }
-
       const centralRows = [];
       for (const supply of supplies) {
         const holder = holderById.get(supply.holder_id);
         const client = clientById.get(holder?.client_id);
         if (!holder || !client || !norm(supply.cups)) continue;
 
-        const type = clientType(client, holderCountByClient.get(client.id) || 0);
+        const type = clientType(client);
         centralRows.push({
           client: client.name,
           clientAlias: clientAliases[client.id] || '',
