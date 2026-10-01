@@ -115,3 +115,41 @@ test('Source validation preserves Catalan Endesa service charges in total paid',
   const r=api.parseEndesa(doc(p1,p2,p3),{name:'catala-serveis.pdf'});
   assert.equal(r.electricityTotal,156.97);assert.equal(r.serviceTotal,5.2);assert.equal(r.total,162.17);assert.equal(r.accounted,162.17);assert.equal(r.balanced,true);assert.equal(r.readOk,true);
 });
+
+
+test('Endesa economic summary supplies billed excess when detail uses abbreviated Exceso Pot. rows',()=>{
+  const raw={
+    company:'CLIENTE PRUEBA EXCESO',cups:'ES0000000000000007AA0F',period:'01/06/2026 - 01/07/2026 (30 días)',tariff:'3.0TD',
+    kwh:4800,energy:1200,power:84,excess:0,reactive:0,compensation:0,other:11,tax:65,vat:300,igic:0,distributorCharges:0,
+    total:1680,periods:{P1:{consumption:1800},P2:{consumption:1100},P3:{consumption:0},P4:{consumption:0},P5:{consumption:0},P6:{consumption:1900}},
+    contracted:{P1:14,P2:26,P3:26,P4:26,P5:26,P6:26},maximeters:{},powerDetail:{reliable:true,entries:[]},
+    readOk:false,readMessage:'Descuadre: 20,00 €',serviceTotal:0,supplyAddress:'C/ EJEMPLO 1, 07000 CIUDAD',contract:'600000000010',accessContract:'500000000010'
+  };
+  const api=fix.patch({parseEndesa:()=>raw},{});
+  const p1=['Periodo de facturación: del 01/06/2026 al 01/07/2026 (30 días)','Potencia 84,00 €','Energía 1.200,00 €','Otros 11,00 €','Excesos 20,00 €','Impuestos 365,00 €','Total 1.680,00 €'];
+  const p2=['Dirección de suministro: C/ EJEMPLO 1, 07000 CIUDAD','Potencia contratada [kW]: P1 14,000; P2 26,000; P3 26,000; P4 26,000; P5 26,000; P6 26,000.','Exceso Pot. P1 4,000 kW x 1 x 30 días x 0,166667 Eur/Kw y día 20,00 €'];
+  const r=api.parseEndesa(doc(p1,p2),{name:'exceso-sintetico.pdf'});
+  assert.equal(r.excess,20);
+  assert.equal(r.accounted,1680);
+  assert.equal(r.diff,0);
+  assert.equal(r.balanced,true);
+  assert.equal(r.readOk,true);
+  assert.match(r.opportunity,/Exceso de potencia: 20,00 €/);
+  assert.equal(r.parserRevision,'2026.10.01.1');
+});
+
+test('Endesa summary excess explicitly printed as zero overrides no charge without inventing one',()=>{
+  const raw={
+    company:'CLIENTE PRUEBA CERO',cups:'ES0000000000000008AA0F',period:'01/07/2026 - 01/08/2026 (31 días)',tariff:'3.0TD',
+    kwh:1000,energy:200,power:50,excess:0,reactive:0,compensation:0,other:5,tax:10,vat:55.65,igic:0,distributorCharges:0,
+    total:320.65,periods:{P1:{consumption:400},P2:{consumption:200},P3:{consumption:0},P4:{consumption:0},P5:{consumption:0},P6:{consumption:400}},
+    contracted:{P1:10,P2:10,P3:10,P4:10,P5:10,P6:10},maximeters:{},powerDetail:{reliable:true,entries:[]},
+    readOk:true,readMessage:'Lectura correcta',serviceTotal:0,supplyAddress:'C/ EJEMPLO 2, 07000 CIUDAD',contract:'600000000011',accessContract:'500000000011'
+  };
+  const api=fix.patch({parseEndesa:()=>raw},{});
+  const p1=['Periodo de facturación: del 01/07/2026 al 01/08/2026 (31 días)','Potencia 50,00 €','Energía 200,00 €','Otros 5,00 €','Excesos 0,00 €','Impuestos 65,65 €','Total 320,65 €'];
+  const r=api.parseEndesa(doc(p1,[]),{name:'exceso-cero-sintetico.pdf'});
+  assert.equal(r.excess,0);
+  assert.equal(r.balanced,true);
+  assert.equal(r.readOk,true);
+});

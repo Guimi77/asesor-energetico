@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.28.1';
+  const VERSION='2026.10.01.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const round3=n=>Math.round((Number(n)||0)*1000)/1000;
@@ -138,7 +138,17 @@
     const reliable=kwhOk&&costOk;
     if(!reliable)return {periods,detail:{status:'mismatch',reliable:false,entries,parsedKwh,parsedCost,totalKwh,summaryEnergy}};
     const enriched={...(periods||{})};
-    for(const e of entries){const key='P'+e.period;enriched[key]={...(enriched[key]||{}),consumption:e.kwh,cost:e.cost,price:e.price};}
+    for(const e of entries){const key='P'+e.period;enriched[key]={...(enriched[key]||{}),consumption:e.kwh,cost:e.cost,price:e.price,energyCostSource:'printed'};}
+    // Endesa omits billing rows for periods whose measured consumption is
+    // explicitly 0. Once the printed non-zero rows reconcile with both total
+    // kWh and total energy cost, a missing row for an explicit 0 kWh period is
+    // a validated zero cost, not missing information.
+    for(const [key,value] of Object.entries(enriched)){
+      if(!/^P[1-6]$/.test(key)||value?.cost!=null)continue;
+      if(value?.consumption!=null&&Math.abs(Number(value.consumption))<=.0005){
+        enriched[key]={...value,cost:0,price:null,energyCostSource:'explicit_zero_consumption'};
+      }
+    }
     return {periods:enriched,detail:{status:'extracted',reliable:true,entries,parsedKwh,parsedCost,totalKwh,summaryEnergy}};
   }
 

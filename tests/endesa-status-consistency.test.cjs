@@ -100,3 +100,9 @@ test('Fragmented Endesa rows do not treat demand or reactive consumption as bill
   assert.equal(guard.billedTableHasAmount(fragmented,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i),false);
   assert.equal(guard.billedTableHasAmount(fragmented,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),false);
 });
+
+
+test('A billed Excesos summary stays rejected if the parser has not captured the monetary excess',()=>{
+  const d={pages:[[...mallorcaDoc.pages[0],'Excesos 15,00 €'],mallorcaDoc.pages[1]]};
+  assert.equal(guard.normalize(baseRow({excess:0,total:404.37,accounted:389.37,balanced:false}),d).readOk,false);
+});

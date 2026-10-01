@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.27.1';
+  const VERSION='2026.10.01.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -93,6 +93,14 @@
     return false;
   }
   function summaryHasAmount(p1,label){return (p1||[]).some(l=>label.test(String(l||''))&&lastEuro(l)!=null);}
+  function summaryAmount(p1,label){
+    for(const raw of p1||[]){
+      if(!label.test(String(raw||'')))continue;
+      const value=lastEuro(raw);
+      if(value!=null)return value;
+    }
+    return null;
+  }
   function summaryHasBilledAmount(p1,label){return (p1||[]).some(l=>label.test(String(l||''))&&Math.abs(Number(lastEuro(l))||0)>.005);}
   function diagnosticOpportunity(r,contracted){
     const alerts=[];
@@ -110,12 +118,17 @@
       const raw=original(d,file,options);if(!raw||raw.unsupported)return raw;
       const pages=(d?.pages||[]).map(lines=>base.canonicalEndesaLines?base.canonicalEndesaLines(lines):lines),p1=pages[0]||[],p2=pages[1]||[];
       const period=sourcePeriod(pages,raw.period),electricityTotal=sourceTotal(p1,raw.electricityTotal??raw.total),total=Number(raw.serviceTotal)>0?(Number(raw.paymentTotal)||round2((Number(electricityTotal)||0)+Number(raw.serviceTotal))):electricityTotal,contracted=sourceContracted(p2,raw.tariff,raw.contracted),address=sourceAddress(p2,raw.supplyAddress),place=placeFromAddress(address),refs=sourceRefs(p2,raw.contract,raw.accessContract);
-      const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+(Number(raw.excess)||0)+(Number(raw.reactive)||0)+(Number(raw.compensation)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
+      // Endesa's summary can print the billed excess simply as "Excesos 15,94 €"
+      // while the detail uses "Exceso Pot. P1 ...". The summary is the authoritative
+      // monetary source, so prefer it whenever that explicit line exists.
+      const summaryExcess=summaryAmount(p1,/^\s*Excesos?\b/i),excess=summaryExcess==null?(Number(raw.excess)||0):summaryExcess;
+      const reactive=Number(raw.reactive)||0;
+      const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+excess+reactive+(Number(raw.compensation)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
       const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
       const periodKwh=round2(Object.values(raw.periods||{}).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=raw.kwh==null||(Object.keys(raw.periods||{}).length>0&&Math.abs(periodKwh-Number(raw.kwh))<=.1);
       // The detail tables express "A facturar" in kW/kVArh, not euros.
       // Only the economic summary can prove that a monetary charge was billed.
-      const unresolvedExcess=(Number(raw.excess)||0)===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\s+de\s+potencia\b/i),unresolvedReactive=(Number(raw.reactive)||0)===0&&summaryHasBilledAmount(p1,/^\s*Energ[ií]a\s+reactiva\b/i);
+      const unresolvedExcess=excess===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\b/i),unresolvedReactive=reactive===0&&summaryHasBilledAmount(p1,/^\s*Energ[ií]a\s+reactiva\b/i);
       const missing=[];
       if(!raw.company||raw.company==='Por identificar')missing.push('titular');
       if(!raw.cups)missing.push('CUPS');
@@ -128,12 +141,12 @@
       if(!summaryHasAmount(p1,/^\s*Impuestos\b/i))missing.push('impuestos');
       if(unresolvedExcess)missing.push('exceso de potencia sin importe monetario identificable');
       if(unresolvedReactive)missing.push('reactiva sin importe monetario identificable');
-      const fixed={...raw,period,electricityTotal,total,contracted,supplyAddress:address||raw.supplyAddress,supplyCity:place.city||raw.supplyCity,supplyProvince:place.province||raw.supplyProvince,contract:refs.contract,contractNumber:refs.contract,accessContract:refs.accessContract,accounted,diff,balanced,readOk:balanced&&!missing.length,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,avg:raw.kwh&&total!=null?total/Number(raw.kwh):0};
+      const fixed={...raw,period,electricityTotal,total,excess,reactive,contracted,supplyAddress:address||raw.supplyAddress,supplyCity:place.city||raw.supplyCity,supplyProvince:place.province||raw.supplyProvince,contract:refs.contract,contractNumber:refs.contract,accessContract:refs.accessContract,accounted,diff,balanced,readOk:balanced&&!missing.length,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,avg:raw.kwh&&total!=null?total/Number(raw.kwh):0,parserRevision:VERSION};
       fixed.opportunity=diagnosticOpportunity(fixed,contracted);
       try{if(root?.EnergyMaster?.learnInvoice&&fixed.cups)root.EnergyMaster.learnInvoice(fixed);}catch(error){root?.console?.warn?.('No se pudo sincronizar el maestro Endesa desde la lectura validada',error);}
       return fixed;
     }};
     return Object.freeze(api);
   }
-  return Object.freeze({version:VERSION,patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount,summaryHasBilledAmount});
+  return Object.freeze({version:VERSION,patch,sourcePeriod,sourceTotal,sourceAddress,sourceContracted,tableHasBilledAmount,summaryAmount,summaryHasBilledAmount});
 });

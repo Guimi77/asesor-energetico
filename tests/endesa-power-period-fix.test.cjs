@@ -96,3 +96,34 @@ test('Endesa energy detail fails closed if the labelled lines do not reconcile w
   assert.equal(r.detail.reliable,false);
   assert.equal(r.periods.P1.cost,null);
 });
+
+
+test('Endesa marks omitted billed energy rows as zero cost only for explicit zero-consumption periods',()=>{
+  const periods={
+    P1:{consumption:1800,cost:null,price:null},
+    P2:{consumption:1100,cost:null,price:null},
+    P3:{consumption:0,cost:null,price:null},
+    P4:{consumption:0,cost:null,price:null},
+    P5:{consumption:0,cost:null,price:null},
+    P6:{consumption:1900,cost:null,price:null}
+  };
+  const lines=[
+    'Consumo P1 1.800,000 kWh x 0,300000 Eur/kWh 540,00 €',
+    'Consumo P2 1.100,000 kWh x 0,250000 Eur/kWh 275,00 €',
+    'Consumo P6 1.900,000 kWh x 0,200000 Eur/kWh 380,00 €'
+  ];
+  const r=fix.aggregateEnergyPeriods(lines,periods,4800,1195);
+  assert.equal(r.detail.reliable,true);
+  assert.deepEqual([r.periods.P1.cost,r.periods.P2.cost,r.periods.P3.cost,r.periods.P4.cost,r.periods.P5.cost,r.periods.P6.cost],[540,275,0,0,0,380]);
+  assert.equal(r.periods.P3.energyCostSource,'explicit_zero_consumption');
+  assert.equal(r.periods.P4.energyCostSource,'explicit_zero_consumption');
+  assert.equal(r.periods.P5.energyCostSource,'explicit_zero_consumption');
+  assert.equal(r.periods.P1.energyCostSource,'printed');
+});
+
+test('Endesa never converts a missing cost into zero when the period has non-zero consumption',()=>{
+  const periods={P1:{consumption:100,cost:null,price:null},P2:{consumption:50,cost:null,price:null}};
+  const r=fix.aggregateEnergyPeriods(['Consumo P1 100,000 kWh x 0,200000 Eur/kWh 20,00 €'],periods,150,20);
+  assert.equal(r.detail.reliable,false);
+  assert.equal(r.periods.P2.cost,null);
+});
