@@ -172,6 +172,16 @@ test('client hierarchy only shows an extra top heading when there is an alias/gr
 });
 
 
+
+test('business group controls do not retrigger the login mutation observer forever', () => {
+  assert.match(integratedUi, /if \(topAdd\.textContent !== '\+ Nuevo titular \/ suministro'\)/);
+  assert.match(integratedUi, /if \(topAdd\.title !== 'Añadir un nuevo titular y su primer suministro al grupo empresarial'\)/);
+  assert.doesNotMatch(
+    integratedUi,
+    /if \(isBusinessGroup\) \{\s*topAdd\.textContent = '\+ Nuevo titular \/ suministro';\s*topAdd\.title =/s
+  );
+});
+
 test('integrated client hierarchy is mutation-idempotent after admin login', () => {
   assert.match(integratedUi, /let schedulePending = false/);
   assert.match(integratedUi, /if \(!isAdmin\(\) \|\| schedulePending\) return/);
@@ -183,4 +193,7 @@ test('integrated client hierarchy is mutation-idempotent after admin login', () 
 
   assert.match(integratedUi, /\.some\(\(button\) => norm\(button\.dataset\.integratedClientName/);
   assert.match(integratedUi, /new MutationObserver\(\(\) => \{\s*if \(isAdmin\(\)\) schedule\(\)/s);
+  assert.match(integratedUi, /let observer = null/);
+  assert.match(integratedUi, /observer\?\.disconnect\(\)/);
+  assert.match(integratedUi, /finally \{\s*if \(observer && document\.body\) \{\s*observer\.observe\(document\.body, \{ childList: true, subtree: true \}\)/s);
 });
