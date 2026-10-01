@@ -119,7 +119,7 @@ test('Source validation preserves Catalan Endesa service charges in total paid',
 
 test('Endesa economic summary supplies billed excess when detail uses abbreviated Exceso Pot. rows',()=>{
   const raw={
-    company:'CLIENTE PRUEBA EXCESO',cups:'ES0000000000000010AA0F',period:'01/06/2026 - 01/07/2026 (30 días)',tariff:'3.0TD',
+    company:'CLIENTE PRUEBA EXCESO',cups:'ES0000000000000007AA0F',period:'01/06/2026 - 01/07/2026 (30 días)',tariff:'3.0TD',
     kwh:4800,energy:1200,power:84,excess:0,reactive:0,compensation:0,other:11,tax:65,vat:300,igic:0,distributorCharges:0,
     total:1680,periods:{P1:{consumption:1800},P2:{consumption:1100},P3:{consumption:0},P4:{consumption:0},P5:{consumption:0},P6:{consumption:1900}},
     contracted:{P1:14,P2:26,P3:26,P4:26,P5:26,P6:26},maximeters:{},powerDetail:{reliable:true,entries:[]},
@@ -140,7 +140,7 @@ test('Endesa economic summary supplies billed excess when detail uses abbreviate
 
 test('Endesa summary excess explicitly printed as zero overrides no charge without inventing one',()=>{
   const raw={
-    company:'CLIENTE PRUEBA CERO',cups:'ES0000000000000011AA0F',period:'01/07/2026 - 01/08/2026 (31 días)',tariff:'3.0TD',
+    company:'CLIENTE PRUEBA CERO',cups:'ES0000000000000008AA0F',period:'01/07/2026 - 01/08/2026 (31 días)',tariff:'3.0TD',
     kwh:1000,energy:200,power:50,excess:0,reactive:0,compensation:0,other:5,tax:10,vat:55.65,igic:0,distributorCharges:0,
     total:320.65,periods:{P1:{consumption:400},P2:{consumption:200},P3:{consumption:0},P4:{consumption:0},P5:{consumption:0},P6:{consumption:400}},
     contracted:{P1:10,P2:10,P3:10,P4:10,P5:10,P6:10},maximeters:{},powerDetail:{reliable:true,entries:[]},
