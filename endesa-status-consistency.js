@@ -23,7 +23,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.09.15.9';
+  const VERSION='2026.10.01.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const hasNumber=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
   const cleanKey=v=>text(v).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -113,7 +113,7 @@
     if(!close(row.total,row.accounted,.05))return false;
     if(!periodEvidence(row))return false;
     const p1=d?.pages?.[0]||[];
-    if((Number(row.excess)||0)===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\s+de\s+potencia\b/i))return false;
+    if((Number(row.excess)||0)===0&&summaryHasBilledAmount(p1,/^\s*Excesos?\b/i))return false;
     if((Number(row.reactive)||0)===0&&summaryHasBilledAmount(p1,/^\s*Energ[ií]a\s+reactiva\b/i))return false;
     return true;
   }
