@@ -6,6 +6,7 @@
   const norm = (value) => String(value ?? '').trim().toLocaleUpperCase('es-ES').replace(/\s/g, '');
   let syncing = false;
   let schedulePending = false;
+  let observer = null;
 
   function isAdmin() {
     return window.ibtCurrentProfile?.role === 'admin';
@@ -500,7 +501,14 @@
     schedulePending = true;
     queueMicrotask(() => {
       schedulePending = false;
-      integrateArchiveButtons();
+      observer?.disconnect();
+      try {
+        integrateArchiveButtons();
+      } finally {
+        if (observer && document.body) {
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+      }
     });
   }
 
@@ -509,7 +517,7 @@
     hideCupsMenu();
     hideDuplicatePanels();
     simplifyFooter();
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
       if (isAdmin()) schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true });
