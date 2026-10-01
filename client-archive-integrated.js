@@ -47,9 +47,12 @@
       }
     }
 
+    const isBusinessGroup = String(card.dataset.clientType || '').toUpperCase() === 'GRUPO' || card.classList.contains('client-type-grupo');
     const hasAlias = card.classList.contains('multi-client-group') || !!$('.client-legal-name', card);
+    const keepTopHeading = hasAlias || isBusinessGroup;
     card.classList.toggle('has-client-alias', hasAlias);
-    card.classList.toggle('no-client-alias', !hasAlias);
+    card.classList.toggle('business-group-client', isBusinessGroup);
+    card.classList.toggle('no-client-alias', !keepTopHeading);
     const legalLine = $('.client-legal-name', card);
     if (legalLine) legalLine.hidden = true;
   }
@@ -191,7 +194,14 @@
   function placeClientActionsInHierarchy() {
     $$('#companyGrid .company-card-tree').forEach((card) => {
       const topAdd = $('.client-tree-title .add-supply', card);
-      if (topAdd) topAdd.style.display = 'none';
+      const isBusinessGroup = String(card.dataset.clientType || '').toUpperCase() === 'GRUPO' || card.classList.contains('client-type-grupo');
+      if (topAdd) {
+        topAdd.style.display = isBusinessGroup ? '' : 'none';
+        if (isBusinessGroup) {
+          topAdd.textContent = '+ Nuevo titular / suministro';
+          topAdd.title = 'Añadir un nuevo titular y su primer suministro al grupo empresarial';
+        }
+      }
 
       if (card.classList.contains('multi-client-group')) {
         $$('.client-group-member', card).forEach((memberRow) => {
@@ -366,6 +376,7 @@
       }
       .client-legal-name{display:none!important}
       .client-tree-title .add-supply{display:none!important}
+      .business-group-client .client-tree-title .add-supply{display:inline-flex!important}
       .add-supply-holder{
         display:inline-flex!important;
         margin-top:5px!important;
@@ -448,7 +459,9 @@
       }
       .no-client-alias .holder-tree{margin-top:0!important}
       .has-client-alias .client-tree-title{margin-bottom:5px}
-      .has-client-alias .client-tree-title h3{font-size:.9rem}
+      .business-group-client .client-tree-title{margin-bottom:5px}
+      .has-client-alias .client-tree-title h3,
+      .business-group-client .client-tree-title h3{font-size:.9rem}
       @media(max-width:700px){
         .client-tree-title .integrated-client-archive{
           margin-left:0!important;
