@@ -187,15 +187,15 @@
   }
 
   function placeClientActionsInHierarchy() {
-    $('#companyGrid .company-card-tree').forEach((card) => {
+    $$('#companyGrid .company-card-tree').forEach((card) => {
       const topAdd = $('.client-tree-title .add-supply', card);
       if (topAdd) topAdd.style.display = 'none';
 
       if (card.classList.contains('multi-client-group')) {
-        $('.client-group-member', card).forEach((memberRow) => {
+        $$('.client-group-member', card).forEach((memberRow) => {
           const archive = $('.integrated-client-archive', memberRow);
           const clientName = memberRow.dataset.clientName || '';
-          const folder = $('.holder-folder', card).find((candidate) =>
+          const folder = $$('.holder-folder', card).find((candidate) =>
             norm($('.add-supply-holder', candidate)?.dataset.client || '') === norm(clientName)
           );
           const actions = folder ? ensureHolderActions(folder) : null;
@@ -260,7 +260,7 @@
   }
 
   function integrateSupplyArchiveButtons() {
-    $$$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
+    $$('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
       if (row.querySelector('.integrated-supply-archive')) return;
       const cups = row.dataset.cups;
       if (!cups) return;
