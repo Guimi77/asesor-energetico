@@ -14,6 +14,10 @@ const migration = fs.readFileSync(
   path.join(root, 'supabase', 'migrations', '20260925094000_central_master_writes.sql'),
   'utf8'
 );
+const clientTypeMigration = fs.readFileSync(
+  path.join(root, 'supabase', 'migrations', '20261001071500_persist_client_type.sql'),
+  'utf8'
+);
 
 test('manual master saves reach Supabase before mutating the local cache', () => {
   const start = master.indexOf("$('#clientForm').onsubmit");
@@ -47,7 +51,8 @@ test('workbook import persists each row centrally in fill-only mode before cachi
 
 test('central writer is internal-only and uses the dedicated RPC', () => {
   assert.ok(master.includes("['admin', 'staff'].includes(role)"));
-  assert.ok(master.includes("supabase.rpc('save_master_supply'"));
+  assert.ok(master.includes("supabase.rpc('save_master_supply_v2'"));
+  assert.ok(master.includes("client_type: norm(supply.type || supply.clientType) || null"));
   assert.ok(master.includes('centralWriteMessage'));
   assert.ok(!master.includes('Cambios guardados localmente; los alias centrales quedan pendientes'));
 });
@@ -109,4 +114,24 @@ test('central cache alignment preserves a local archive before pruning', () => {
 test('browser cache markers force the central-authoritative code', () => {
   assert.match(index, /master-v2\.js\?v=20260925-centralcache1/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central7/);
+});
+
+
+test('business group type is persisted instead of inferred from holder count', () => {
+  assert.match(clientTypeMigration, /add column if not exists client_type text/);
+  assert.match(clientTypeMigration, /create or replace function public\.save_master_supply_v2\(p_payload jsonb\)/i);
+  assert.match(clientTypeMigration, /v_type not in \('PARTICULAR','EMPRESA','GRUPO','PENDIENTE'\)/);
+  assert.match(clientTypeMigration, /v_result := public\.save_master_supply\(p_payload\)/);
+  assert.match(clientTypeMigration, /'client_type_updated'/);
+  assert.match(pilot, /select\('id,name,tax_id,status,client_type'\)/);
+  assert.match(pilot, /const explicit = norm\(client\?\.client_type\)\.toUpperCase\(\)/);
+  assert.doesNotMatch(pilot, /holderCount > 1/);
+});
+
+test('group creation keeps a dedicated add-holder path in the existing master form', () => {
+  assert.match(master, /data-client-type="\$\{esc\(type\)\}"/);
+  assert.match(master, /data-new-holder="1"/);
+  assert.match(master, /\+ Nuevo titular \/ suministro/);
+  assert.match(master, /openForm\(button\.dataset\.client, '', button\.dataset\.newHolder === '1'\)/);
+  assert.match(master, /blankHolder \? '' : \(holder \|\| existing\.holder/);
 });
