@@ -5,6 +5,7 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const norm = (value) => String(value ?? '').trim().toLocaleUpperCase('es-ES').replace(/\s/g, '');
   let syncing = false;
+  let schedulePending = false;
 
   function isAdmin() {
     return window.ibtCurrentProfile?.role === 'admin';
@@ -41,8 +42,8 @@
       folder.classList.remove('simple-client-folder');
       const addSupply = $('.add-supply-holder', folder);
       if (addSupply) {
-        addSupply.textContent = '+ Nuevo suministro';
-        addSupply.title = 'Añadir un suministro para este titular';
+        if (addSupply.textContent !== '+ Nuevo suministro') addSupply.textContent = '+ Nuevo suministro';
+        if (addSupply.title !== 'Añadir un suministro para este titular') addSupply.title = 'Añadir un suministro para este titular';
       }
     }
 
@@ -145,7 +146,8 @@
           notice.className = 'integrated-holder-notice';
           info?.appendChild(notice);
         }
-        notice.textContent = sourceNotice.textContent || '';
+        const nextNotice = sourceNotice.textContent || '';
+        if (notice.textContent !== nextNotice) notice.textContent = nextNotice;
         notice.classList.toggle('warning', sourceNotice.classList.contains('db-mismatch'));
         notice.classList.toggle('ok', sourceNotice.classList.contains('db-mismatch-ok'));
       } else {
@@ -229,15 +231,17 @@
       prepareClientHierarchy(card);
 
       if (card.classList.contains('multi-client-group')) {
-        $$('.client-group-member', card).forEach((memberRow) => {
-          if (memberRow.querySelector('.integrated-client-archive')) return;
+        $('.client-group-member', card).forEach((memberRow) => {
           const clientName = memberRow.dataset.clientName || '';
+          const alreadyIntegrated = $('.integrated-client-archive', card).some((button) => norm(button.dataset.integratedClientName || '') === norm(clientName));
+          if (alreadyIntegrated) return;
           const sourceRow = rowsByName.get(norm(clientName));
           const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
           const actions = $('.client-group-member-actions', memberRow);
           if (!sourceButton || !actions) return;
 
           sourceButton.classList.add('integrated-client-archive');
+          sourceButton.dataset.integratedClientName = clientName;
           sourceButton.textContent = 'Archivar cliente';
           sourceButton.title = 'Archivar este cliente legal conservando todo su histórico';
           actions.appendChild(sourceButton);
@@ -475,7 +479,12 @@
   }
 
   function schedule() {
-    queueMicrotask(integrateArchiveButtons);
+    if (!isAdmin() || schedulePending) return;
+    schedulePending = true;
+    queueMicrotask(() => {
+      schedulePending = false;
+      integrateArchiveButtons();
+    });
   }
 
   function init() {
@@ -483,7 +492,9 @@
     hideCupsMenu();
     hideDuplicatePanels();
     simplifyFooter();
-    const observer = new MutationObserver(schedule);
+    const observer = new MutationObserver(() => {
+      if (isAdmin()) schedule();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('ibt-role-changed', schedule);
     window.addEventListener('ibt-central-data-changed', schedule);
