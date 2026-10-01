@@ -170,3 +170,17 @@ test('client hierarchy only shows an extra top heading when there is an alias/gr
   assert.match(integratedUi, /if \(title\) title\.style\.display = 'none'/);
   assert.match(integratedUi, /\.client-legal-name\{display:none!important\}/);
 });
+
+
+test('integrated client hierarchy is mutation-idempotent after admin login', () => {
+  assert.match(integratedUi, /let schedulePending = false/);
+  assert.match(integratedUi, /if \(!isAdmin\(\) \|\| schedulePending\) return/);
+  assert.match(integratedUi, /if \(addSupply\.textContent !== '\+ Nuevo suministro'\)/);
+  assert.match(integratedUi, /if \(notice\.textContent !== nextNotice\)/);
+  assert.match(integratedUi, /dataset\.integratedClientName = clientName/);
+  assert.match(integratedUi, /\$\$\('\.client-group-member', card\)\.forEach/);
+  assert.match(integratedUi, /\$\$\('\.integrated-client-archive', card\)\.some/);
+
+  assert.match(integratedUi, /\.some\(\(button\) => norm\(button\.dataset\.integratedClientName/);
+  assert.match(integratedUi, /new MutationObserver\(\(\) => \{\s*if \(isAdmin\(\)\) schedule\(\)/s);
+});
