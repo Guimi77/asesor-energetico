@@ -160,6 +160,7 @@ test('client screen uses one unified alias-holder-supply hierarchy', () => {
   assert.match(integratedUi, /apply_latest_invoice_holder/);
   assert.match(integratedUi, /sync_holder_name/);
   assert.doesNotMatch(integratedUi, /simple-client-folder>summary\{display:none!important\}/);
+  assert.doesNotMatch(integratedUi, /\$\$\$\(/);
 });
 
 test('client hierarchy only shows an extra top heading when there is an alias/group', () => {
