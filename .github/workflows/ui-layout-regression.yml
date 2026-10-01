@@ -1,0 +1,44 @@
+name: UI layout no-regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'styles.css'
+      - 'ui-compact.css'
+      - 'ui-compact.js'
+      - 'client-archive-integrated.js'
+      - 'internal-db-usage.js'
+      - 'internal-db-usage.css'
+      - 'tests/ui-layout-contract.test.cjs'
+      - '.github/workflows/ui-layout-regression.yml'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'styles.css'
+      - 'ui-compact.css'
+      - 'ui-compact.js'
+      - 'client-archive-integrated.js'
+      - 'internal-db-usage.js'
+      - 'internal-db-usage.css'
+      - 'tests/ui-layout-contract.test.cjs'
+      - '.github/workflows/ui-layout-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  layout-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate unchanged UI contracts
+        run: |
+          node --check internal-db-usage.js
+          node --check client-archive-integrated.js
+          node --test tests/ui-layout-contract.test.cjs
