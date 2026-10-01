@@ -21,6 +21,8 @@
   function hideDuplicatePanels() {
     const clientPanel = $('#centralClientsAdmin');
     if (clientPanel) clientPanel.style.setProperty('display', 'none', 'important');
+    const holderPanel = $('#centralHoldersAdmin');
+    if (holderPanel) holderPanel.style.setProperty('display', 'none', 'important');
     const supplyPanel = $('#centralSuppliesAdmin');
     if (supplyPanel) supplyPanel.style.setProperty('display', 'none', 'important');
   }
@@ -32,21 +34,171 @@
     footer.innerHTML = '<strong>Electrica BT Mallorca SL</strong>';
   }
 
-  function simplifyClientHierarchy(card) {
-    if (card.classList.contains('multi-client-group')) return;
-    const title = $('.client-tree-title h3', card)?.textContent || '';
-    const clientKey = norm(title);
-    if (!clientKey || clientKey === 'GRUPOXTRA') return;
+  function prepareClientHierarchy(card) {
+    const folders = $('.holder-folder', card);
+    for (const folder of folders) {
+      folder.open = true;
+      folder.classList.remove('simple-client-folder');
+      const addSupply = $('.add-supply-holder', folder);
+      if (addSupply) {
+        addSupply.textContent = '+ Nuevo suministro';
+        addSupply.title = 'Añadir un suministro para este titular';
+      }
+    }
 
-    const folders = $$('.holder-folder', card);
-    if (folders.length !== 1) return;
+    const hasAlias = card.classList.contains('multi-client-group') || !!$('.client-legal-name', card);
+    card.classList.toggle('has-client-alias', hasAlias);
+    card.classList.toggle('no-client-alias', !hasAlias);
+    const legalLine = $('.client-legal-name', card);
+    if (legalLine) legalLine.hidden = true;
+  }
 
-    const folder = folders[0];
-    const holderName = norm($('summary strong', folder)?.textContent || '');
-    if (holderName && holderName !== clientKey) return;
+  function holderSourceRows() {
+    const rows = new Map();
+    for (const row of $('#centralHoldersList .db-admin-row')) {
+      const holderName = $('strong', row)?.textContent || '';
+      const meta = $('.db-admin-meta', row)?.textContent || '';
+      const parts = meta.split('·').map((part) => part.trim());
+      const clientName = parts[1] || '';
+      const sourceKey = norm(holderName) + '|' + norm(clientName);
+      if (holderName && clientName && !rows.has(sourceKey)) {
+        rows.set(sourceKey, { row, taxId: parts[0] || '' });
+      }
+    }
+    return rows;
+  }
 
-    folder.open = true;
-    folder.classList.add('simple-client-folder');
+  function ensureHolderActions(folder) {
+    const summary = $('summary', folder);
+    if (!summary) return null;
+    let actions = $('.integrated-holder-actions', summary);
+    if (!actions) {
+      actions = document.createElement('span');
+      actions.className = 'integrated-holder-actions';
+      actions.addEventListener('click', (event) => event.stopPropagation());
+      summary.appendChild(actions);
+    }
+    return actions;
+  }
+
+  function integrateHolderActions() {
+    const sources = holderSourceRows();
+    $('#companyGrid .company-card-tree').forEach((card) => {
+      const folders = $('.holder-folder', card);
+      for (const folder of folders) {
+        const holderName = $('summary strong', folder)?.textContent || '';
+        const clientName = $('.add-supply-holder', folder)?.dataset.client || card.dataset.clientPrimary || '';
+        const source = sources.get(norm(holderName) + '|' + norm(clientName));
+        if (!source) continue;
+
+        const summary = $('summary', folder);
+        if (summary && !$('.integrated-holder-tax', summary) && source.taxId && !/^Sin NIF\/CIF$/i.test(source.taxId)) {
+          const tax = document.createElement('small');
+          tax.className = 'integrated-holder-tax';
+          tax.textContent = source.taxId;
+          const count = [...summary.children].find((node) => node.tagName === 'SPAN' && !node.classList.contains('holder-folder-icon'));
+          if (count) summary.insertBefore(tax, count);
+          else summary.appendChild(tax);
+        }
+
+        const actions = ensureHolderActions(folder);
+        if (!actions || actions.querySelector('.integrated-holder-edit')) continue;
+        const sourceButton = source.row.querySelector('[data-db-action="edit_holder"]');
+        if (!sourceButton) continue;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'secondary integrated-holder-edit';
+        button.textContent = 'Editar titular';
+        button.title = 'Editar el titular actual sin reescribir las facturas históricas';
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          sourceButton.click();
+        });
+        actions.appendChild(button);
+      }
+    });
+  }
+
+  function supplySourceRows() {
+    const rows = new Map();
+    for (const row of $('#centralSuppliesList .db-admin-row')) {
+      const cups = $('strong', row)?.textContent || '';
+      if (cups) rows.set(norm(cups), row);
+    }
+    return rows;
+  }
+
+  function integrateHolderChangeControls() {
+    const sources = supplySourceRows();
+    $('#companyGrid .holder-supply-row[data-cups]').forEach((row) => {
+      const source = sources.get(norm(row.dataset.cups || ''));
+      if (!source) return;
+
+      const info = row.querySelector(':scope > div:first-child');
+      const sourceNotice = source.querySelector('.db-mismatch,.db-mismatch-ok');
+      let notice = $('.integrated-holder-notice', row);
+      if (sourceNotice) {
+        if (!notice) {
+          notice = document.createElement('small');
+          notice.className = 'integrated-holder-notice';
+          info?.appendChild(notice);
+        }
+        notice.textContent = sourceNotice.textContent || '';
+        notice.classList.toggle('warning', sourceNotice.classList.contains('db-mismatch'));
+        notice.classList.toggle('ok', sourceNotice.classList.contains('db-mismatch-ok'));
+      } else {
+        notice?.remove();
+      }
+
+      let actions = $('.holder-supply-actions', row);
+      if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'holder-supply-actions';
+        const edit = $('.edit-supply-tree', row);
+        if (edit) {
+          row.insertBefore(actions, edit);
+          actions.appendChild(edit);
+        } else {
+          row.appendChild(actions);
+        }
+      }
+
+      for (const action of ['apply_latest_invoice_holder', 'sync_holder_name']) {
+        const className = 'integrated-' + action.replaceAll('_', '-');
+        const sourceButton = source.querySelector('[data-db-action="' + action + '"]');
+        const existing = $('.' + className, row);
+        if (!sourceButton) {
+          existing?.remove();
+          continue;
+        }
+        if (existing) continue;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'secondary db-warning integrated-holder-change ' + className;
+        button.textContent = action === 'apply_latest_invoice_holder' ? 'Aplicar nuevo titular' : 'Actualizar titular';
+        button.title = sourceButton.title || sourceButton.textContent || '';
+        button.addEventListener('click', () => sourceButton.click());
+        actions.appendChild(button);
+      }
+    });
+  }
+
+  function placeClientActionsInHierarchy() {
+    $('#companyGrid .company-card-tree').forEach((card) => {
+      const topAdd = $('.client-tree-title .add-supply', card);
+      if (topAdd) topAdd.style.display = 'none';
+
+      if (!card.classList.contains('no-client-alias')) return;
+      const title = $('.client-tree-title', card);
+      const firstFolder = $('.holder-folder', card);
+      const archive = $('.integrated-client-archive', title);
+      const actions = firstFolder ? ensureHolderActions(firstFolder) : null;
+      if (archive && actions && !actions.contains(archive)) actions.appendChild(archive);
+      if (title) title.style.display = 'none';
+    });
   }
 
   function integrateClientArchiveButtons() {
@@ -61,7 +213,7 @@
     }
 
     for (const card of cards) {
-      simplifyClientHierarchy(card);
+      prepareClientHierarchy(card);
 
       if (card.classList.contains('multi-client-group')) {
         $$('.client-group-member', card).forEach((memberRow) => {
@@ -147,7 +299,10 @@
     syncing = true;
     try {
       integrateClientArchiveButtons();
+      integrateHolderActions();
       integrateSupplyArchiveButtons();
+      integrateHolderChangeControls();
+      placeClientActionsInHierarchy();
     } finally {
       syncing = false;
     }
@@ -159,7 +314,7 @@
     style.id = 'integratedClientArchiveStyles';
     style.textContent = `
       .sidebar [data-view="cups"]{display:none!important}
-      #centralClientsAdmin,#centralSuppliesAdmin{display:none!important}
+      #centralClientsAdmin,#centralHoldersAdmin,#centralSuppliesAdmin{display:none!important}
       footer{justify-content:flex-start!important}
       footer span{display:none!important}
       .client-tree-title{gap:8px;align-items:center;flex-wrap:wrap}
@@ -192,12 +347,53 @@
         color:#8a5a00!important;
         background:#fffaf0!important;
       }
-      .add-supply-holder{display:none!important}
-      .multi-client-group .add-supply-holder{
+      .client-legal-name{display:none!important}
+      .client-tree-title .add-supply{display:none!important}
+      .add-supply-holder{
         display:inline-flex!important;
         margin-top:5px!important;
         padding:4px 0!important;
         font-size:.68rem!important;
+      }
+      .holder-folder{overflow:visible}
+      .holder-folder>summary{
+        display:flex!important;
+        align-items:center;
+        gap:7px;
+        min-height:34px;
+      }
+      .holder-folder>summary>strong{font-size:.78rem}
+      .integrated-holder-tax{
+        color:#718096;
+        font-size:.62rem;
+        font-weight:600;
+      }
+      .integrated-holder-actions{
+        display:flex;
+        gap:5px;
+        align-items:center;
+        margin-left:auto;
+      }
+      .integrated-holder-actions .secondary{
+        margin:0!important;
+        min-height:0!important;
+        padding:4px 7px!important;
+        font-size:.64rem!important;
+        line-height:1.2!important;
+        white-space:nowrap;
+      }
+      .integrated-holder-notice{
+        display:block;
+        margin-top:3px;
+        font-size:.62rem;
+        font-weight:700;
+      }
+      .integrated-holder-notice.warning{color:#9a5b00}
+      .integrated-holder-notice.ok{color:#237a45}
+      .holder-supply-actions .integrated-holder-change{
+        border-color:#d6a14a!important;
+        color:#8a5a00!important;
+        background:#fffaf0!important;
       }
       .client-group-members{
         display:none!important;
@@ -233,9 +429,9 @@
         color:#718096;
         font-size:.64rem;
       }
-      .simple-client-folder>summary{display:none!important}
-      .simple-client-folder{border-top:1px solid #e7ebf1}
-      .simple-client-folder>.holder-supplies{padding-top:8px}
+      .no-client-alias .holder-tree{margin-top:0!important}
+      .has-client-alias .client-tree-title{margin-bottom:5px}
+      .has-client-alias .client-tree-title h3{font-size:.9rem}
       @media(max-width:700px){
         .client-tree-title .integrated-client-archive{
           margin-left:0!important;
@@ -250,6 +446,15 @@
           flex-direction:column;
           align-items:stretch;
           gap:4px;
+        }
+        .holder-folder>summary{
+          align-items:flex-start;
+          flex-wrap:wrap;
+        }
+        .integrated-holder-actions{
+          width:100%;
+          margin-left:0;
+          padding-left:20px;
         }
       }
     `;
