@@ -19,6 +19,10 @@ const clientTypeMigration = fs.readFileSync(
   path.join(root, 'supabase', 'migrations', '20261001071500_persist_client_type.sql'),
   'utf8'
 );
+const cupsIdentityMigration = fs.readFileSync(
+  path.join(root, 'supabase', 'migrations', '20261001104000_canonical_cups_identity.sql'),
+  'utf8'
+);
 
 test('manual master saves reach Supabase before mutating the local cache', () => {
   const start = master.indexOf("$('#clientForm').onsubmit");
@@ -146,4 +150,17 @@ test('business groups keep their top-level heading even when they have no alias'
   assert.match(integratedUi, /business-group-client/);
   assert.match(integratedUi, /\+ Nuevo titular \/ suministro/);
   assert.match(integratedUi, /Añadir un nuevo titular y su primer suministro al grupo empresarial/);
+});
+
+
+test('CUPS identity ignores the optional trailing extension everywhere', () => {
+  assert.match(master, /normalized\.slice\(0, 20\)/);
+  assert.match(pilot, /compact\.slice\(0, 20\)/);
+  assert.match(migration, /v_cups_key := left\(v_cups, 20\)/);
+  assert.match(migration, /where left\(cups_key, 20\) = v_original_key/);
+  assert.match(cupsIdentityMigration, /create or replace function public\.canonical_cups_identity\(p_cups text\)/i);
+  assert.match(cupsIdentityMigration, /then left\(value,20\)/);
+  assert.match(cupsIdentityMigration, /optional trailing CUPS extension characters such as 0F never differentiate supplies/i);
+  assert.match(cupsIdentityMigration, /create unique index if not exists supplies_canonical_cups_identity_unique/i);
+  assert.match(cupsIdentityMigration, /canonical_cups_identity_conflict/);
 });
