@@ -282,6 +282,7 @@
         const holders = holderTree(list);
         const type = multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
         const primaryClient = memberList[0]?.name || list[0]?.client || name;
+        const isBusinessGroup = type === 'GRUPO';
 
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
@@ -311,9 +312,9 @@
 
         const addTop = multiClient
           ? ''
-          : `<button class="company-link add-supply" data-client="${esc(primaryClient)}">+ Nuevo suministro</button>`;
+          : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''}" data-client-primary="${esc(primaryClient)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
@@ -321,7 +322,7 @@
       button.onclick = () => editSupply(button.dataset.cups);
     });
     grid.querySelectorAll('.add-supply').forEach((button) => {
-      button.onclick = () => openForm(button.dataset.client);
+      button.onclick = () => openForm(button.dataset.client, '', button.dataset.newHolder === '1');
     });
     grid.querySelectorAll('.add-supply-holder').forEach((button) => {
       button.onclick = () => openForm(button.dataset.client, button.dataset.holder);
@@ -628,13 +629,13 @@
     $('#supplyContract').value = supply.contract || '';
   }
 
-  function openForm(client = '', holder = '') {
+  function openForm(client = '', holder = '', blankHolder = false) {
     editingCups = '';
     show('clientes');
     const editor = $('#clientEditor');
     editor.classList.remove('hidden');
     $('#clientForm').reset();
-    $('#clientEditorTitle').textContent = 'Cliente y punto de suministro';
+    $('#clientEditorTitle').textContent = blankHolder ? 'Nuevo titular / suministro' : 'Cliente y punto de suministro';
 
     const existing = supplies.find((supply) => key(supply.client) === key(client));
     if (existing) {
@@ -642,7 +643,7 @@
       $('#clientType').value = existing.type || 'PENDIENTE';
       $('#clientTaxId').value = existing.clientTaxId || '';
       if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
-      $('#holderName').value = holder || existing.holder || existing.company || client;
+      $('#holderName').value = blankHolder ? '' : (holder || existing.holder || existing.company || client);
     } else {
       $('#clientName').value = client;
       $('#holderName').value = holder;
@@ -697,6 +698,7 @@
       not_authorized: 'Tu sesión no tiene permisos internos para modificar el maestro.',
       invalid_mode: 'Modo de guardado no válido.',
       invalid_cups: 'El CUPS no es válido.',
+      invalid_client_type: 'El tipo de cliente no es válido.',
       client_name_required: 'Falta el nombre del cliente.',
       duplicate_cups: 'Ese CUPS ya existe en otro suministro.',
       duplicate_or_conflicting_identity: 'Hay un conflicto de identidad o un CUPS duplicado en la base central.',
@@ -722,9 +724,10 @@
     const holderTaxId = norm(supply.holderTaxId) || (sameLegalIdentity ? norm(supply.clientTaxId) : '');
 
     try {
-      const { data, error } = await supabase.rpc('save_master_supply', {
+      const { data, error } = await supabase.rpc('save_master_supply_v2', {
         p_payload: {
           mode,
+          client_type: norm(supply.type || supply.clientType) || null,
           original_cups: originalCups || null,
           client_name: norm(supply.client) || null,
           client_tax_id: norm(supply.clientTaxId) || null,
