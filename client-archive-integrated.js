@@ -198,8 +198,12 @@
       if (topAdd) {
         topAdd.style.display = isBusinessGroup ? '' : 'none';
         if (isBusinessGroup) {
-          topAdd.textContent = '+ Nuevo titular / suministro';
-          topAdd.title = 'Añadir un nuevo titular y su primer suministro al grupo empresarial';
+          if (topAdd.textContent !== '+ Nuevo titular / suministro') {
+            topAdd.textContent = '+ Nuevo titular / suministro';
+          }
+          if (topAdd.title !== 'Añadir un nuevo titular y su primer suministro al grupo empresarial') {
+            topAdd.title = 'Añadir un nuevo titular y su primer suministro al grupo empresarial';
+          }
         }
       }
 
