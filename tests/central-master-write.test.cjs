@@ -10,6 +10,7 @@ const master = fs.readFileSync(path.join(root, 'master-v2.js'), 'utf8');
 const pilot = fs.readFileSync(path.join(root, 'supabase-xtra-pilot.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const bootstrap = fs.readFileSync(path.join(root, 'auth-bootstrap.js'), 'utf8');
+const integratedUi = fs.readFileSync(path.join(root, 'client-archive-integrated.js'), 'utf8');
 const migration = fs.readFileSync(
   path.join(root, 'supabase', 'migrations', '20260925094000_central_master_writes.sql'),
   'utf8'
@@ -112,8 +113,10 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=20260925-centralcache1/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central7/);
+  assert.match(index, /master-v2\.js\?v=0e550f822679/);
+  assert.match(index, /client-archive-integrated\.js\?v=fdae0c8c8d96/);
+  assert.match(index, /auth-bootstrap\.js\?v=794130541ce9/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3e94478bdba9/);
 });
 
 
@@ -134,4 +137,13 @@ test('group creation keeps a dedicated add-holder path in the existing master fo
   assert.match(master, /\+ Nuevo titular \/ suministro/);
   assert.match(master, /openForm\(button\.dataset\.client, '', button\.dataset\.newHolder === '1'\)/);
   assert.match(master, /blankHolder \? '' : \(holder \|\| existing\.holder/);
+});
+
+
+test('business groups keep their top-level heading even when they have no alias', () => {
+  assert.match(integratedUi, /isBusinessGroup = String\(card\.dataset\.clientType \|\| ''\)\.toUpperCase\(\) === 'GRUPO'/);
+  assert.match(integratedUi, /const keepTopHeading = hasAlias \|\| isBusinessGroup/);
+  assert.match(integratedUi, /business-group-client/);
+  assert.match(integratedUi, /\+ Nuevo titular \/ suministro/);
+  assert.match(integratedUi, /Añadir un nuevo titular y su primer suministro al grupo empresarial/);
 });
