@@ -8,6 +8,8 @@ on:
       - 'auth-bootstrap.js'
       - 'index.html'
       - 'supabase/migrations/20260925094000_central_master_writes.sql'
+      - 'supabase/migrations/20261001071500_persist_client_type.sql'
+      - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
       - '.github/workflows/central-master-write-regression.yml'
   pull_request:
@@ -17,6 +19,8 @@ on:
       - 'auth-bootstrap.js'
       - 'index.html'
       - 'supabase/migrations/20260925094000_central_master_writes.sql'
+      - 'supabase/migrations/20261001071500_persist_client_type.sql'
+      - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
       - '.github/workflows/central-master-write-regression.yml'
 
