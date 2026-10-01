@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const adminUi = fs.readFileSync(path.join(root, 'admin-data-management.js'), 'utf8');
+const integratedUi = fs.readFileSync(path.join(root, 'client-archive-integrated.js'), 'utf8');
 const auth = fs.readFileSync(path.join(root, 'auth.js'), 'utf8');
 const pilot = fs.readFileSync(path.join(root, 'supabase-xtra-pilot.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'), 'utf8');
@@ -12,8 +13,9 @@ const holderMigration = fs.readFileSync(path.join(root, 'supabase/migrations/202
 const holderLifecycleMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260929111500_safe_holder_admin_lifecycle.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/admin-data-lifecycle/index.ts'), 'utf8');
 
-test('admin lifecycle browser script parses', () => {
+test('admin lifecycle browser scripts parse', () => {
   assert.doesNotThrow(() => new Function(adminUi));
+  assert.doesNotThrow(() => new Function(integratedUi));
 });
 
 test('destructive lifecycle actions are guarded and server-backed', () => {
@@ -137,4 +139,27 @@ test('edge holder lifecycle is routed through the audited SQL function', () => {
 
 test('holder admin browser cache marker matches the new lifecycle UI', () => {
   assert.match(auth, /admin-data-management\.js\?v=0e1c3e21ccd0/);
+});
+
+
+test('client screen uses one unified alias-holder-supply hierarchy', () => {
+  assert.match(integratedUi, /#centralClientsAdmin,#centralHoldersAdmin,#centralSuppliesAdmin\{display:none!important\}/);
+  assert.match(integratedUi, /function prepareClientHierarchy/);
+  assert.match(integratedUi, /folder\.open = true/);
+  assert.match(integratedUi, /addSupply\.textContent = '\+ Nuevo suministro'/);
+  assert.match(integratedUi, /function integrateHolderActions/);
+  assert.match(integratedUi, /integrated-holder-edit/);
+  assert.match(integratedUi, /Editar titular/);
+  assert.match(integratedUi, /function integrateHolderChangeControls/);
+  assert.match(integratedUi, /apply_latest_invoice_holder/);
+  assert.match(integratedUi, /sync_holder_name/);
+  assert.doesNotMatch(integratedUi, /simple-client-folder>summary\{display:none!important\}/);
+});
+
+test('client hierarchy only shows an extra top heading when there is an alias/group', () => {
+  assert.match(integratedUi, /has-client-alias/);
+  assert.match(integratedUi, /no-client-alias/);
+  assert.match(integratedUi, /if \(!card\.classList\.contains\('no-client-alias'\)\) return/);
+  assert.match(integratedUi, /if \(title\) title\.style\.display = 'none'/);
+  assert.match(integratedUi, /\.client-legal-name\{display:none!important\}/);
 });
