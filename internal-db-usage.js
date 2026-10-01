@@ -19,15 +19,13 @@
   function ensureCard() {
     let card = $('#internalDbUsage');
     if (card) return card;
-    const view = $('#clientesView');
+    const view = $('#settingsView');
     if (!view) return null;
     card = document.createElement('section');
     card.id = 'internalDbUsage';
     card.className = 'card internal-db-usage hidden';
     card.setAttribute('aria-live', 'polite');
-    const anchor = $('#masterStatus');
-    if (anchor && anchor.parentElement === view) view.insertBefore(card, anchor);
-    else view.appendChild(card);
+    view.appendChild(card);
     return card;
   }
 

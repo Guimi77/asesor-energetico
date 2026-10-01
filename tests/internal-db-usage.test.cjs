@@ -29,3 +29,10 @@ test('usage widget is loaded as a separate presentation component',()=>{
   assert.match(ui,/Solo admin \/ staff/);
   assert.match(ui,/Referencia visual: 500 MB/);
 });
+
+
+test('database usage stays in Configuración and never alters the Clientes layout',()=>{
+  assert.match(ui,/const view = \$\('#settingsView'\)/);
+  assert.doesNotMatch(ui,/const view = \$\('#clientesView'\)/);
+  assert.doesNotMatch(ui,/\$\('#masterStatus'\)/);
+});
