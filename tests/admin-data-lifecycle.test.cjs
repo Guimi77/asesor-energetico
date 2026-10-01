@@ -193,4 +193,7 @@ test('integrated client hierarchy is mutation-idempotent after admin login', () 
 
   assert.match(integratedUi, /\.some\(\(button\) => norm\(button\.dataset\.integratedClientName/);
   assert.match(integratedUi, /new MutationObserver\(\(\) => \{\s*if \(isAdmin\(\)\) schedule\(\)/s);
+  assert.match(integratedUi, /let observer = null/);
+  assert.match(integratedUi, /observer\?\.disconnect\(\)/);
+  assert.match(integratedUi, /finally \{\s*if \(observer && document\.body\) \{\s*observer\.observe\(document\.body, \{ childList: true, subtree: true \}\)/s);
 });
