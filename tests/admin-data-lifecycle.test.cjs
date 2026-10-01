@@ -178,6 +178,9 @@ test('integrated client hierarchy is mutation-idempotent after admin login', () 
   assert.match(integratedUi, /if \(addSupply\.textContent !== '\+ Nuevo suministro'\)/);
   assert.match(integratedUi, /if \(notice\.textContent !== nextNotice\)/);
   assert.match(integratedUi, /dataset\.integratedClientName = clientName/);
+  assert.match(integratedUi, /\$\$\('\.client-group-member', card\)\.forEach/);
+  assert.match(integratedUi, /\$\$\('\.integrated-client-archive', card\)\.some/);
+
   assert.match(integratedUi, /\.some\(\(button\) => norm\(button\.dataset\.integratedClientName/);
   assert.match(integratedUi, /new MutationObserver\(\(\) => \{\s*if \(isAdmin\(\)\) schedule\(\)/s);
 });
