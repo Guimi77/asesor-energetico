@@ -231,9 +231,9 @@
       prepareClientHierarchy(card);
 
       if (card.classList.contains('multi-client-group')) {
-        $('.client-group-member', card).forEach((memberRow) => {
+        $$('.client-group-member', card).forEach((memberRow) => {
           const clientName = memberRow.dataset.clientName || '';
-          const alreadyIntegrated = $('.integrated-client-archive', card).some((button) => norm(button.dataset.integratedClientName || '') === norm(clientName));
+          const alreadyIntegrated = $$('.integrated-client-archive', card).some((button) => norm(button.dataset.integratedClientName || '') === norm(clientName));
           if (alreadyIntegrated) return;
           const sourceRow = rowsByName.get(norm(clientName));
           const sourceButton = sourceRow?.querySelector('[data-db-action="archive_client"]');
