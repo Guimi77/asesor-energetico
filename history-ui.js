@@ -590,9 +590,9 @@
     return { mode:'linear', min:low, max:high || 1, forward:v=>v, inverse:v=>v };
   }
 
-  function svgChart(points, field, formatter) {
+  function svgChart(points, field, formatter, { valueTransform = v => v } = {}) {
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
-    const vals = points.map(p => Number.isFinite(p[field]) ? p[field] : null);
+    const vals = points.map(p => Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
     const scale = adaptiveChartScale(vals.filter(v => v !== null));
     const span = scale.max - scale.min || 1;
     const tickFractions = [0,.25,.5,.75,1];
@@ -789,14 +789,14 @@
         <div class="history-kpi"><small>Consumo acumulado</small><strong>${qty(totalKwh,0)} kWh</strong></div>
         <div class="history-kpi"><small>Gasto acumulado</small><strong>${money(totalEur)} €</strong></div>
         <div class="history-kpi"><small>Coste total medio</small><strong>${avg?qty(avg,4):'—'} €/kWh</strong></div>
-        ${hasCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(totalCompensationEur)} €</strong></div>` : ''}
+        ${hasCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(Math.abs(totalCompensationEur))} €</strong></div>` : ''}
         <div class="history-kpi"><small>Tarifa(s) más reciente(s)</small><strong>${esc(latestTariff)}</strong></div>
       </section>
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
         <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'eur',v=>`${money(v)} €`)}</div>
         <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(chartPoints)}</div>
-        ${hasCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`)}</div>` : ''}
+        ${hasCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`,{valueTransform:v=>Math.abs(v)})}</div>` : ''}
       </section>
       ${series.mode==='period'?renderChartCadence(series):renderChartCoverage(series.points, expectedSupplies, coverageView)}
       <section class="card">
