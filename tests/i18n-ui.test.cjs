@@ -9,7 +9,7 @@ assert(index.includes('data-ibt-language-select'),'language selector missing');
 assert(index.includes('<option value="es">ES · Español</option>'),'Spanish option missing');
 assert(index.includes('<option value="ca">CA · Català</option>'),'Catalan option missing');
 assert(index.includes('<option value="en">EN · English</option>'),'English option missing');
-assert(index.includes('i18n.js?v=20261002-controls2'),'i18n script not loaded');
+assert(index.includes('i18n.js?v=9ec949d8ff9d'),'i18n script not loaded');
 
 for(const lang of ["'es'","'ca'","'en'"]) assert(i18n.includes(lang),'missing language '+lang);
 for(const key of ['Facturas','Clientes','Histórico','Asesor Energético','Cargar facturas','Configuración']){
