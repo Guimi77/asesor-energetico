@@ -156,7 +156,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const loadAlertsUi=()=>{
     if(document.querySelector('script[data-alerts-ui]'))return;
     const script=document.createElement('script');
-    script.src='alerts-ui.js?v=20260914-1';
+    script.src='alerts-ui.js?v=6d8b85f58d45';
     script.dataset.alertsUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
@@ -169,7 +169,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const loadAnalysisUi=()=>{
     if(document.querySelector('script[data-analysis-ui]')){loadAlertsUi();return;}
     const script=document.createElement('script');
-    script.src='analysis-ui.js?v=20260914-1';
+    script.src='analysis-ui.js?v=5a293a2071a9';
     script.dataset.analysisUi='1';
     script.onload=()=>{
       loadAlertsUi();
