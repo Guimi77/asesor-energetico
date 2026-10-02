@@ -146,7 +146,7 @@
     const y=v=>T+H-(v-min)/(max-min)*H;
     x.strokeStyle=price?p.red:p.blue;x.lineWidth=2.5;let started=false;x.beginPath();
     if(price){points.forEach((a,i)=>{const v=number(a[key]);if(v==null){started=false;return;}const px=L+(i+.5)*step;if(!started)x.moveTo(px,y(v));else x.lineTo(px,y(v));started=true;});x.stroke();}
-    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'||key==='exportedKwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){x.fillStyle=p.muted;x.textAlign='center';x.font='10px sans-serif';x.fillText(MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4),px,276);}});
+    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'||key==='exportedKwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){const monthly=/^\\d{4}-\\d{2}$/.test(a.key||''),label=monthly?MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4):text(a.label).slice(0,22);x.fillStyle=p.muted;x.textAlign='center';x.font=(monthly?'10':'9')+'px sans-serif';x.fillText(label,px,276);}});
     return c.toDataURL('image/png');
   }
   function addCharts(wb,ws,mo,lastRow){
