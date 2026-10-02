@@ -335,6 +335,8 @@
     'Excedentes compensados':{ca:'Excedents compensats',en:'Compensated surplus'},
     'Detalle parcial':{ca:'Detall parcial',en:'Partial detail'},
     'Compensación acumulada':{ca:'Compensació acumulada',en:'Cumulative compensation'},
+    'Excedentes y compensación no se agregan entre titulares distintos.':{ca:"Els excedents i la compensació no s'agreguen entre titulars diferents.",en:'Surplus and compensation are not aggregated across different account holders.'},
+    'Selecciona un titular o un CUPS para ver estas gráficas sin mezclar suministros de titulares diferentes.':{ca:'Selecciona un titular o un CUPS per veure aquestes gràfiques sense barrejar subministraments de titulars diferents.',en:'Select an account holder or a CUPS to view these charts without mixing supply points from different account holders.'},
     'Tarifa(s) más reciente(s)':{ca:'Tarifa(es) més recent(s)',en:'Most recent tariff(s)'},
     'Evolución del consumo':{ca:'Evolució del consum',en:'Consumption trend'},
     'Evolución del gasto':{ca:'Evolució de la despesa',en:'Spend trend'},
