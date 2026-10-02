@@ -739,6 +739,11 @@
     }
   }
 
+  function compensationScopeAllows(supplies) {
+    const holderIds = new Set((supplies || []).map(s => s?.holder_id).filter(Boolean));
+    return holderIds.size === 1;
+  }
+
   function render(records) {
     const host = $('#historyContent');
     if (!host) return;
@@ -751,6 +756,9 @@
     const totalEur = records.reduce((s,r)=>s+n(r.total_eur),0);
     const compensationRecords = records.filter(r => (Array.isArray(r.invoice_compensation_periods) && r.invoice_compensation_periods.length) || n(r.compensation_eur) !== 0);
     const hasCompensation = compensationRecords.length > 0;
+    const compensationScopeAllowed = compensationScopeAllows(effective);
+    const showCompensation = hasCompensation && compensationScopeAllowed;
+    const mixedCompensationScope = hasCompensation && !compensationScopeAllowed;
     const compensationDetailComplete = compensationRecords.every(r => n(r.compensation_eur) === 0 || (Array.isArray(r.invoice_compensation_periods) && r.invoice_compensation_periods.length));
     const totalExportedKwh = compensationRecords.reduce((sum,r)=>sum+(r.invoice_compensation_periods||[]).reduce((s,item)=>s+n(item.exported_kwh),0),0);
     const totalCompensationEur = compensationRecords.reduce((sum,r)=>sum+n(r.compensation_eur),0);
@@ -789,15 +797,16 @@
         <div class="history-kpi"><small>Consumo acumulado</small><strong>${qty(totalKwh,0)} kWh</strong></div>
         <div class="history-kpi"><small>Gasto acumulado</small><strong>${money(totalEur)} €</strong></div>
         <div class="history-kpi"><small>Coste total medio</small><strong>${avg?qty(avg,4):'—'} €/kWh</strong></div>
-        ${hasCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(Math.abs(totalCompensationEur))} €</strong></div>` : ''}
+        ${showCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(Math.abs(totalCompensationEur))} €</strong></div>` : ''}
         <div class="history-kpi"><small>Tarifa(s) más reciente(s)</small><strong>${esc(latestTariff)}</strong></div>
       </section>
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
         <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'eur',v=>`${money(v)} €`)}</div>
         <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(chartPoints)}</div>
-        ${hasCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`,{valueTransform:v=>Math.abs(v)})}</div>` : ''}
+        ${showCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`,{valueTransform:v=>Math.abs(v)})}</div>` : ''}
       </section>
+      ${mixedCompensationScope ? `<div class="history-data-note history-data-note-neutral" role="status"><strong>Excedentes y compensación no se agregan entre titulares distintos.</strong> Selecciona un titular o un CUPS para ver estas gráficas sin mezclar suministros de titulares diferentes.</div>` : ''}
       ${series.mode==='period'?renderChartCadence(series):renderChartCoverage(series.points, expectedSupplies, coverageView)}
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>
