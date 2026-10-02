@@ -579,6 +579,43 @@
     'puedes añadir un punto que quieras seguir.':{ca:'pots afegir un punt que vulguis seguir.',en:'you can add a point you want to track.'}
   });
 
+
+  Object.assign(CATALOG,{
+    'Administración interna':{ca:'Administració interna',en:'Internal administration'},
+    'Uso de base de datos':{ca:'Ús de base de dades',en:'Database usage'},
+    'Calculando capacidad y registros almacenados…':{ca:'Calculant capacitat i registres emmagatzemats…',en:'Calculating capacity and stored records…'},
+    'Solo admin / staff':{ca:'Només admin / personal',en:'Admin / staff only'},
+    'No se pudo consultar el uso actual.':{ca:"No s'ha pogut consultar l'ús actual.",en:'Current usage could not be queried.'},
+    'No se pudo cargar la base central:':{ca:"No s'ha pogut carregar la base central:",en:'The central database could not be loaded:'},
+    'No se puede eliminar este CUPS porque tiene histórico o registros relacionados. Archívalo en su lugar.':{ca:"No es pot eliminar aquest CUPS perquè té històric o registres relacionats. Arxiva'l en lloc d'eliminar-lo.",en:'This CUPS cannot be deleted because it has history or related records. Archive it instead.'},
+    'Antes de eliminar un titular debes archivarlo.':{ca:"Abans d'eliminar un titular l'has d'arxivar.",en:'Before deleting an account holder, archive it first.'},
+    'Un NIF/CIF distinto corresponde a otro titular. Usa el cambio de titular, no edites la identidad fiscal existente.':{ca:'Un NIF/CIF diferent correspon a un altre titular. Utilitza el canvi de titular, no editis la identitat fiscal existent.',en:'A different tax ID belongs to another account holder. Use the account-holder change instead of editing the existing tax identity.'},
+    'Ese NIF/CIF ya pertenece a otro titular del maestro.':{ca:'Aquest NIF/CIF ja pertany a un altre titular del mestre.',en:'That tax ID already belongs to another account holder in the master data.'},
+    'Ya existe otro titular con ese nombre dentro del mismo cliente.':{ca:'Ja existeix un altre titular amb aquest nom dins del mateix client.',en:'Another account holder with that name already exists within the same client.'},
+    'El titular actual no tiene NIF/CIF. Debe revisarse antes de aplicar un cambio automático.':{ca:"El titular actual no té NIF/CIF. S'ha de revisar abans d'aplicar un canvi automàtic.",en:'The current account holder has no tax ID. It must be reviewed before applying an automatic change.'},
+    'La última factura válida no contiene nombre e identificación fiscal suficientes.':{ca:'La darrera factura vàlida no conté nom i identificació fiscal suficients.',en:'The latest valid invoice does not contain sufficient name and tax identification.'},
+    'No hay una factura válida reciente que permita determinar el nuevo titular.':{ca:'No hi ha una factura vàlida recent que permeti determinar el nou titular.',en:'There is no recent valid invoice that can determine the new account holder.'},
+    'La identificación fiscal no ha cambiado. Es el mismo titular; actualiza el nombre si procede.':{ca:'La identificació fiscal no ha canviat. És el mateix titular; actualitza el nom si correspon.',en:'The tax identification has not changed. It is the same account holder; update the name if appropriate.'},
+    'El nuevo titular fiscal de la factura todavía no existe en el maestro central. Se ha bloqueado el cambio para no inventar relaciones.':{ca:'El nou titular fiscal de la factura encara no existeix al mestre central. El canvi s’ha bloquejat per no inventar relacions.',en:'The new tax account holder from the invoice does not yet exist in the central master data. The change was blocked to avoid inventing relationships.'},
+    'Hay más de un titular con esa identificación fiscal. Revisa el maestro antes de continuar.':{ca:'Hi ha més d’un titular amb aquesta identificació fiscal. Revisa el mestre abans de continuar.',en:'More than one account holder has that tax identification. Review the master data before continuing.'},
+    'El titular de destino existe, pero está archivado o inactivo.':{ca:'El titular de destinació existeix, però està arxivat o inactiu.',en:'The destination account holder exists but is archived or inactive.'},
+    'El cliente de destino está archivado o inactivo.':{ca:'El client de destinació està arxivat o inactiu.',en:'The destination client is archived or inactive.'},
+    'No puedes eliminar la cuenta con la que estás conectado.':{ca:'No pots eliminar el compte amb què estàs connectat.',en:'You cannot delete the account you are currently signed in with.'},
+    'No se puede eliminar el último administrador activo.':{ca:"No es pot eliminar l'últim administrador actiu.",en:'The last active administrator cannot be deleted.'},
+    'Aplicando cambio…':{ca:'Aplicant canvi…',en:'Applying change…'},
+    'Cambio guardado correctamente.':{ca:'Canvi desat correctament.',en:'Change saved successfully.'},
+    'Precio de potencia':{ca:'Preu de potència',en:'Power price'},
+    'Precio de energía':{ca:"Preu d'energia",en:'Energy price'},
+    'Maxímetros':{ca:'Maxímetres',en:'Maximum demand'},
+    'Detalle de excesos':{ca:"Detall d'excessos",en:'Excess-power detail'},
+    'Detalle de reactiva':{ca:'Detall de reactiva',en:'Reactive-energy detail'},
+    'Detalle de impuestos':{ca:"Detall d'impostos",en:'Tax detail'},
+    'Dirección de suministro':{ca:'Adreça del subministrament',en:'Supply address'},
+    'Nº de contrato':{ca:'Núm. de contracte',en:'Contract no.'},
+    'Contrato de acceso':{ca:"Contracte d'accés",en:'Access contract'},
+    ' No hay desglose por periodos suficiente para localizar el cargo dentro de P1-P6.':{ca:' No hi ha prou desglossament per períodes per localitzar el càrrec dins P1-P6.',en:' There is not enough period detail to locate the charge within P1-P6.'}
+  });
+
   const ATTRIBUTE_CATALOG={
     placeholder:{
       'Buscar cliente, titular, CUPS, localidad, tarifa o contrato…':{ca:'Cercar client, titular, CUPS, localitat, tarifa o contracte…',en:'Search client, account holder, CUPS, town, tariff or contract…'},
