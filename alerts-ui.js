@@ -204,11 +204,12 @@
   }
 
   function extractCardPayload(card) {
-    const title = $('.analysis-item h3', card)?.textContent?.trim() || '';
+    const sourceText = (element) => window.IBTI18n?.sourceText?.(element) || element?.textContent || '';
+    const title = sourceText($('.analysis-item h3', card)).trim();
     const identity = $('.analysis-identity', card)?.textContent || '';
     const cups = (identity.match(/\bES[A-Z0-9]{18,24}\b/i) || [])[0] || '';
-    const summary = $('.analysis-summary', card)?.textContent?.trim() || '';
-    const reviewRaw = $('.analysis-check', card)?.textContent?.trim() || '';
+    const summary = sourceText($('.analysis-summary', card)).trim();
+    const reviewRaw = sourceText($('.analysis-check', card)).trim();
     const review = reviewRaw.replace(/^Qué conviene revisar:\s*/i,'');
     const priority = card.classList.contains('analysis-item-priority');
     const readingRisk = /datos fiables|lecturas/i.test(title + ' ' + summary);
