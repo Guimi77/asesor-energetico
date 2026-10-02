@@ -800,6 +800,24 @@
     while((n=walker.nextNode()))translateTextNode(n);
     if(rootNode.querySelectorAll)rootNode.querySelectorAll('[placeholder],[aria-label],[title]').forEach(translateAttributes);
   }
+  function sourceTextOf(node){
+    if(!node)return'';
+    if(node.nodeType===3){
+      const raw=node.nodeValue||'',trimmed=raw.trim();
+      if(!trimmed)return raw;
+      const source=textSource.get(node)||reverseText.get(trimmed)||trimmed;
+      const at=raw.indexOf(trimmed);
+      return raw.slice(0,at)+source+raw.slice(at+trimmed.length);
+    }
+    if(node.nodeType!==1&&node.nodeType!==9&&node.nodeType!==11)return'';
+    const parts=[];
+    node.childNodes?.forEach(child=>{
+      if(child.nodeType===3)parts.push(sourceTextOf(child));
+      else if(child.nodeType===1)parts.push(sourceTextOf(child));
+    });
+    return parts.join('').replace(/\s+/g,' ').trim();
+  }
+
   function syncSelectors(){
     root.document?.querySelectorAll('[data-ibt-language-select]').forEach(el=>{
       if(el.value!==current)el.value=current;
@@ -855,6 +873,7 @@
     setLanguage:applyLanguage,
     t:textFor,
     translateTree,
+    sourceText:sourceTextOf,
     register(entries={}){
       Object.assign(CATALOG,entries);
       rebuildReverse();
