@@ -604,11 +604,11 @@
     let connected = false;
     const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
-    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(pointLabel(c.p))}</text>`).join('');
+    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(chartPointLabel(c.p))}</text>`).join('');
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
-      const label = esc(pointLabel(c.p) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
+      const label = esc(chartPointLabel(c.p) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
     const scaleNote = '';
