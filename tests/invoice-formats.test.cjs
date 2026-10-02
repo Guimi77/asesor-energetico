@@ -19,6 +19,41 @@ test('Endesa 2.0TD real invoice includes service invoices in the amount actually
   assert.equal(r.retailer,'Endesa Energía S.A.U.');
 });
 
+test('Endesa separates discount, Bono Social and meter rental without hiding them in Otros',()=>{
+  const cases=[
+    {name:'mayo',discount:-278.63,social:1.20,rental:1.68,socialLines:['Financiación Bono Social 30 días x 0,040000 Eur/día 1,20 €'],rentalLines:['Alquiler del contador 10 días x 0,061000 Eur/día 0,61 €','Alquiler del contador 20 días x 0,053500 Eur/día 1,07 €']},
+    {name:'julio',discount:-302.38,social:1.20,rental:1.60,socialLines:['Financiación Bono Social 20 días x 0,049000 Eur/día 0,98 €','Financiación Bono Social 10 días x 0,022000 Eur/día 0,22 €'],rentalLines:['Alquiler del contador 25 días x 0,054400 Eur/día 1,36 €','Alquiler del contador 5 días x 0,048000 Eur/día 0,24 €']},
+    {name:'septiembre',discount:-326.62,social:1.48,rental:1.60,socialLines:['Financiación Bono Social 30 días x 0,049333 Eur/día 1,48 €'],rentalLines:['Alquiler del contador 30 días x 0,053333 Eur/día 1,60 €']}
+  ];
+  for(const x of cases){
+    const summaryOther=Number((x.social+x.rental).toFixed(2));
+    const total=Number((300+10+x.discount+summaryOther+10+40).toFixed(2));
+    const euro=v=>v.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const p1=['Nº factura: P26CON000000010','Periodo de facturación: del 01/01/2026 a 31/01/2026 (30 días)','Potencia 10,00 €','Energía 300,00 €',`Descuentos ${euro(x.discount)} €`,`Otros ${euro(summaryOther)} €`,'Impuestos 50,00 €',`Total ${euro(total)} €`,'Consumo Total 300,000 kWh'];
+    const p2=['Titular del contrato: CLIENTE PRUEBA ECONOMIA','Dirección de suministro: C/ EJEMPLO 1, 07000 CIUDAD','Potencias contratadas: punta-llano 5,750 kW; valle 5,750 kW','CUPS: ES0000000000000010AA0F','Peaje de transporte y distribución: 2.0TD','Punta 1,000 101,000 1,00 0,000 100,000','Llano 1,000 101,000 1,00 0,000 100,000','Valle 1,000 101,000 1,00 0,000 100,000','Pot. Punta-Llano 5,750 kW x 0,034783 Eur/kW x 30 días 6,00 €','Pot. Valle 5,750 kW x 0,023188 Eur/kW x 30 días 4,00 €',...x.socialLines,...x.rentalLines,'Impuesto electricidad 310,00 Eur x 3,2258 % 10,00 €','IVA normal 21 % s/ 190,48 40,00 €'];
+    const r=api.parseEndesa(d(p1,p2),{name:x.name+'.pdf'});
+    assert.equal(r.social,x.social,x.name+' bono social');
+    assert.equal(r.rental,x.rental,x.name+' alquiler');
+    assert.equal(r.other,x.discount,x.name+' otros conserva solo descuento');
+    assert.equal(r.otherResidual,0,x.name+' residual otros');
+    assert.equal(r.otherClassificationReliable,true,x.name+' clasificación fiable');
+    assert.equal(r.accounted,total,x.name+' cuadre');
+    assert.equal(r.balanced,true,x.name+' balance');
+    const normalized=api.normalizeEndesaRow(r,{completenessVersion:'energy-test.1'});
+    assert.equal(normalized.costs.socialBonusEur,x.social,x.name+' modelo bono');
+    assert.equal(normalized.costs.meterRentalEur,x.rental,x.name+' modelo alquiler');
+    assert.equal(normalized.validation.completeness.social_bonus,'extracted',x.name+' completitud bono');
+    assert.equal(normalized.validation.completeness.meter_rental,'extracted',x.name+' completitud alquiler');
+  }
+});
+
+test('Endesa preserves genuine residual Otros after classifying known charges',()=>{
+  const p1=['Nº factura: P26CON000000011','Periodo de facturación: del 01/02/2026 a 28/02/2026 (28 días)','Potencia 10,00 €','Energía 100,00 €','Descuentos -5,00 €','Otros 5,00 €','Impuestos 20,00 €','Total 130,00 €','Consumo Total 100,000 kWh'];
+  const p2=['Titular del contrato: CLIENTE PRUEBA RESIDUAL','Potencias contratadas: punta-llano 5,750 kW; valle 5,750 kW','CUPS: ES0000000000000011AA0F','Peaje de transporte y distribución: 2.0TD','Punta 1,000 31,000 1,00 0,000 30,000','Llano 1,000 31,000 1,00 0,000 30,000','Valle 1,000 41,000 1,00 0,000 40,000','Pot. Punta-Llano 5,750 kW x 0,034783 Eur/kW x 28 días 6,00 €','Pot. Valle 5,750 kW x 0,024845 Eur/kW x 28 días 4,00 €','Financiación Bono Social 28 días x 0,042857 Eur/día 1,20 €','Alquiler del contador 28 días x 0,057143 Eur/día 1,60 €','Impuesto electricidad 110,00 Eur x 4,5454 % 5,00 €','IVA normal 21 % s/ 71,43 15,00 €'];
+  const r=api.parseEndesa(d(p1,p2),{name:'residual.pdf'});
+  assert.equal(r.social,1.2);assert.equal(r.rental,1.6);assert.equal(r.otherResidual,2.2);assert.equal(r.other,-2.8);assert.equal(r.accounted,130);assert.equal(r.balanced,true);
+});
+
 test('Endesa expone modelo energético normalizado portable sin alterar el parser clásico',()=>{
   const p1=['Nº factura: P26CON000000001','Periodo de facturación: del 03/07/2026 a 04/08/2026 (32 días)','Potencia 22,09 €','Energía 226,53 €','Descuentos -42,65 €','Otros 1,64 €','Impuestos 56,39 €','Total 264,00 €','Consumo Total 855,535 kWh'];
   const p2=['Titular del contrato: CLIENTE DEMO','Potencias contratadas: punta-llano 5,750 kW; valle 5,750 kW','CUPS: ES0000000000000004AA0F','Peaje de transporte y distribución: 2.0TD','Punta 24.606,217 24.849,430 1,00 0,000 243,213','Llano 7.737,018 7.974,459 1,00 0,000 237,441','Valle 9.337,632 9.712,513 1,00 0,000 374,881','Pot. Punta-Llano 5,750 kW x 0,102310 Eur/kW x 32 días 18,82 €','Pot. Valle 5,750 kW x 0,017763 Eur/kW x 32 días 3,27 €','Impuesto electricidad ( 206,76 Eur X 5,1126963 %) 10,57 €','IVA normal 21 % s/ 218,18 45,82 €'];
