@@ -590,3 +590,28 @@ td{padding:10px 8px}
     flex:1 1 520px!important;
   }
 }
+/* Top-right account controls */
+#logoutBtn.logout-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  margin-left:0!important;
+  background:#fff5f5!important;
+  color:#b42318!important;
+  border:1px solid #efb8b4!important;
+  box-shadow:none!important;
+}
+#logoutBtn.logout-btn:hover,
+#logoutBtn.logout-btn:focus-visible{
+  background:#ffe8e6!important;
+  border-color:#d9776f!important;
+  color:#991b1b!important;
+  outline:none;
+}
+#logoutBtn.logout-btn .logout-icon{width:14px;height:14px}
+@media(max-width:900px){
+  .language-switcher{max-width:calc(100vw - 16px)}
+  .language-switcher select{max-width:132px}
+}
+
