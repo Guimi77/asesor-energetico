@@ -543,6 +543,32 @@
     'No se ha completado el guardado del histórico. Revisa la conexión.':{ca:"No s'ha completat el desament de l'històric. Revisa la connexió.",en:'History save did not complete. Check the connection.'}
   });
 
+
+  Object.assign(CATALOG,{
+    'Base central':{ca:'Base central',en:'Central database'},
+    'Administrar clientes':{ca:'Administrar clients',en:'Manage clients'},
+    'Archivar conserva todo el histórico. El borrado definitivo solo se ofrece cuando el cliente está vacío.':{ca:"Arxivar conserva tot l'històric. L'eliminació definitiva només s'ofereix quan el client està buit.",en:'Archiving keeps all history. Permanent deletion is only offered when the client is empty.'},
+    'Mostrar archivados':{ca:'Mostrar arxivats',en:'Show archived'},
+    'Los clientes archivados dejan de ser accesibles para cuentas de cliente, pero el personal interno mantiene el histórico para consulta y auditoría.':{ca:"Els clients arxivats deixen de ser accessibles per als comptes de client, però el personal intern manté l'històric per a consulta i auditoria.",en:'Archived clients are no longer accessible to client accounts, but internal staff keep the history for consultation and audit.'},
+    'Administrar titulares':{ca:'Administrar titulars',en:'Manage account holders'},
+    'El titular actual puede cambiar sin reescribir las facturas antiguas. Archivar conserva la relación histórica; eliminar solo se permite cuando ya no existe ningún suministro asociado.':{ca:"El titular actual pot canviar sense reescriure les factures antigues. Arxivar conserva la relació històrica; eliminar només es permet quan ja no existeix cap subministrament associat.",en:'The current account holder can change without rewriting old invoices. Archiving keeps the historical relationship; deletion is only allowed when no supply point remains associated.'},
+    'Un titular con CUPS activos no puede archivarse. Un titular solo puede eliminarse después de archivarlo y cuando no tenga ningún suministro asociado.':{ca:"Un titular amb CUPS actius no es pot arxivar. Un titular només es pot eliminar després d'arxivar-lo i quan no tingui cap subministrament associat.",en:'An account holder with active CUPS cannot be archived. An account holder can only be deleted after being archived and when no supply point is associated.'},
+    'Administrar suministros':{ca:'Administrar subministraments',en:'Manage supply points'},
+    'Un CUPS con histórico se archiva; no se destruye. El borrado definitivo queda reservado a registros sin datos dependientes.':{ca:"Un CUPS amb històric s'arxiva; no es destrueix. L'eliminació definitiva queda reservada a registres sense dades dependents.",en:'A CUPS with history is archived, not destroyed. Permanent deletion is reserved for records with no dependent data.'},
+    'Restaurar':{ca:'Restaurar',en:'Restore'},
+    'Archivar':{ca:'Arxivar',en:'Archive'},
+    'Cliente archivado: no se puede restaurar':{ca:'Client arxivat: no es pot restaurar',en:'Client archived: cannot be restored'},
+    'Con suministros: no se puede borrar':{ca:'Amb subministraments: no es pot eliminar',en:'Has supply points: cannot be deleted'},
+    'Tiene CUPS activos':{ca:'Té CUPS actius',en:'Has active CUPS'},
+    'No hay clientes que coincidan con este filtro.':{ca:'No hi ha clients que coincideixin amb aquest filtre.',en:'No clients match this filter.'},
+    'No hay titulares que coincidan con este filtro.':{ca:'No hi ha titulars que coincideixin amb aquest filtre.',en:'No account holders match this filter.'},
+    'No hay suministros que coincidan con este filtro.':{ca:'No hi ha subministraments que coincideixin amb aquest filtre.',en:'No supply points match this filter.'},
+    'titular distinto':{ca:'titular diferent',en:'different account holder'},
+    'Editar titular':{ca:'Editar titular',en:'Edit account holder'},
+    'Actualizar nombre':{ca:'Actualitzar nom',en:'Update name'},
+    '⚠ Titular pendiente de revisión: falta identificación fiscal en el maestro o en la última factura.':{ca:'⚠ Titular pendent de revisió: falta identificació fiscal al mestre o a la darrera factura.',en:'⚠ Account holder pending review: tax identification is missing from master data or the latest invoice.'}
+  });
+
   const ATTRIBUTE_CATALOG={
     placeholder:{
       'Buscar cliente, titular, CUPS, localidad, tarifa o contrato…':{ca:'Cercar client, titular, CUPS, localitat, tarifa o contracte…',en:'Search client, account holder, CUPS, town, tariff or contract…'},
