@@ -196,7 +196,7 @@
   async function workbook(g,scope){
     if(!root.ExcelJS?.Workbook)throw Error('No se ha cargado la librer\u00eda de Excel. Recarga la p\u00e1gina.');
     const wb=new root.ExcelJS.Workbook();wb.creator='Instal\u00b7lacions BT';wb.calcProperties.fullCalcOnLoad=true;
-    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Mes de fin de facturaci\u00f3n. En tarifas 2.0, max\u00edmetro y excesos de potencia: no aplica.';
+    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Las gr\u00e1ficas usan mes natural o periodo real seg\u00fan la cadencia de facturaci\u00f3n. En tarifas 2.0, max\u00edmetro y excesos de potencia: no aplica.';
     wb.subject=range;wb.description='Fuente: informaci\u00f3n estructurada del hist\u00f3rico. Sin documentos PDF.';
     const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango','Estado CUPS'],[6,28,32,40,22,20,18,23,27,27,16]);
     let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor),supplyStatusLabel(s.status)]);}
@@ -216,5 +216,5 @@
     ensure();if(options.save)await options.save(blob,name);else{const a=root.document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;root.document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);}
     return {files:files.length,records:scope.groups.reduce((s,g)=>s+g.records.length,0),name};
   }
-  const api=Object.freeze({selection,monthly,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
+  const api=Object.freeze({selection,monthly,chartSeries,chartCadence,billingSpanDays,realPeriodLabel,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
