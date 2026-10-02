@@ -2,12 +2,9 @@
 .language-switcher{position:fixed;top:10px;right:14px;z-index:1200;font-family:inherit}
 .language-switcher label{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #d7e0ea;border-radius:10px;padding:7px 9px;box-shadow:0 5px 18px rgba(16,35,63,.10)}
 .language-label{font-size:.66rem;font-weight:800;color:#52657b;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-.language-flag{width:20px;height:14px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(15,23,42,.12)}
-.language-flag::before{content:"🇪🇸";font-size:18px;line-height:14px;transform:translateY(-1px)}
+.language-flag{width:22px;height:15px;display:inline-block;flex:0 0 22px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(15,23,42,.16);background:linear-gradient(to bottom,#aa151b 0 25%,#f1bf00 25% 75%,#aa151b 75% 100%)}
 html[data-language="ca"] .language-flag{background:repeating-linear-gradient(to bottom,#f6c800 0 11.11%,#c8102e 11.11% 22.22%)}
-html[data-language="ca"] .language-flag::before{content:""}
-html[data-language="en"] .language-flag{background:transparent;box-shadow:none}
-html[data-language="en"] .language-flag::before{content:"🇬🇧"}
+html[data-language="en"] .language-flag{background:linear-gradient(33deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(-33deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(33deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(-33deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(to right,transparent 38%,#fff 38% 62%,transparent 62%),linear-gradient(to bottom,transparent 32%,#fff 32% 68%,transparent 68%),linear-gradient(to right,transparent 44%,#c8102e 44% 56%,transparent 56%),linear-gradient(to bottom,transparent 40%,#c8102e 40% 60%,transparent 60%),#012169}
 .language-switcher select{border:0;background:transparent;color:#10233f;font:inherit;font-size:.72rem;font-weight:800;outline:none;cursor:pointer}
 .auth-signed-in .language-switcher{top:8px;right:14px}
 .auth-signed-in .session-box{transform:translateY(7px);gap:8px}

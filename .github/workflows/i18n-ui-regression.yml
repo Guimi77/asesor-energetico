@@ -22,4 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - run: node --check i18n.js
+      - run: node --check analysis-ui.js
+      - run: node --check alerts-ui.js
       - run: node tests/i18n-ui.test.cjs

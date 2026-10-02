@@ -61,7 +61,7 @@
   }
 
   function bindNav() {
-    const link = [...document.querySelectorAll('.sidebar nav a')].find(a => String(a.textContent || '').trim().includes('Análisis'));
+    const link = document.querySelector('.sidebar nav a[data-view="analisis"]') || [...document.querySelectorAll('.sidebar nav a')].find(a => String(a.textContent || '').trim().includes('Análisis'));
     if (!link || link.dataset.analysisBound === '1') return;
     link.dataset.analysisBound = '1';
     link.dataset.view = 'analisis';
