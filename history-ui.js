@@ -958,6 +958,9 @@
 
   window.addEventListener('ibt-role-changed', e => init(e.detail?.profile));
   window.addEventListener('xtra-history-saved', () => refreshRecords());
+  window.addEventListener('xtra-history-updated', () => {
+    if (window.ibtCurrentProfile) void init(window.ibtCurrentProfile);
+  });
   window.addEventListener('DOMContentLoaded', () => {
     if (window.ibtCurrentProfile) init(window.ibtCurrentProfile);
   });

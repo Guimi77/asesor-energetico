@@ -558,6 +558,7 @@ historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · $
 historyReviewDetails(reviewItems);
 fenieShadowStatus();endesaShadowStatus();
 window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary(),endesaShadow:endesaHistoryShadowSummary()}}));
+if(saved>0)window.dispatchEvent(new CustomEvent('ibt-central-data-changed',{detail:{action:'history_ingest',saved}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
 const input=$('#fileInput');if(input)input.addEventListener('change',e=>enqueue(e.target.files),{capture:true});
