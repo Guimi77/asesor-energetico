@@ -3,11 +3,26 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {acceptedFile}=require('./helpers/regression-baseline.cjs');
 const ui=fs.readFileSync('history-ui.js','utf8');
 const ctx={Map,Set,Number,Math,JSON,String,CHART_MIN_COVERAGE_RATIO:0.8,n:v=>Number(v)||0,monthKey:v=>String(v||'').slice(0,7),monthLabel:v=>v,qty:(v,d)=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}),money:v=>Number(v).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}),esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))};
-vm.createContext(ctx);vm.runInContext(ui.slice(ui.indexOf('  function aggregateMonthly'),ui.indexOf('  function powerSignature'))+'\nglobalThis.monthly=chartMonthly;globalThis.view=chartCoverageView;globalThis.coverage=renderChartCoverage;globalThis.plot=svgChart;globalThis.cost=svgCostChart;',ctx);
+vm.createContext(ctx);vm.runInContext(ui.slice(ui.indexOf('  function aggregateMonthly'),ui.indexOf('  function powerSignature'))+'\nglobalThis.monthly=chartMonthly;globalThis.series=chartSeries;globalThis.cadence=renderChartCadence;globalThis.view=chartCoverageView;globalThis.coverage=renderChartCoverage;globalThis.plot=svgChart;globalThis.cost=svgCostChart;',ctx);
 const row=(s,m,k=100,e=20)=>({supply_id:s,billing_start:m+'-01',billing_end:m+'-28',consumption_kwh:k,total_eur:e});
 const plain=v=>JSON.parse(JSON.stringify(v));
 const part=(s,a,b)=>{const i=s.indexOf(a),j=s.indexOf(b,i+a.length);assert(i>=0&&j>i);return s.slice(i,j)};
 test('Counts distinct CUPS, not invoice count, with stable numerical totals',()=>{const r=[row('a','2026-01',3,1),row('a','2026-01',7,1),row('b','2026-01',10,2)];const copy=JSON.stringify(r);const p=ctx.monthly(r)[0];assert.equal(p.supplies,2);assert.equal(p.records,3);assert.equal(p.kwh,20);assert.equal(p.eur,4);assert.equal(JSON.stringify(r),copy);});
+test('Single-CUPS bimonthly billing plots real invoice periods without inventing missing months',()=>{
+ const rows=[
+  {id:'a1',supply_id:'a',billing_start:'2026-03-08',billing_end:'2026-05-10',billing_days:63,consumption_kwh:7328.21,total_eur:2074.69},
+  {id:'a2',supply_id:'a',billing_start:'2026-05-10',billing_end:'2026-07-09',billing_days:60,consumption_kwh:7943.74,total_eur:2333.42},
+  {id:'a3',supply_id:'a',billing_start:'2026-07-09',billing_end:'2026-09-07',billing_days:60,consumption_kwh:8602.59,total_eur:2508.44}
+ ];
+ const s=ctx.series(rows);assert.equal(s.mode,'period');assert.equal(s.cadence,'bimonthly');assert.equal(s.points.length,3);
+ assert.deepEqual(plain(s.points.map(p=>p.label)),['08 mar - 10 may','10 may - 09 jul','09 jul - 07 sep']);
+ assert.deepEqual(plain(s.points.map(p=>p.kwh)),[7328.21,7943.74,8602.59]);assert.equal(s.points[0].billingDays,63);
+ assert(Math.abs(s.points[0].kwhPerDay-(7328.21/63))<1e-12);
+ const html=ctx.plot(s.points,'kwh',v=>ctx.qty(v,0)+' kWh');assert(!html.includes('jun 26'));assert(!html.includes('ago 26'));assert(html.includes('08 mar - 10 may'));assert(html.includes('kWh/día'));
+ const note=ctx.cadence(s);assert(note.includes('Facturación bimestral'));assert(note.includes('No se reparten ni se inventan'));
+});
+test('Monthly single-CUPS billing preserves the established monthly chart contract',()=>{const s=ctx.series([row('a','2026-01'),row('a','2026-02')]);assert.equal(s.mode,'monthly');assert.deepEqual(plain(s.points.map(p=>p.key)),['2026-01','2026-02']);assert.equal(ctx.cadence(s),'');});
+test('Portfolio charts keep monthly aggregation even when individual invoices have longer billing spans',()=>{const rows=[{supply_id:'a',billing_start:'2026-01-01',billing_end:'2026-03-01',billing_days:59,consumption_kwh:100,total_eur:20},{supply_id:'b',billing_start:'2026-01-02',billing_end:'2026-03-02',billing_days:59,consumption_kwh:200,total_eur:40}];const s=ctx.series(rows);assert.equal(s.mode,'monthly');assert.equal(s.points.at(-1).key,'2026-03');assert.equal(s.points.at(-1).kwh,300);});
 test('Missing calendar month is a gap; explicit zero keeps its zero point',()=>{const p=ctx.monthly([row('a','2026-01',0,9),row('a','2026-03',10,2)]);assert.deepEqual(plain(p.map(x=>[x.key,x.kwh,x.eur,x.supplies])),[['2026-01',0,9,1],['2026-02',null,null,0],['2026-03',10,2,1]]);const h=ctx.plot(p,'kwh',v=>ctx.qty(v,0)+' kWh');assert.equal((h.match(/<circle /g)||[]).length,2);assert(h.includes('data-value="0"'));const path=h.match(/<path d="([^"]*)"/)[1];assert.equal((path.match(/M /g)||[]).length,2);assert(!path.includes('L '));});
 test('Missing and invalid totals never turn into a measured zero',()=>{for(const value of [null,undefined,'',' ',NaN,Infinity,false]){const p=ctx.monthly([{...row('a','2026-01'),consumption_kwh:value,total_eur:value}]);assert.equal(p[0].kwh,null);assert.equal(p[0].eur,null);assert(!ctx.plot(p,'kwh',String).includes('<circle'));assert(!ctx.cost(p).includes('<circle'));}});
 test('A partial numeric month is not plotted as if all values were known',()=>{const p=ctx.monthly([row('a','2026-01'),row('b','2026-01',null,40)]);assert.equal(p[0].kwh,null);assert.equal(p[0].eur,60);assert.equal(p[0].missingKwh,1);assert(!ctx.cost(p).includes('<circle'));});
