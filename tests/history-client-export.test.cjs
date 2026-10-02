@@ -32,6 +32,19 @@ test('Compensation detail gaps are not silently converted to zero exported kWh',
  assert.equal(m.compensation,-4.42);
 });
 test('Billed period descriptions preserve totals and distinguish unknown prices',()=>{const m=api.monthly([r('a',{invoice_energy_periods:[{period:1,consumption_kwh:50,energy_cost_eur:5},{period:2,consumption_kwh:50,energy_cost_eur:null}]})])[0];assert.match(m.periods,/P1: 50,00/);assert.match(m.periods,/0,100000/);assert.match(m.periods,/P2: 50,00.*precio no disponible/);assert(!m.periods.includes('P6'));});
+test('Excel bimonthly single-CUPS series uses real invoice periods without fake months',()=>{
+ const rows=[
+  r('a',{billing_start:'2026-03-08',billing_end:'2026-05-10',billing_days:63,consumption_kwh:7328.21,total_eur:2074.69}),
+  r('b',{billing_start:'2026-05-10',billing_end:'2026-07-09',billing_days:60,consumption_kwh:7943.74,total_eur:2333.42}),
+  r('c',{billing_start:'2026-07-09',billing_end:'2026-09-07',billing_days:60,consumption_kwh:8602.59,total_eur:2508.44})
+ ];
+ const s=api.chartSeries(rows);assert.equal(s.mode,'period');assert.equal(s.cadence,'bimonthly');
+ assert.deepEqual(s.points.map(x=>x.label),['08 mar - 10 may','10 may - 09 jul','09 jul - 07 sep']);
+ assert.deepEqual(s.points.map(x=>x.kwh),[7328.21,7943.74,8602.59]);
+});
+test('Excel monthly single-CUPS series keeps the existing monthly behavior',()=>{const s=api.chartSeries([r('a'),r('b',{billing_start:'2026-02-01',billing_end:'2026-02-28'})]);assert.equal(s.mode,'monthly');assert.deepEqual(s.points.map(x=>x.key),['2026-01','2026-02']);});
+test('Excel multi-CUPS summary remains monthly even when invoices are bimonthly',()=>{const s=api.chartSeries([r('a',{billing_start:'2026-01-01',billing_end:'2026-03-01',billing_days:59}),r('b',{supply_id:'s2',billing_start:'2026-01-02',billing_end:'2026-03-02',billing_days:59})]);assert.equal(s.mode,'monthly');assert.equal(s.points.at(-1).key,'2026-03');});
+test('Excel source labels period-mode charts explicitly and keeps monthly mode intact',()=>{const fs=require('node:fs'),s=fs.readFileSync(__dirname+'/../history-client-export.js','utf8');assert(s.includes("byPeriod?'Consumo por periodo facturado':'Consumo mensual'"));assert(s.includes("axisHeader=series.mode==='period'?'PERIODO FACTURADO':'MES'"));assert(s.includes('Las gr\\u00e1ficas usan mes natural o periodo real seg\\u00fan la cadencia de facturaci\\u00f3n.'));});
 test('Company report charts retain every stored month regardless of portfolio coverage',()=>{const months=api.monthly([r('jan-a'),r('feb-a',{billing_start:'2026-02-01',billing_end:'2026-02-28'}),r('feb-b',{supply_id:'s2',billing_start:'2026-02-01',billing_end:'2026-02-28',consumption_kwh:50,total_eur:10,energy_cost_eur:5})]);const view=api.reportCoverage(months,2);assert.equal(view.excluded,0);assert.equal(months[0].kwh,100);assert.equal(view.months[0].kwh,100);assert.equal(view.months[1].kwh,150);});
 test('Input records and master are not mutated',()=>{const x=input([r('b'),r('a')]);const before=JSON.stringify(x);api.monthly(api.selection(x).groups[0].records);assert.equal(JSON.stringify(x),before);});
 test('Stale session or changed filters cannot start a download',async()=>{await assert.rejects(api.exportSelection(input([r('a')]),{stillCurrent:()=>false}),/cambiado/);});

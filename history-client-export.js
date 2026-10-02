@@ -78,6 +78,46 @@
     }
     return out;
   }
+  function billingSpanDays(r){
+    const explicit=number(r?.billing_days);if(explicit!=null&&explicit>0)return explicit;
+    const start=date(r?.billing_start),end=date(r?.billing_end);if(!start||!end||end<=start)return null;
+    return Math.round((Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000);
+  }
+  function shortPeriodDate(v,includeYear=false){
+    const d=date(v);if(!d)return text(v);
+    const [y,m,day]=d.split('-');return day+' '+(MONTHS[Number(m)-1]||m).slice(0,3).toLowerCase()+(includeYear?' '+y.slice(2):'');
+  }
+  function realPeriodLabel(r){
+    const start=date(r?.billing_start),end=date(r?.billing_end),withYear=start&&end&&start.slice(0,4)!==end.slice(0,4);
+    return shortPeriodDate(start,withYear)+' - '+shortPeriodDate(end,withYear);
+  }
+  function chartCadence(records){
+    const rows=(records||[]).filter(r=>date(r?.billing_start)&&date(r?.billing_end));if(!rows.length)return'monthly';
+    const supplies=new Set(rows.map(r=>r.supply_id).filter(Boolean));if(supplies.size>1)return'monthly';
+    const days=rows.map(billingSpanDays).filter(v=>v!=null&&v>0);if(!days.length)return'monthly';
+    if(days.every(v=>v>=20&&v<=40))return'monthly';
+    const min=Math.min(...days),max=Math.max(...days);if(days.every(v=>v>=45&&v<=75)&&max-min<=10)return'bimonthly';
+    return'irregular';
+  }
+  function periodPoint(r){
+    const rows=[r],kwh=number(r.consumption_kwh),total=number(r.total_eur),energy=number(r.energy_cost_eur);
+    const compensationRows=r.invoice_compensation_periods||[],hasCompensation=compensationRows.length>0||(number(r.compensation_eur)!==null&&number(r.compensation_eur)!==0);
+    const compensationDetailComplete=number(r.compensation_eur)===null||number(r.compensation_eur)===0||compensationRows.length>0;
+    const exportedKwh=hasCompensation&&compensationDetailComplete?compensationRows.reduce((s,x)=>s+(number(x.exported_kwh)||0),0):hasCompensation?null:0;
+    const compensation=number(r.compensation_eur)??0,periods=[];
+    for(let p=1;p<=6;p++){
+      const values=(r.invoice_energy_periods||[]).filter(x=>Number(x.period)===p);if(!values.length)continue;
+      const pk=values.every(x=>number(x.consumption_kwh)!=null)?sum(values,'consumption_kwh'):null;
+      const cost=values.every(x=>number(x.energy_cost_eur)!=null)?sum(values,'energy_cost_eur'):null;
+      if(pk!==null&&pk!==0)periods.push('P'+p+': '+fmt(pk)+' kWh · '+(cost==null||pk<=0?'precio no disponible':fmt(cost/pk,6)+' €/kWh'));
+    }
+    return{key:'period:'+r.billing_start+':'+r.billing_end+':'+r.id,label:realPeriodLabel(r),rows,kwh,total,energy,energyPrice:kwh>0&&energy!=null?energy/kwh:null,totalUnit:kwh>0&&total!=null?total/kwh:null,exportedKwh,compensation,hasCompensation,periods:periods.join('\n'),supplyCount:r.supply_id?1:0,invoiceNumber:text(r.invoice_number),billingDays:billingSpanDays(r)};
+  }
+  function chartSeries(records){
+    const cadence=chartCadence(records);
+    if(cadence==='monthly')return{mode:'monthly',cadence,points:monthly(records)};
+    return{mode:'period',cadence,points:[...(records||[])].sort((a,b)=>a.billing_start.localeCompare(b.billing_start)||a.billing_end.localeCompare(b.billing_end)||String(a.id).localeCompare(String(b.id))).map(periodPoint)};
+  }
   function reportCoverage(months,expected){
     const total=Math.max(0,Number(expected)||0);
     // Excel must reflect every stored period. Coverage is informational and never removes months from charts.
@@ -106,11 +146,11 @@
     const y=v=>T+H-(v-min)/(max-min)*H;
     x.strokeStyle=price?p.red:p.blue;x.lineWidth=2.5;let started=false;x.beginPath();
     if(price){points.forEach((a,i)=>{const v=number(a[key]);if(v==null){started=false;return;}const px=L+(i+.5)*step;if(!started)x.moveTo(px,y(v));else x.lineTo(px,y(v));started=true;});x.stroke();}
-    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'||key==='exportedKwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){x.fillStyle=p.muted;x.textAlign='center';x.font='10px sans-serif';x.fillText(MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4),px,276);}});
+    points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'||key==='exportedKwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){const monthly=/^\\d{4}-\\d{2}$/.test(a.key||''),label=monthly?MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4):text(a.label).slice(0,22);x.fillStyle=p.muted;x.textAlign='center';x.font=(monthly?'10':'9')+'px sans-serif';x.fillText(label,px,276);}});
     return c.toDataURL('image/png');
   }
-  function addCharts(wb,ws,mo,lastRow){
-    const first=lastRow+3,charts=[['kwh','Consumo mensual','kWh'],['total','Gasto total mensual','\u20ac'],['energyPrice','Precio medio de energ\u00eda','\u20ac/kWh'],['totalUnit','Coste total \u20ac/kWh','\u20ac/kWh']];
+  function addCharts(wb,ws,mo,lastRow,mode='monthly'){
+    const byPeriod=mode==='period',first=lastRow+3,charts=[['kwh',byPeriod?'Consumo por periodo facturado':'Consumo mensual','kWh'],['total',byPeriod?'Gasto total por periodo facturado':'Gasto total mensual','\u20ac'],['energyPrice','Precio medio de energ\u00eda','\u20ac/kWh'],['totalUnit','Coste total \u20ac/kWh','\u20ac/kWh']];
     if(mo.some(m=>m.hasCompensation))charts.push(['exportedKwh','Excedentes compensados','kWh'],['compensation','Compensaci\u00f3n econ\u00f3mica','\u20ac']);
     charts.forEach(([key,title,unit],i)=>{
       const row=first+i*17;for(let r=row;r<row+17;r++)ws.getRow(r).height=15;
@@ -118,14 +158,20 @@
     });
   }
   function monthlySheet(wb,name,title,rows,periodSheet,lastPeriodRow,cups,subtitle,expectedSupplies=1){
-    const mo=monthly(rows),coverage=reportCoverage(mo,expectedSupplies),coverageNote=expectedSupplies>1&&coverage.excluded?` Gr\u00e1ficas: ${coverage.excluded} mes(es) con menos de ${coverage.threshold} de ${coverage.expected} suministros no se comparan.`:'',ws=sheet(wb,name,title,subtitle+coverageNote,['MES','Consumo total kWh','Gasto total \u20ac','Precio energ\u00eda \u20ac/kWh','Coste total \u20ac/kWh','PERIODOS FACTURADOS','Energ\u00eda \u20ac','Excedentes compensados kWh','Compensaci\u00f3n \u20ac'],[20,20,20,24,24,58,18,24,20]);
-    const origin=quote(periodSheet),criteria=(field,row)=>`SUMIFS(${origin}!$${field}$5:$${field}$${lastPeriodRow},${origin}!$D$5:$D$${lastPeriodRow},A${row}${cups?`,${origin}!$C$5:$C$${lastPeriodRow},$J$1`:''})`;
-    if(cups)ws.getCell('J1').value=cups;ws.getColumn(10).hidden=true;ws.getColumn(7).hidden=true;
-    for(const m of mo){const r=ws.rowCount+1;const row=dataRow(ws,[m.label,m.rows.length?formula(criteria('G',r),m.kwh):null,m.rows.length?formula(criteria('U',r),m.total):null,formula(`IF(AND(B${r}>0,ISNUMBER(G${r})),G${r}/B${r},"")`,m.energyPrice),formula(`IF(B${r}>0,C${r}/B${r},"")`,m.totalUnit),m.periods||'\u2014',m.energy==null?null:formula(criteria('H',r),m.energy),m.exportedKwh,m.compensation]);row.height=Math.max(24,m.periods.split('\n').length*16);}
+    const series=chartSeries(rows),mo=series.points,coverage=series.mode==='monthly'?reportCoverage(mo,expectedSupplies):{months:mo,threshold:expectedSupplies,expected:expectedSupplies,excluded:0};
+    const coverageNote=series.mode==='period'?` Gráficas por periodo real de factura (${series.cadence==='bimonthly'?'cadencia bimestral':'cadencia irregular'}); sin prorrateo mensual.`:expectedSupplies>1&&coverage.excluded?` Gráficas: ${coverage.excluded} mes(es) con menos de ${coverage.threshold} de ${coverage.expected} suministros no se comparan.`:'';
+    const axisHeader=series.mode==='period'?'PERIODO FACTURADO':'MES',ws=sheet(wb,name,title,subtitle+coverageNote,[axisHeader,'Consumo total kWh','Gasto total €','Precio energía €/kWh','Coste total €/kWh','PERIODOS FACTURADOS','Energía €','Excedentes compensados kWh','Compensaci\u00f3n \u20ac'],[24,20,20,24,24,58,18,24,20]);
+    const origin=quote(periodSheet),criteria=(field,row)=>series.mode==='period'?`SUMIFS(${origin}!$${field}$5:$${field}$${lastPeriodRow},${origin}!$A$5:$A$${lastPeriodRow},$K${row}${cups?`,${origin}!$C$5:$C$${lastPeriodRow},$J$1`:''})`:`SUMIFS(${origin}!$${field}$5:$${field}$${lastPeriodRow},${origin}!$D$5:$D$${lastPeriodRow},A${row}${cups?`,${origin}!$C$5:$C$${lastPeriodRow},$J$1`:''})`;
+    if(cups)ws.getCell('J1').value=cups;ws.getColumn(10).hidden=true;ws.getColumn(11).hidden=true;ws.getColumn(7).hidden=true;
+    for(const m of mo){
+      const r=ws.rowCount+1;if(series.mode==='period')ws.getCell(r,11).value=m.invoiceNumber;
+      const row=dataRow(ws,[m.label,m.rows.length?formula(criteria('G',r),m.kwh):null,m.rows.length?formula(criteria('U',r),m.total):null,formula(`IF(AND(B${r}>0,ISNUMBER(G${r})),G${r}/B${r},"")`,m.energyPrice),formula(`IF(B${r}>0,C${r}/B${r},"")`,m.totalUnit),m.periods||'—',m.energy==null?null:formula(criteria('H',r),m.energy),m.exportedKwh,m.compensation]);
+      row.height=Math.max(24,m.periods.split('\n').length*16);
+    }
     const end=ws.rowCount,t=end+1,totalExported=mo.some(m=>m.hasCompensation)&&mo.every(m=>!m.hasCompensation||m.exportedKwh!=null)?mo.reduce((s,m)=>s+(number(m.exportedKwh)||0),0):null,totalCompensation=mo.some(m=>m.hasCompensation)?mo.reduce((s,m)=>s+(number(m.compensation)||0),0):0;
-    totalRow(ws,['TOTAL SELECCI\u00d3N',formula(`SUM(B5:B${end})`,sum(rows,'consumption_kwh')),formula(`SUM(C5:C${end})`,sum(rows,'total_eur')),formula(`IF(AND(B${t}>0,COUNT(G5:G${end})=COUNT(B5:B${end})),SUM(G5:G${end})/B${t},"")`,rows.every(r=>number(r.energy_cost_eur)!=null)&&sum(rows,'consumption_kwh')>0?sum(rows,'energy_cost_eur')/sum(rows,'consumption_kwh'):null),formula(`IF(B${t}>0,C${t}/B${t},"")`,sum(rows,'consumption_kwh')>0?sum(rows,'total_eur')/sum(rows,'consumption_kwh'):null),'','',totalExported,totalCompensation]);
-    for(let r=5;r<=t;r++){ws.getCell(r,2).numFmt='#,##0.00 "kWh"';ws.getCell(r,3).numFmt='#,##0.00 "\u20ac"';for(const col of [4,5])ws.getCell(r,col).numFmt='0.000000 "\u20ac/kWh"';ws.getCell(r,8).numFmt='#,##0.00 "kWh"';ws.getCell(r,9).numFmt='#,##0.00 "\u20ac"';}
-    addCharts(wb,ws,coverage.months,t);return ws;
+    totalRow(ws,['TOTAL SELECCIÓN',formula(`SUM(B5:B${end})`,sum(rows,'consumption_kwh')),formula(`SUM(C5:C${end})`,sum(rows,'total_eur')),formula(`IF(AND(B${t}>0,COUNT(G5:G${end})=COUNT(B5:B${end})),SUM(G5:G${end})/B${t},"")`,rows.every(r=>number(r.energy_cost_eur)!=null)&&sum(rows,'consumption_kwh')>0?sum(rows,'energy_cost_eur')/sum(rows,'consumption_kwh'):null),formula(`IF(B${t}>0,C${t}/B${t},"")`,sum(rows,'consumption_kwh')>0?sum(rows,'total_eur')/sum(rows,'consumption_kwh'):null),'','',totalExported,totalCompensation]);
+    for(let r=5;r<=t;r++){ws.getCell(r,2).numFmt='#,##0.00 "kWh"';ws.getCell(r,3).numFmt='#,##0.00 "€"';for(const col of [4,5])ws.getCell(r,col).numFmt='0.000000 "€/kWh"';ws.getCell(r,8).numFmt='#,##0.00 "kWh"';ws.getCell(r,9).numFmt='#,##0.00 "€"';}
+    addCharts(wb,ws,coverage.months,t,series.mode);return ws;
   }
   function addDetails(wb,g,subtitle){
     const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos potencia \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura','Excedentes compensados kWh'];
@@ -150,7 +196,7 @@
   async function workbook(g,scope){
     if(!root.ExcelJS?.Workbook)throw Error('No se ha cargado la librer\u00eda de Excel. Recarga la p\u00e1gina.');
     const wb=new root.ExcelJS.Workbook();wb.creator='Instal\u00b7lacions BT';wb.calcProperties.fullCalcOnLoad=true;
-    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Mes de fin de facturaci\u00f3n. En tarifas 2.0, max\u00edmetro y excesos de potencia: no aplica.';
+    const range='Filtros: '+text(scope.client.name)+' \u00b7 '+dateES(scope.from)+' a '+dateES(scope.to)+'. '+g.records.length+' periodos facturados completos; sin prorrateo. Las gr\u00e1ficas usan mes natural o periodo real seg\u00fan la cadencia de facturaci\u00f3n. En tarifas 2.0, max\u00edmetro y excesos de potencia: no aplica.';
     wb.subject=range;wb.description='Fuente: informaci\u00f3n estructurada del hist\u00f3rico. Sin documentos PDF.';
     const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango','Estado CUPS'],[6,28,32,40,22,20,18,23,27,27,16]);
     let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor),supplyStatusLabel(s.status)]);}
@@ -170,5 +216,5 @@
     ensure();if(options.save)await options.save(blob,name);else{const a=root.document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;root.document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);}
     return {files:files.length,records:scope.groups.reduce((s,g)=>s+g.records.length,0),name};
   }
-  const api=Object.freeze({selection,monthly,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
+  const api=Object.freeze({selection,monthly,chartSeries,chartCadence,billingSpanDays,realPeriodLabel,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
