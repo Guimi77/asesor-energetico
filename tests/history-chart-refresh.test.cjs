@@ -29,6 +29,19 @@ test('Valid zero cost, small positive consumption and negative totals remain num
  for(const [kwh,eur,value] of [[100,0,0],[.001,.0001,.1],[100,-20,-.2]]){const html=ctx.chart([{key:'x',kwh,eur}]);assert(html.includes('data-cost="'+value+'"'));assert(!html.includes('history-cost-missing'));}
 });
 
+const scopeCtx={Set};
+vm.createContext(scopeCtx);
+vm.runInContext(chunk(ui,'  function compensationScopeAllows','  function render(records)')+'\nglobalThis.scopeAllows=compensationScopeAllows;',scopeCtx);
+
+test('Compensation charts never aggregate different account holders',()=>{
+ assert.equal(scopeCtx.scopeAllows([{holder_id:'h1'}]),true);
+ assert.equal(scopeCtx.scopeAllows([{holder_id:'h1'},{holder_id:'h1'}]),true);
+ assert.equal(scopeCtx.scopeAllows([{holder_id:'h1'},{holder_id:'h2'}]),false);
+ assert.equal(scopeCtx.scopeAllows([]),false);
+ assert(ui.includes('const showCompensation = hasCompensation && compensationScopeAllowed'));
+ assert(ui.includes('const mixedCompensationScope = hasCompensation && !compensationScopeAllowed'));
+ assert(ui.includes('Excedentes y compensación no se agregan entre titulares distintos.'));
+});
 test('Compensation keeps the accounting sign in stored data but is presented as a positive benefit',()=>{
  assert(ui.includes("x.compensationEur += compensation"),'history aggregation must preserve the signed source amount');
  assert(ui.includes("money(Math.abs(totalCompensationEur))"),'the accumulated compensation KPI must show the benefit as a positive amount');
