@@ -490,10 +490,52 @@
     }
   };
 
+  const PATTERNS=[
+    {re:/^(\d+) cliente(?:s)? · (\d+) titular(?:es)? · (\d+) CUPS$/,ca:m=>m[1]+' '+(m[1]==='1'?'client':'clients')+' · '+m[2]+' '+(m[2]==='1'?'titular':'titulars')+' · '+m[3]+' CUPS',en:m=>m[1]+' '+(m[1]==='1'?'client':'clients')+' · '+m[2]+' '+(m[2]==='1'?'account holder':'account holders')+' · '+m[3]+' CUPS'},
+    {re:/^(\d+) clientes legales · (\d+) titular(?:es)? · (\d+) suministro(?:s)?$/,ca:m=>m[1]+' clients legals · '+m[2]+' '+(m[2]==='1'?'titular':'titulars')+' · '+m[3]+' '+(m[3]==='1'?'subministrament':'subministraments'),en:m=>m[1]+' legal clients · '+m[2]+' '+(m[2]==='1'?'account holder':'account holders')+' · '+m[3]+' '+(m[3]==='1'?'supply point':'supply points')},
+    {re:/^(\d+) titular(?:es)? · (\d+) suministro(?:s)?$/,ca:m=>m[1]+' '+(m[1]==='1'?'titular':'titulars')+' · '+m[2]+' '+(m[2]==='1'?'subministrament':'subministraments'),en:m=>m[1]+' '+(m[1]==='1'?'account holder':'account holders')+' · '+m[2]+' '+(m[2]==='1'?'supply point':'supply points')},
+    {re:/^\+ Nuevo suministro para (.+)$/,ca:m=>'+ Nou subministrament per a '+m[1],en:m=>'+ New supply point for '+m[1]},
+    {re:/^Editar suministro · (.+)$/,ca:m=>'Editar subministrament · '+m[1],en:m=>'Edit supply point · '+m[1]},
+    {re:/^(\d+) CUPS seleccionados$/,ca:m=>m[1]+' CUPS seleccionats',en:m=>m[1]+' CUPS selected'},
+    {re:/^(\d+) titulares · (\d+) CUPS$/,ca:m=>m[1]+' titulars · '+m[2]+' CUPS',en:m=>m[1]+' account holders · '+m[2]+' CUPS'},
+    {re:/^(\d+) CUPS con registros · (\d+) periodo\(s\)$/,ca:m=>m[1]+' CUPS amb registres · '+m[2]+' període(s)',en:m=>m[1]+' CUPS with records · '+m[2]+' period(s)'},
+    {re:/^(\d+) días$/,ca:m=>m[1]+' dies',en:m=>m[1]+' days'},
+    {re:/^(\d+) avisos?$/,ca:m=>m[1]+' '+(m[1]==='1'?'avís':'avisos'),en:m=>m[1]+' '+(m[1]==='1'?'notice':'notices')},
+    {re:/^(\d+) visibles?$/,ca:m=>m[1]+' '+(m[1]==='1'?'visible':'visibles'),en:m=>m[1]+' visible'},
+    {re:/^Detectada (.+)$/,ca:m=>'Detectada '+m[1],en:m=>'Detected '+m[1]},
+    {re:/^Información: (.+)$/,ca:m=>'Informació: '+translateString(m[1],'ca'),en:m=>'Information: '+translateString(m[1],'en')},
+    {re:/^\+ Selecciona cliente… \((\d+)\)$/,ca:m=>'+ Selecciona client… ('+m[1]+')',en:m=>'+ Select client… ('+m[1]+')'},
+    {re:/^\+ Asignar cliente… \((\d+)\)$/,ca:m=>'+ Assignar client… ('+m[1]+')',en:m=>'+ Assign client… ('+m[1]+')'},
+    {re:/^Escribe más para filtrar · (\d+) más$/,ca:m=>'Escriu més per filtrar · '+m[1]+' més',en:m=>'Type more to filter · '+m[1]+' more'},
+    {re:/^Sin coincidencias$/,ca:()=> 'Sense coincidències',en:()=> 'No matches'},
+    {re:/^No se pudo cargar el cliente: (.+)$/,ca:m=>"No s'ha pogut carregar el client: "+m[1],en:m=>'The client could not be loaded: '+m[1]},
+    {re:/^No se ha podido cargar el histórico: (.+)$/,ca:m=>"No s'ha pogut carregar l'històric: "+m[1],en:m=>'History could not be loaded: '+m[1]},
+    {re:/^No se ha podido iniciar el histórico: (.+)$/,ca:m=>"No s'ha pogut iniciar l'històric: "+m[1],en:m=>'History could not be started: '+m[1]},
+    {re:/^No se ha podido cargar el análisis: (.+)$/,ca:m=>"No s'ha pogut carregar l'anàlisi: "+m[1],en:m=>'Analysis could not be loaded: '+m[1]},
+    {re:/^No se ha podido iniciar el análisis: (.+)$/,ca:m=>"No s'ha pogut iniciar l'anàlisi: "+m[1],en:m=>'Analysis could not be started: '+m[1]},
+    {re:/^No se pudieron cargar las alertas: (.+)$/,ca:m=>"No s'han pogut carregar les alertes: "+m[1],en:m=>'Alerts could not be loaded: '+m[1]},
+    {re:/^No se pudo actualizar la alerta: (.+)$/,ca:m=>"No s'ha pogut actualitzar l'alerta: "+m[1],en:m=>'The alert could not be updated: '+m[1]},
+    {re:/^No se pudo guardar la alerta: (.+)$/,ca:m=>"No s'ha pogut desar l'alerta: "+m[1],en:m=>'The alert could not be saved: '+m[1]},
+    {re:/^Carpeta leída · (\d+) facturas PDF encontradas(?: · (\d+) archivos no PDF ignorados)?$/,ca:m=>'Carpeta llegida · '+m[1]+' factures PDF trobades'+(m[2]?' · '+m[2]+' fitxers no PDF ignorats':''),en:m=>'Folder read · '+m[1]+' PDF invoices found'+(m[2]?' · '+m[2]+' non-PDF files ignored':'')},
+    {re:/^Carpeta seleccionada · (\d+) facturas PDF encontradas(?: · (\d+) archivos no PDF ignorados)?$/,ca:m=>'Carpeta seleccionada · '+m[1]+' factures PDF trobades'+(m[2]?' · '+m[2]+' fitxers no PDF ignorats':''),en:m=>'Folder selected · '+m[1]+' PDF invoices found'+(m[2]?' · '+m[2]+' non-PDF files ignored':'')},
+    {re:/^Se encontraron (\d+) PDF, pero el navegador no permite entregarlos automáticamente\. Usa Chrome o Edge\.$/,ca:m=>"S'han trobat "+m[1]+" PDF, però el navegador no permet lliurar-los automàticament. Utilitza Chrome o Edge.",en:m=>m[1]+' PDFs were found, but the browser cannot pass them automatically. Use Chrome or Edge.'},
+    {re:/^Lote recibido · (\d+) facturas PDF · preparando lectura…$/,ca:m=>'Lot rebut · '+m[1]+' factures PDF · preparant lectura…',en:m=>'Batch received · '+m[1]+' PDF invoices · preparing reading…'},
+    {re:/^(\w[^·]*) · (\d+)\/(\d+) PDF$/,ca:m=>translateString(m[1],'ca')+' · '+m[2]+'/'+m[3]+' PDF',en:m=>translateString(m[1],'en')+' · '+m[2]+'/'+m[3]+' PDF'},
+    {re:/^No se han encontrado filas con CUPS válidos en (.+)\.$/,ca:m=>"No s'han trobat files amb CUPS vàlids a "+m[1]+'.',en:m=>'No rows with valid CUPS were found in '+m[1]+'.'},
+    {re:/^(\d+) CUPS nuevos · (\d+) suministros completados · (\d+) sin cambios · (\d+) conflictos bloqueados\.$/,ca:m=>m[1]+' CUPS nous · '+m[2]+' subministraments completats · '+m[3]+' sense canvis · '+m[4]+' conflictes bloquejats.',en:m=>m[1]+' new CUPS · '+m[2]+' supply points completed · '+m[3]+' unchanged · '+m[4]+' conflicts blocked.'},
+    {re:/^(\d+) suministro(?:s)? inactivo(?:s)? se mantiene(?:n)? en el histórico, pero no genera(?:n)? avisos actuales\.$/,ca:m=>m[1]+' '+(m[1]==='1'?'subministrament inactiu es manté':'subministraments inactius es mantenen')+" a l'històric, però no "+(m[1]==='1'?'genera':'generen')+' avisos actuals.',en:m=>m[1]+' inactive '+(m[1]==='1'?'supply point remains':'supply points remain')+' in history but '+(m[1]==='1'?'does':'do')+' not generate current notices.'},
+    {re:/^(.+) días, la potencia utilizada se ha mantenido baja en (\d+) periodo(?:s)? y no hemos visto penalizaciones por exceso\.$/,ca:m=>'Durant '+m[1]+' dies, la potència utilitzada s’ha mantingut baixa en '+m[2]+' '+(m[2]==='1'?'període':'períodes')+' i no hem vist penalitzacions per excés.',en:m=>'For '+m[1]+' days, power use remained low in '+m[2]+' '+(m[2]==='1'?'period':'periods')+' and no excess-power charges were observed.'}
+  ];
+
   let current='es';
   let observer=null;
   let reverseText=new Map();
   const reverseAttr={placeholder:new Map(),'aria-label':new Map(),title:new Map()};
+  const textSource=new WeakMap();
+  const textRendered=new WeakMap();
+  const attrSource=new WeakMap();
+  const attrRendered=new WeakMap();
+  let titleSource='';
 
   function safeStored(){
     try{
@@ -527,18 +569,38 @@
   }
   rebuildReverse();
 
-  function textFor(source,lang=current){
-    const key=Object.prototype.hasOwnProperty.call(CATALOG,source)?source:reverseText.get(String(source));
-    if(!key)return String(source??'');
-    if(lang==='es')return key;
-    return String(CATALOG[key]?.[lang]??key);
+  function patternFor(source,lang){
+    if(lang==='es')return source;
+    for(const item of PATTERNS){
+      const match=String(source).match(item.re);
+      if(match)return item[lang]?.(match)??source;
+    }
+    return source;
   }
+  function translateString(source,lang=current){
+    const raw=String(source??'');
+    const key=Object.prototype.hasOwnProperty.call(CATALOG,raw)?raw:reverseText.get(raw);
+    if(key){
+      if(lang==='es')return key;
+      return String(CATALOG[key]?.[lang]??key);
+    }
+    return patternFor(raw,lang);
+  }
+  function textFor(source,lang=current){return translateString(source,lang)}
   function attrFor(attr,value,lang=current){
     const sourceMap=ATTRIBUTE_CATALOG[attr]||{};
-    const key=Object.prototype.hasOwnProperty.call(sourceMap,value)?value:reverseAttr[attr]?.get(String(value));
-    if(!key)return String(value??'');
-    if(lang==='es')return key;
-    return String(sourceMap[key]?.[lang]??key);
+    const raw=String(value??'');
+    const key=Object.prototype.hasOwnProperty.call(sourceMap,raw)?raw:reverseAttr[attr]?.get(raw);
+    if(key){
+      if(lang==='es')return key;
+      return String(sourceMap[key]?.[lang]??key);
+    }
+    return translateString(raw,lang);
+  }
+  function translatedCandidate(source,lang=current){
+    const exact=Object.prototype.hasOwnProperty.call(CATALOG,source)||reverseText.has(source);
+    const translated=translateString(source,lang);
+    return {translated,known:exact||translated!==source};
   }
   function translateTextNode(node){
     if(!node||node.nodeType!==3)return;
@@ -546,22 +608,52 @@
     if(!parent||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/i.test(parent.tagName))return;
     const raw=node.nodeValue||'',trimmed=raw.trim();
     if(!trimmed)return;
-    const source=reverseText.get(trimmed);
-    if(!source)return;
-    const translated=textFor(source,current);
+    let source=textSource.get(node);
+    const last=textRendered.get(node);
+    if(!source||trimmed!==last){
+      const normalized=reverseText.get(trimmed)||trimmed;
+      const candidate=translatedCandidate(normalized,current);
+      if(!candidate.known){
+        textSource.delete(node);textRendered.delete(node);
+        return;
+      }
+      source=normalized;
+      textSource.set(node,source);
+    }
+    const translated=translateString(source,current);
+    textRendered.set(node,translated);
     if(translated===trimmed)return;
-    const lead=raw.slice(0,raw.indexOf(trimmed));
-    const tail=raw.slice(raw.indexOf(trimmed)+trimmed.length);
-    node.nodeValue=lead+translated+tail;
+    const at=raw.indexOf(trimmed);
+    node.nodeValue=raw.slice(0,at)+translated+raw.slice(at+trimmed.length);
+  }
+  function attrMaps(el){
+    if(!attrSource.has(el))attrSource.set(el,{});
+    if(!attrRendered.has(el))attrRendered.set(el,{});
+    return {sources:attrSource.get(el),rendered:attrRendered.get(el)};
   }
   function translateAttributes(el){
     if(!el||el.nodeType!==1)return;
+    const maps=attrMaps(el);
     for(const attr of ['placeholder','aria-label','title']){
       if(!el.hasAttribute(attr))continue;
-      const value=el.getAttribute(attr)||'';
-      const map=reverseAttr[attr];
-      if(!map?.has(value))continue;
-      el.setAttribute(attr,attrFor(attr,value,current));
+      const raw=el.getAttribute(attr)||'';
+      let source=maps.sources[attr];
+      const last=maps.rendered[attr];
+      if(!source||raw!==last){
+        const map=reverseAttr[attr];
+        const normalized=map?.get(raw)||reverseText.get(raw)||raw;
+        const translated=attrFor(attr,normalized,current);
+        const known=translated!==normalized||Object.prototype.hasOwnProperty.call(ATTRIBUTE_CATALOG[attr]||{},normalized)||Object.prototype.hasOwnProperty.call(CATALOG,normalized);
+        if(!known){
+          delete maps.sources[attr];delete maps.rendered[attr];
+          continue;
+        }
+        source=normalized;
+        maps.sources[attr]=source;
+      }
+      const translated=attrFor(attr,source,current);
+      maps.rendered[attr]=translated;
+      if(translated!==raw)el.setAttribute(attr,translated);
     }
   }
   function translateTree(rootNode){
@@ -588,6 +680,10 @@
     if(root.document?.documentElement){root.document.documentElement.lang=next;root.document.documentElement.dataset.language=next;}
     syncSelectors();
     translateTree(root.document?.body);
+    if(root.document){
+      if(!titleSource)titleSource=reverseText.get(root.document.title)||root.document.title||'Instal·lacions BT · Asesor Energético Alpha';
+      root.document.title=translateString(titleSource,next);
+    }
     if(emit&&root.dispatchEvent)root.dispatchEvent(new CustomEvent('ibt:languagechange',{detail:{language:next,locale:LOCALES[next]}}));
     return next;
   }
@@ -603,14 +699,17 @@
     if(observer||!root.MutationObserver||!root.document?.body)return;
     observer=new MutationObserver(records=>{
       for(const record of records){
-        record.addedNodes?.forEach(translateTree);
+        if(record.type==='childList')record.addedNodes?.forEach(translateTree);
+        else if(record.type==='characterData')translateTextNode(record.target);
+        else if(record.type==='attributes')translateAttributes(record.target);
       }
       bindSelectors();
     });
-    observer.observe(root.document.body,{childList:true,subtree:true});
+    observer.observe(root.document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','title']});
   }
   function init(){
     current=safeStored()||'es';
+    titleSource=root.document?.title||'Instal·lacions BT · Asesor Energético Alpha';
     bindSelectors();
     applyLanguage(current,{persist:false,emit:false});
     startObserver();
