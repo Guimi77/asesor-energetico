@@ -6,7 +6,7 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.10.01.1';
+  const VERSION='2026.10.01.2';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -123,7 +123,7 @@
       // monetary source, so prefer it whenever that explicit line exists.
       const summaryExcess=summaryAmount(p1,/^\s*Excesos?\b/i),excess=summaryExcess==null?(Number(raw.excess)||0):summaryExcess;
       const reactive=Number(raw.reactive)||0;
-      const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+excess+reactive+(Number(raw.compensation)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
+      const accounted=round2((Number(raw.energy)||0)+(Number(raw.power)||0)+excess+reactive+(Number(raw.compensation)||0)+(Number(raw.social)||0)+(Number(raw.rental)||0)+(Number(raw.other)||0)+(Number(raw.tax)||0)+(Number(raw.vat)||0)+(Number(raw.igic)||0)+(Number(raw.distributorCharges)||0));
       const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
       const periodKwh=round2(Object.values(raw.periods||{}).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=raw.kwh==null||(Object.keys(raw.periods||{}).length>0&&Math.abs(periodKwh-Number(raw.kwh))<=.1);
       // The detail tables express "A facturar" in kW/kVArh, not euros.
@@ -141,6 +141,7 @@
       if(!summaryHasAmount(p1,/^\s*Impuestos\b/i))missing.push('impuestos');
       if(unresolvedExcess)missing.push('exceso de potencia sin importe monetario identificable');
       if(unresolvedReactive)missing.push('reactiva sin importe monetario identificable');
+      if(Number(raw.summaryOther)&&raw.otherClassificationReliable===false)missing.push('otros Endesa sin desglose validado');
       const fixed={...raw,period,electricityTotal,total,excess,reactive,contracted,supplyAddress:address||raw.supplyAddress,supplyCity:place.city||raw.supplyCity,supplyProvince:place.province||raw.supplyProvince,contract:refs.contract,contractNumber:refs.contract,accessContract:refs.accessContract,accounted,diff,balanced,readOk:balanced&&!missing.length,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,avg:raw.kwh&&total!=null?total/Number(raw.kwh):0,parserRevision:VERSION};
       fixed.opportunity=diagnosticOpportunity(fixed,contracted);
       try{if(root?.EnergyMaster?.learnInvoice&&fixed.cups)root.EnergyMaster.learnInvoice(fixed);}catch(error){root?.console?.warn?.('No se pudo sincronizar el maestro Endesa desde la lectura validada',error);}
