@@ -321,7 +321,7 @@
     const next=SUPPORTED.includes(lang)?lang:'es';
     current=next;
     if(persist)safeStore(next);
-    if(root.document?.documentElement)root.document.documentElement.lang=next;
+    if(root.document?.documentElement){root.document.documentElement.lang=next;root.document.documentElement.dataset.language=next;}
     syncSelectors();
     translateTree(root.document?.body);
     if(emit&&root.dispatchEvent)root.dispatchEvent(new CustomEvent('ibt:languagechange',{detail:{language:next,locale:LOCALES[next]}}));
