@@ -149,8 +149,8 @@
     points.forEach((a,i)=>{const v=number(a[key]),px=L+(i+.5)*step;if(v!=null){x.fillStyle=key==='kwh'||key==='exportedKwh'?p.blue:p.red;if(price){x.beginPath();x.arc(px,y(v),3.5,0,Math.PI*2);x.fill();}else{x.fillRect(px-step*.32,Math.min(y(0),y(v)),step*.64,Math.max(Math.abs(y(0)-y(v)),v===0?1:0));}}if(points.length<=12||i%Math.ceil(points.length/10)===0||i===points.length-1){const monthly=/^\\d{4}-\\d{2}$/.test(a.key||''),label=monthly?MONTHS[Number(a.key.slice(5,7))-1].slice(0,3)+' '+a.key.slice(2,4):text(a.label).slice(0,22);x.fillStyle=p.muted;x.textAlign='center';x.font=(monthly?'10':'9')+'px sans-serif';x.fillText(label,px,276);}});
     return c.toDataURL('image/png');
   }
-  function addCharts(wb,ws,mo,lastRow){
-    const first=lastRow+3,charts=[['kwh','Consumo mensual','kWh'],['total','Gasto total mensual','\u20ac'],['energyPrice','Precio medio de energ\u00eda','\u20ac/kWh'],['totalUnit','Coste total \u20ac/kWh','\u20ac/kWh']];
+  function addCharts(wb,ws,mo,lastRow,mode='monthly'){
+    const byPeriod=mode==='period',first=lastRow+3,charts=[['kwh',byPeriod?'Consumo por periodo facturado':'Consumo mensual','kWh'],['total',byPeriod?'Gasto total por periodo facturado':'Gasto total mensual','\u20ac'],['energyPrice','Precio medio de energ\u00eda','\u20ac/kWh'],['totalUnit','Coste total \u20ac/kWh','\u20ac/kWh']];
     if(mo.some(m=>m.hasCompensation))charts.push(['exportedKwh','Excedentes compensados','kWh'],['compensation','Compensaci\u00f3n econ\u00f3mica','\u20ac']);
     charts.forEach(([key,title,unit],i)=>{
       const row=first+i*17;for(let r=row;r<row+17;r++)ws.getRow(r).height=15;
