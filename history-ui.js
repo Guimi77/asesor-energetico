@@ -438,9 +438,76 @@
     return [...map.values()].sort((a,b) => a.key.localeCompare(b.key));
   }
 
+  const chartNumeric = v => v != null && String(v).trim() !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v));
+  function billingSpanDays(r) {
+    const explicit = Number(r?.billing_days);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const start=String(r?.billing_start||'').slice(0,10),end=String(r?.billing_end||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return null;
+    const a=Date.parse(start+'T00:00:00Z'),b=Date.parse(end+'T00:00:00Z');
+    if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a)return null;
+    return Math.round((b-a)/86400000);
+  }
+  function shortPeriodDate(v,includeYear=false) {
+    const m=String(v||'').slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return String(v||'');
+    const names=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    return m[3]+' '+(names[Number(m[2])-1]||m[2])+(includeYear?' '+m[1].slice(2):'');
+  }
+  function realPeriodLabel(r) {
+    const start=String(r?.billing_start||'').slice(0,10),end=String(r?.billing_end||'').slice(0,10);
+    const sy=start.slice(0,4),ey=end.slice(0,4),withYear=sy&&ey&&sy!==ey;
+    return shortPeriodDate(start,withYear)+' - '+shortPeriodDate(end,withYear);
+  }
+  function chartCadence(records) {
+    const rows=(records||[]).filter(r=>r?.billing_start&&r?.billing_end);
+    if(!rows.length)return'monthly';
+    const supplies=new Set(rows.map(r=>r.supply_id).filter(Boolean));
+    if(supplies.size>1)return'monthly';
+    const days=rows.map(billingSpanDays).filter(v=>Number.isFinite(v)&&v>0);
+    if(!days.length)return'monthly';
+    if(days.every(v=>v>=20&&v<=40))return'monthly';
+    const min=Math.min(...days),max=Math.max(...days);
+    if(days.every(v=>v>=45&&v<=75)&&max-min<=10)return'bimonthly';
+    return'irregular';
+  }
+  function chartPeriods(records) {
+    return [...(records||[])].filter(r=>r?.billing_start&&r?.billing_end).sort((a,b)=>String(a.billing_start).localeCompare(String(b.billing_start))||String(a.billing_end).localeCompare(String(b.billing_end))).map((r,index)=>{
+      const kwh=chartNumeric(r.consumption_kwh)?Number(r.consumption_kwh):null,eur=chartNumeric(r.total_eur)?Number(r.total_eur):null,days=billingSpanDays(r);
+      const detail=Array.isArray(r.invoice_compensation_periods)?r.invoice_compensation_periods:[],compensation=chartNumeric(r.compensation_eur)?Number(r.compensation_eur):0;
+      const exported=detail.length?detail.reduce((sum,item)=>sum+n(item.exported_kwh),0):(compensation!==0?null:0);
+      return{
+        key:'period:'+String(r.billing_start).slice(0,10)+':'+String(r.billing_end).slice(0,10)+':'+(r.id||index),
+        label:realPeriodLabel(r),chartMode:'period',billingDays:days,
+        kwh,eur,kwhPerDay:kwh!=null&&days?kwh/days:null,eurPerDay:eur!=null&&days?eur/days:null,
+        exportedKwh:exported,compensationEur:chartNumeric(r.compensation_eur)?Number(r.compensation_eur):null,
+        hasCompensation:detail.length>0||compensation!==0,compensationDetailComplete:compensation===0||detail.length>0,
+        supplies:r.supply_id?1:0,supplySet:JSON.stringify(r.supply_id?[r.supply_id]:[]),records:1,
+        missingKwh:kwh==null?1:0,missingEur:eur==null?1:0,zeroRecords:kwh===0?1:0
+      };
+    });
+  }
+  function chartSeries(records,from='',to='') {
+    const cadence=chartCadence(records);
+    if(cadence==='monthly')return{mode:'monthly',cadence,points:chartMonthly(records,from,to)};
+    return{mode:'period',cadence,points:chartPeriods(records)};
+  }
+  function chartPointLabel(p) { return p?.label||monthLabel(p?.key); }
+  function chartPointContext(p,field) {
+    if(p?.chartMode!=='period'||!p?.billingDays)return'';
+    if(field==='kwh'&&Number.isFinite(p.kwhPerDay))return ' · '+qty(p.kwhPerDay,2)+' kWh/día · '+p.billingDays+' días';
+    if(field==='eur'&&Number.isFinite(p.eurPerDay))return ' · '+money(p.eurPerDay)+' €/día · '+p.billingDays+' días';
+    return ' · '+p.billingDays+' días';
+  }
+  function renderChartCadence(series) {
+    if(series?.mode!=='period')return'';
+    const label=series.cadence==='bimonthly'?'Facturación bimestral.':'Facturación con cadencia irregular.';
+    return '<div class="history-data-note history-data-note-neutral" role="status"><strong>'+label+'</strong>Cada punto representa el periodo real de la factura. No se reparten ni se inventan consumos o importes mensuales. El detalle de cada punto incluye el equivalente diario para comparar periodos de distinta duración.</div>';
+  }
+
   // Coverage presentation: the existing totals and stored records stay unchanged.
   function chartMonthly(records, from = '', to = '') {
-    const numeric = v => v != null && String(v).trim() !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v));
+    const numeric = chartNumeric;
     const validMonth = k => /^\d{4}-(0[1-9]|1[0-2])$/.test(k);
     const groups = new Map();
     for (const r of records) {
@@ -537,11 +604,11 @@
     let connected = false;
     const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
-    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(monthLabel(c.p.key))}</text>`).join('');
+    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(chartPointLabel(c.p))}</text>`).join('');
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
-      const label = esc(monthLabel(c.p.key) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + coverage);
+      const label = esc(chartPointLabel(c.p) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
     const scaleNote = '';
@@ -573,12 +640,12 @@
       const value=min+span*f,y=padT+innerH-innerH*f;
       return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#65758a">'+esc(qty(value,4))+'</text>';
     }).join('');
-    const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#65758a">'+esc(monthLabel(c.p.key))+'</text>').join('');
+    const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#65758a">'+esc(chartPointLabel(c.p))+'</text>').join('');
     const dots=coords.map(c=>{
       if(c.p.chartExcluded)return'';
       return c.y===null?
-        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(monthLabel(c.p.key))+': sin dato calculable de €/kWh</title></text>':
-        '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(monthLabel(c.p.key))+': '+esc(qty(c.value,4))+' €/kWh'+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
+        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(chartPointLabel(c.p))+': sin dato calculable de €/kWh</title></text>':
+        '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(chartPointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+chartPointContext(c.p,'cost')+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
     }).join('');
     return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
   }
@@ -673,10 +740,10 @@
   function render(records) {
     const host = $('#historyContent');
     if (!host) return;
-    const monthly = chartMonthly(records, $('#historyFrom')?.value, $('#historyTo')?.value);
     const effective = effectiveSupplies();
     const expectedSupplies = effective.length;
-    const coverageView = chartCoverageView(monthly, expectedSupplies);
+    const series = chartSeries(records, $('#historyFrom')?.value, $('#historyTo')?.value);
+    const coverageView = chartCoverageView(series.points, expectedSupplies);
     const chartPoints = coverageView.points;
     const totalKwh = records.reduce((s,r)=>s+n(r.consumption_kwh),0);
     const totalEur = records.reduce((s,r)=>s+n(r.total_eur),0);
@@ -729,7 +796,7 @@
         <div id="historyCostChart" class="history-chart"><h3>Evolución del coste medio</h3><p>${esc(scope)}</p>${svgCostChart(chartPoints)}</div>
         ${hasCompensation ? `<div class="history-chart"><h3>Excedentes compensados</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'exportedKwh',v=>`${qty(v,2)} kWh`)}</div><div class="history-chart"><h3>Compensación económica</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'compensationEur',v=>`${money(v)} €`)}</div>` : ''}
       </section>
-      ${renderChartCoverage(monthly, expectedSupplies, coverageView)}
+      ${series.mode==='period'?renderChartCadence(series):renderChartCoverage(series.points, expectedSupplies, coverageView)}
       <section class="card">
         <div class="history-section-head"><div><p class="eyebrow">Cronología</p><h2 style="margin:0">Periodos históricos</h2></div><span class="history-scope">${esc(scope)}</span></div>
         <div id="historyPeriodsTableWrap" class="history-table-wrap" role="region" tabindex="0" aria-label="Periodos históricos. Desplazamiento vertical y horizontal" style="height:clamp(320px,44vh,430px);max-height:430px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable both-edges;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
