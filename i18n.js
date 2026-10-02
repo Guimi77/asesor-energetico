@@ -569,6 +569,16 @@
     '⚠ Titular pendiente de revisión: falta identificación fiscal en el maestro o en la última factura.':{ca:'⚠ Titular pendent de revisió: falta identificació fiscal al mestre o a la darrera factura.',en:'⚠ Account holder pending review: tax identification is missing from master data or the latest invoice.'}
   });
 
+
+  Object.assign(CATALOG,{
+    'Crea tu cuenta. El rol se asigna de forma segura desde Supabase según las reglas de acceso internas.':{ca:"Crea el teu compte. El rol s'assigna de manera segura des de Supabase segons les regles internes d'accés.",en:'Create your account. The role is assigned securely from Supabase according to internal access rules.'},
+    'Puedes cargar PDF sueltos, seleccionar una carpeta completa o arrastrar directamente la carpeta al recuadro. Se leerán todos los PDF que contenga, también los de sus subcarpetas. Los documentos se procesan únicamente en este navegador y no se almacenan.':{ca:"Pots carregar PDF solts, seleccionar una carpeta completa o arrossegar directament la carpeta al requadre. Es llegiran tots els PDF que contingui, també els de les subcarpetes. Els documents es processen únicament en aquest navegador i no s'emmagatzemen.",en:'You can upload individual PDFs, select a full folder or drag the folder directly into the upload area. All PDFs inside it, including subfolders, will be read. Documents are processed only in this browser and are not stored.'},
+    'Aquí se conservan únicamente datos estructurados por CUPS y periodo: consumos, precios, potencias, tarifas, maxímetros, excesos, reactiva, recargos, impuestos, cambios y actuaciones. Los PDF no se almacenan.':{ca:"Aquí només es conserven dades estructurades per CUPS i període: consums, preus, potències, tarifes, maxímetres, excessos, reactiva, recàrrecs, impostos, canvis i actuacions. Els PDF no s'emmagatzemen.",en:'Only structured data by CUPS and period is kept here: consumption, prices, power, tariffs, maximum demand, excesses, reactive energy, surcharges, taxes, changes and actions. PDFs are not stored.'},
+    'Piloto GRUPO XTRA · histórico estructurado':{ca:'Pilot GRUP XTRA · històric estructurat',en:'XTRA GROUP pilot · structured history'},
+    'No hay alertas en este estado. Desde':{ca:'No hi ha alertes en aquest estat. Des de',en:'There are no alerts in this status. From'},
+    'puedes añadir un punto que quieras seguir.':{ca:'pots afegir un punt que vulguis seguir.',en:'you can add a point you want to track.'}
+  });
+
   const ATTRIBUTE_CATALOG={
     placeholder:{
       'Buscar cliente, titular, CUPS, localidad, tarifa o contrato…':{ca:'Cercar client, titular, CUPS, localitat, tarifa o contracte…',en:'Search client, account holder, CUPS, town, tariff or contract…'},
