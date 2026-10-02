@@ -11,6 +11,7 @@
   const line=(a,re)=>(a||[]).find(x=>re.test(String(x||'')))||'';
   const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])).filter(v=>v!=null);return a.length?a.at(-1):null};
   const amount=(a,re)=>{for(const raw of a||[]){const s=String(raw||'');if(re.test(s)&&/(-?[\d.]+,\d{2})\s*€/.test(s)){const v=lastEuro(s);if(v!=null)return v;}}return null};
+  const sumEuroCharges=(a,re)=>round2((a||[]).reduce((sum,raw)=>{const s=String(raw||'');if(!re.test(s))return sum;const v=lastEuro(s);return v==null?sum:sum+v;},0));
   const findMatch=(s,re)=>String(s||'').match(re);
   const canonicalEndesaLine=value=>String(value||'')
     .replace(/N[uú]m\.?(?:ero)?\s+factura/gi,'Nº factura')
@@ -162,12 +163,18 @@
     const kwh=(all.match(/Consumo\s+Total\s+([\d.]+,\d+)\s*kWh/i)||[])[1],consumption=num(kwh);
     const iva=explicitCharge(p2,/^\s*IVA\s+(?:normal\s*)?(?:\(|\d|%)/i)??0,igic=explicitCharge(p2,/^\s*IGIC\b/i)??0,electricTax=explicitCharge(p2,/^\s*Impuesto\s+(?:de\s+)?electricidad/i),tax=electricTax!=null?electricTax:summaryTaxes!=null?round2(summaryTaxes-iva-igic):0;
     const compensationLine=line(p2,/Compensaci[oó]n.*Excedente/i);let compensation=compensationLine?lastEuro(compensationLine)??0:0;if(compensation>0)compensation=-compensation;
-    const other=round2(discounts+summaryOther+adjustments+service.serviceTotal);
+    const detailSocial=sumEuroCharges(p2,/^\s*Financiaci[oó]n\s+(?:del?\s+)?Bono\s+Social\b/i);
+    const detailRental=sumEuroCharges(p2,/^\s*Alquiler\s+(?:del?\s+)?contador\b/i);
+    const classifiedOther=round2(detailSocial+detailRental);
+    const otherClassificationReliable=classifiedOther<=round2(summaryOther+.05);
+    const social=otherClassificationReliable?detailSocial:0,rental=otherClassificationReliable?detailRental:0;
+    const otherResidual=otherClassificationReliable?round2(summaryOther-classifiedOther):summaryOther;
+    const other=round2(discounts+otherResidual+adjustments+service.serviceTotal);
     const periods=parseReadingPeriods(p2,tariff),contracted=parseContracted(p2,tariff),maximeters=parseMaximeters(p2,tariff),powerDetail=parsePowerDetail(p2,power);
     const excess=explicitCharge(p2,/^\s*Excesos?\s+de\s+potencia\b/i)??0,reactive=explicitCharge(p2,/^\s*Energ[ií]a\s+reactiva\b/i)??0;
     const unresolvedExcess=excess===0&&nonzeroAccessTable(p2,/EXCESOS\s+DE\s+POTENCIA\s+kW/i),unresolvedReactive=reactive===0&&nonzeroAccessTable(p2,/ENERG[IÍ]A\s+REACTIVA\s+INDUCTIVA/i);
     const periodKwh=round2(Object.values(periods).reduce((s,x)=>s+(Number(x?.consumption)||0),0)),periodKwhOk=consumption==null||(Object.keys(periods).length>0&&Math.abs(periodKwh-consumption)<=.1);
-    const accounted=round2((energy||0)+(power||0)+excess+reactive+compensation+other+tax+iva+igic),diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
+    const accounted=round2((energy||0)+(power||0)+excess+reactive+compensation+social+rental+other+tax+iva+igic),diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
     const missing=[];if(!holder)missing.push('titular');if(!cups)missing.push('CUPS');if(period==='Por identificar')missing.push('periodo');if(total==null)missing.push('total');if(consumption==null)missing.push('consumo');if(!periodKwhOk)missing.push('consumo por periodos no cuadra con el consumo total');if(power==null||!powerDetail.reliable)missing.push(powerDetail.message||'potencia');if(energy==null)missing.push('energía');if(summaryTaxes==null)missing.push('impuestos');if(unresolvedExcess)missing.push('exceso de potencia sin importe monetario identificable');if(unresolvedReactive)missing.push('reactiva sin importe monetario identificable');
     const readOk=balanced&&!missing.length,alerts=[];
     if(excess>0)alerts.push(`Exceso de potencia: ${money(excess)} €`);if(reactive>0)alerts.push(`Reactiva: ${money(reactive)} €`);
@@ -175,7 +182,7 @@
     if(usable.length){const mc=Math.max(...usable.map(k=>contracted[k])),md=Math.max(...usable.map(k=>maximeters[k])),ratio=mc?md/mc:1;if(mc>=10&&md>0&&ratio<=.5)alerts.push(`Posible potencia sobredimensionada: ${money(mc)} kW contratados / demanda máx. ${money(md)} kW (${Math.round(ratio*100)}%). Validar con histórico`);}
     if(service.serviceTotal>0)alerts.push(`El PDF incluye servicios adicionales por ${money(service.serviceTotal)} €, incluidos en el importe total a pagar.`);
     const classified=options.readingClassifier?.(p2text),reading=classified&&classified.status&&classified.status!=='unknown'?classified:endesaReading(p2text);
-    return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',taxId:meta.taxId,cups,period,tariff,kwh:consumption,energy,power,excess,reactive,compensation,social:0,rental:0,integratorAdjustment:0,regularizationReactive:0,other,tax,vat:iva,igic,distributorCharges:0,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:consumption?total/consumption:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods,contracted,maximeters,parserVersion:options.parserVersion||'',powerDetail,sourceFormat:'endesa',supplier:'Endesa Energía S.A.U.',retailer:'Endesa Energía S.A.U.',commercializer:'Endesa Energía S.A.U.',supplyAddress,supplyCity:place.city,supplyProvince:place.province,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.contractType,renewalDate:meta.renewalDate,serviceTotal:service.serviceTotal,electricityTotal,serviceTotal:service.serviceTotal,paymentTotal:service.paymentTotal,serviceInvoices:service.serviceInvoices,discounts,summaryOther,adjustments};
+    return{file:file?.name||'',invoiceNumber,company:holder||'Por identificar',taxId:meta.taxId,cups,period,tariff,kwh:consumption,energy,power,excess,reactive,compensation,social,rental,integratorAdjustment:0,regularizationReactive:0,other,tax,vat:iva,igic,distributorCharges:0,distributorDescription:'',total,accounted,diff,balanced,readOk,readMessage:missing.length?`Falta o revisar: ${missing.join(', ')}`:balanced?'Lectura correcta':`Descuadre: ${money(diff)} €`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:consumption?total/consumption:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods,contracted,maximeters,parserVersion:options.parserVersion||'',powerDetail,sourceFormat:'endesa',supplier:'Endesa Energía S.A.U.',retailer:'Endesa Energía S.A.U.',commercializer:'Endesa Energía S.A.U.',supplyAddress,supplyCity:place.city,supplyProvince:place.province,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.contractType,renewalDate:meta.renewalDate,serviceTotal:service.serviceTotal,electricityTotal,serviceTotal:service.serviceTotal,paymentTotal:service.paymentTotal,serviceInvoices:service.serviceInvoices,discounts,summaryOther,otherResidual,otherClassificationReliable,adjustments};
   }
   function normalizeEndesaRow(row,options={}){
     if(!row||row.unsupported)return null;
@@ -206,7 +213,7 @@
     if(Number(row.igic))taxLines.push({tax_type:'IGIC',label:'IGIC',rate_pct:null,taxable_base_eur:null,amount_eur:Number(row.igic)});
     const adjustments=[];
     if(Number(row.discounts))adjustments.push({concept:'Descuentos',amount_eur:Number(row.discounts),category:'discount'});
-    if(Number(row.summaryOther))adjustments.push({concept:'Otros',amount_eur:Number(row.summaryOther),category:'other'});
+    if(Number(row.otherResidual??row.summaryOther))adjustments.push({concept:'Otros',amount_eur:Number(row.otherResidual??row.summaryOther),category:'other'});
     if(Number(row.adjustments))adjustments.push({concept:'Ajustes de peajes',amount_eur:Number(row.adjustments),category:'adjustment'});
     if(Number(row.serviceTotal))adjustments.push({concept:'Servicios Endesa',amount_eur:Number(row.serviceTotal),category:'service'});
 
@@ -220,10 +227,10 @@
         tariff:sourceStatus(tariff),distributor:sourceStatus(row.distributor,false),energy_periods:energyPeriods.length?'extracted':'unreliable',energy_price_components:'not_present',
         power_periods:powerPeriods.length?'extracted':'unreliable',power_price_components:'not_present',maximeters:hasMaximeters?'extracted':reactiveApplicable?'not_present':'not_applicable',
         excess_detail:Number(row.excess)?'extracted':'not_present',reactive_detail:Number(row.reactive)?'extracted':reactiveApplicable?'not_present':'not_applicable',
-        compensation:Number(row.compensation)?'extracted':'not_present',social_bonus:'not_present',meter_rental:'not_present',electricity_tax:Number(row.tax)?'extracted':'not_present',
+        compensation:Number(row.compensation)?'extracted':'not_present',social_bonus:Number(row.social)?'extracted':'not_present',meter_rental:Number(row.rental)?'extracted':'not_present',electricity_tax:Number(row.tax)?'extracted':'not_present',
         tax_lines:taxLines.length?'extracted':'not_present',distributor_rights:'not_present',integrator_adjustment:'not_present',reactive_regularization:'not_present'
       },
-      assessment=row.readOk&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
+      assessment=row.readOk&&row.otherClassificationReliable!==false&&energyPeriods.length&&powerPeriods.length?'complete':'needs_review';
 
     return{
       modelVersion:'ibt-energy-invoice-1',
