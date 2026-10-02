@@ -71,7 +71,7 @@
   }
 
   function bindNav() {
-    const link = [...document.querySelectorAll('.sidebar nav a')].find(a => String(a.textContent || '').trim().includes('Alertas'));
+    const link = document.querySelector('.sidebar nav a[data-view="alertas"]') || [...document.querySelectorAll('.sidebar nav a')].find(a => String(a.textContent || '').trim().includes('Alertas'));
     if (!link) return;
     link.dataset.view = 'alertas';
     link.classList.toggle('hidden', !isInternal());
