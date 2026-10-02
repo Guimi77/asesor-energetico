@@ -68,3 +68,20 @@ test('Endesa history extractor defines an empty reactivePeriods collection befor
   assert.match(block,/const reactivePeriods=\[\];/);
   assert.match(block,/reactivePeriods,taxLines/);
 });
+
+
+test('successful history ingestion refreshes history scope and central client cache',()=>{
+  const historyUi=fs.readFileSync(path.join(root,'history-ui.js'),'utf8');
+  const centralSync=fs.readFileSync(path.join(root,'supabase-xtra-pilot.js'),'utf8');
+
+  assert.match(history,/new CustomEvent\('xtra-history-updated'/);
+  assert.match(history,/if\(saved>0\)window\.dispatchEvent\(new CustomEvent\('ibt-central-data-changed'/);
+  assert.match(historyUi,/addEventListener\('xtra-history-updated',[\s\S]*init\(window\.ibtCurrentProfile\)/);
+  assert.match(centralSync,/addEventListener\('ibt-central-data-changed',[\s\S]*lastSyncKey = ''[\s\S]*scheduleSync\(\)/);
+});
+
+test('browser cache markers force the post-save refresh code',()=>{
+  assert.match(bootstrap,/xtra-history\.js\?v=0630b1046540/);
+  const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  assert.match(index,/history-ui\.js\?v=61671c013e2a/);
+});
