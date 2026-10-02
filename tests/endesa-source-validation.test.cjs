@@ -135,7 +135,7 @@ test('Endesa economic summary supplies billed excess when detail uses abbreviate
   assert.equal(r.balanced,true);
   assert.equal(r.readOk,true);
   assert.match(r.opportunity,/Exceso de potencia: 20,00 €/);
-  assert.equal(r.parserRevision,'2026.10.01.1');
+  assert.equal(r.parserRevision,'2026.10.01.2');
 });
 
 test('Endesa summary excess explicitly printed as zero overrides no charge without inventing one',()=>{
@@ -157,7 +157,7 @@ test('Endesa summary excess explicitly printed as zero overrides no charge witho
 
 test('Endesa refuses green status when Otros contains known charges that cannot be reconciled',()=>{
   const raw={
-    sourceFormat:'endesa',company:'CLIENTE PRUEBA CLASIFICACION',cups:'ES0000000000000012AA0F',period:'01/03/2026 - 31/03/2026 (30 días)',tariff:'2.0TD',
+    sourceFormat:'endesa',company:'CLIENTE PRUEBA CLASIFICACION',cups:'ES0000000000000002AA',period:'01/03/2026 - 31/03/2026 (30 días)',tariff:'2.0TD',
     kwh:300,energy:100,power:10,excess:0,reactive:0,compensation:0,social:0,rental:0,other:5,tax:5,vat:25,igic:0,distributorCharges:0,
     total:145,accounted:145,diff:0,balanced:true,readOk:true,summaryOther:5,otherClassificationReliable:false,
     periods:{P1:{consumption:100},P2:{consumption:100},P3:{consumption:100}},contracted:{P1:5.75,P2:5.75},maximeters:{},serviceTotal:0,supplyAddress:'C/ EJEMPLO 2, 07000 CIUDAD'
