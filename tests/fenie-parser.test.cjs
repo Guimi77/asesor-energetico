@@ -56,7 +56,7 @@ test('parser FENIE contabiliza descuentos comerciales impresos sin esconderlos',
   const euro='€';
   const page=[
     'FENIE ENERGIA',
-    'Nº Factura: TEST-DESCUENTO-001',
+    'Nº Factura: SINTETICAALFA',
     'Razón Social: CLIENTE PRUEBA DESCUENTO',
     'NIF / CIF: B00000000',
     'CUPS: ES0000000000000000AA',
@@ -76,7 +76,7 @@ test('parser FENIE contabiliza descuentos comerciales impresos sin esconderlos',
     'Descuento Plan Prueba (Descuento pendiente: 0,00) -10,00 '+euro,
     'Bono social Real Decreto de prueba 0,59 '+euro,
     'Impuesto electricidad 3,68 '+euro,
-    'Alquiler Equipo medida (Nº Contador 000000001): 0,83 '+euro,
+    'Alquiler Equipo medida (Nº Contador CONTADOR_PRUEBA): 0,83 '+euro,
     'IVA 21,00% s/ 76,48 16,06 '+euro,
     'TOTAL FACTURA: 92,54'+euro
   ];
