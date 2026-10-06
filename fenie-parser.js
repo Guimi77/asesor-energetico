@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='fenie-2026.09.27.1';
+  const REVISION='fenie-2026.10.06.1';
   const RETAILER='FENIE ENERGIA';
 
   const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -137,7 +137,9 @@
 
     const social=lastEuro(find(a,/Bono social/i)),
       tax=lastEuro(find(a,/Impuesto electricidad/i)),
-      rental=lastEuro(find(a,/Alquiler Equipo medida/i));
+      rental=lastEuro(find(a,/Alquiler Equipo medida/i)),
+      discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
+      discounts=round2(discountLines.reduce((sum,line)=>sum+lastEuro(line),0));
 
     let integratorAdjustment=0;
     const ii=a.findIndex(l=>/Ajuste por Integrador/i.test(l));
@@ -159,7 +161,7 @@
     }
 
     const dv=euros(db),distributorCharges=dv.length?Math.max(...dv):0,
-      other=round2(social+rental+integratorAdjustment+regularizationReactive),
+      other=round2(social+rental+discounts+integratorAdjustment+regularizationReactive),
       accounted=round2(energy+power+excess+reactive+compensation+other+tax+vat+igic+distributorCharges),
       diff=round2(total-accounted),
       balanced=total>0&&Math.abs(diff)<=.05,
@@ -201,6 +203,7 @@
       compensation,
       social,
       rental,
+      discounts,
       integratorAdjustment,
       regularizationReactive,
       other,
@@ -309,6 +312,7 @@
 
   function parseNormalized(d,file,options={}){
     const row=parse(d,file,options),a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
+      discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
       period=parseBillingPeriod(row.period),tariff=norm(row.tariff),
       holderLine=find(a,/Raz[oó]n Social\s*:/i),taxIdLine=find(a,/NIF\s*\/\s*CIF\s*:/i),
       addressLine=find(a,/Dir\.\s*Suministro\s*:/i),accessLine=find(a,/Contrato Acceso\s*:/i),
@@ -350,6 +354,7 @@
       taxes=taxRows(a),rights=rightsDetail(a,row.distributorCharges),
       adjustments=[];
 
+    if(row.discounts)adjustments.push({concept:'Descuento FENIE',amount_eur:row.discounts,category:'discount',source_text:discountLines.join(' | ')});
     if(row.integratorAdjustment)adjustments.push({concept:'Ajuste por Integrador',amount_eur:row.integratorAdjustment,category:'adjustment'});
     if(row.regularizationReactive)adjustments.push({concept:'Regularización Reactiva',amount_eur:row.regularizationReactive,category:'reactive_adjustment'});
 
@@ -364,6 +369,7 @@
         excess_detail:excessSection.length?(excessPeriods.length?'extracted':'unreliable'):'not_present',
         reactive_detail:reactiveSection.length?(reactivePeriods.length?'extracted':'unreliable'):(reactiveApplicable?'unreliable':'not_applicable'),
         compensation:find(a,/Compensaci[oó]n Excedente/i)?'extracted':'not_present',social_bonus:find(a,/Bono social/i)?'extracted':'unreliable',
+        discounts:discountLines.length?'extracted':'not_present',
         meter_rental:find(a,/Alquiler Equipo medida/i)?'extracted':'unreliable',electricity_tax:find(a,/Impuesto electricidad/i)?'extracted':'unreliable',
         tax_lines:taxes.length?'extracted':'unreliable',distributor_rights:rights.status,
         integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
@@ -382,7 +388,7 @@
       excess:{totalEur:row.excess,periods:excessPeriods},
       reactive:{totalEur:row.reactive,periods:reactivePeriods},
       costs:{
-        compensationEur:row.compensation,socialBonusEur:row.social,meterRentalEur:row.rental,electricityTaxEur:row.tax,
+        compensationEur:row.compensation,socialBonusEur:row.social,discountsEur:row.discounts,meterRentalEur:row.rental,electricityTaxEur:row.tax,
         vatEur:row.vat,igicEur:row.igic,distributorChargesEur:row.distributorCharges,otherEur:row.other,totalEur:row.total,accountedEur:row.accounted,differenceEur:row.diff
       },
       taxLines:taxes,

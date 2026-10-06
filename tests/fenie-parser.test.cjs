@@ -51,6 +51,59 @@ test('parser FENIE mantiene el contrato económico sintético 2.0TD',()=>{
   assert.deepEqual(row.periods.P2,{consumption:50,cost:5,price:0.1});
 });
 
+
+test('parser FENIE contabiliza descuentos comerciales impresos sin esconderlos',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA',
+    'Nº Factura: SINTETICAALFA',
+    'Razón Social: CLIENTE PRUEBA DESCUENTO',
+    'NIF / CIF: B00000000',
+    'CUPS: ES0000000000000000AA',
+    'Tarifa: 2.0TD',
+    'Periodo Facturación: 01/05/2026 - 31/05/2026 (31 días)',
+    'Término de energía variable',
+    'P1: 0,033261 '+euro+'/kWh + 0,064292 '+euro+'/kWh + 0,100800 '+euro+'/kWh = 0,198353 '+euro+'/kWh x 122,00 kWh = 24,20 '+euro+' 67,50 '+euro,
+    'P2: 0,016409 '+euro+'/kWh + 0,012858 '+euro+'/kWh + 0,103610 '+euro+'/kWh = 0,132877 '+euro+'/kWh x 106,00 kWh = 14,08 '+euro,
+    'P3: 0,000077 '+euro+'/kWh + 0,003215 '+euro+'/kWh + 0,112658 '+euro+'/kWh = 0,115950 '+euro+'/kWh x 252,00 kWh = 29,22 '+euro,
+    'Término de potencia',
+    'P1: 0,063904 '+euro+'/kW día + 0,011999 '+euro+'/kW día + 0,00 '+euro+'/kW día = 0,075903 '+euro+'/kW día 5,750 kW x 31 días = 13,53 '+euro,
+    'P2: 0,001216 '+euro+'/kW día + 0,000772 '+euro+'/kW día + 0,00 '+euro+'/kW día = 0,001988 '+euro+'/kW día 5,750 kW x 31 días = 0,35 '+euro,
+    '13,88 '+euro,
+    'Excesos de Potencia',
+    'P1: 0,000000 x 8,662206 = 0,00 '+euro,
+    'P2: 0,000000 x 0,164796 = 0,00 '+euro,
+    'Descuento Plan Prueba (Descuento pendiente: 0,00) -10,00 '+euro,
+    'Bono social Real Decreto de prueba 0,59 '+euro,
+    'Impuesto electricidad 3,68 '+euro,
+    'Alquiler Equipo medida (Nº Contador CONTADOR_PRUEBA): 0,83 '+euro,
+    'IVA 21,00% s/ 76,48 16,06 '+euro,
+    'TOTAL FACTURA: 92,54'+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\n')};
+  const row=fenie.parse(data,{name:'synthetic-fenie-discount.pdf'});
+  assert.equal(row.discounts,-10);
+  assert.equal(row.energy,67.5);
+  assert.equal(row.power,13.88);
+  assert.equal(row.other,-8.58);
+  assert.equal(row.accounted,92.54);
+  assert.equal(row.diff,0);
+  assert.equal(row.balanced,true);
+  assert.equal(row.readOk,true);
+
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-fenie-discount.pdf'},{completenessVersion:'energy-test.discount'});
+  assert.equal(normalized.costs.discountsEur,-10);
+  assert.equal(normalized.costs.otherEur,-8.58);
+  assert.equal(normalized.costs.accountedEur,92.54);
+  assert.equal(normalized.validation.completeness.discounts,'extracted');
+  assert.deepEqual(normalized.adjustments,[{
+    concept:'Descuento FENIE',
+    amount_eur:-10,
+    category:'discount',
+    source_text:'Descuento Plan Prueba (Descuento pendiente: 0,00) -10,00 €'
+  }]);
+});
+
 test('app ya no contiene reglas de interpretación FENIE',()=>{
   assert.match(app,/window\.IBTFenieParser/);
   assert.match(app,/function parseFenie\(d,file\)\{[\s\S]{0,250}IBTFenieParser/);

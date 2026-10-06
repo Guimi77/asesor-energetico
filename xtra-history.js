@@ -1,7 +1,7 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 const PILOT='GRUPO XTRA';
-const COMPLETENESS_VERSION='energy-2026.09.28.1';
+const COMPLETENESS_VERSION='energy-2026.10.06.1';
 const $=s=>document.querySelector(s);
 const norm=v=>String(v??'').trim();
 const clean=v=>norm(v).replace(/\s+/g,' ');
@@ -186,15 +186,16 @@ const excessSection=section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/
 const reactiveSection=section(a,/Energ[ií]a reactiva/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/Bono social/i,/Impuesto electricidad/i]),reactive=sectionTotal(reactiveSection),reactivePeriods=reactiveRows(reactiveSection);
 const mx=maximeters(d.raw?.[1]||[]),maximeterRows=Object.keys(mx).filter(k=>/^P\d$/.test(k)).map(k=>({period:Number(k.slice(1)),maximeter_kw:mx[k],reliable:!!mx._reliable,source:'FENIE · tabla maxímetro'}));
 let compensation=lastEuro(find(a,/Compensaci[oó]n Excedente/i));if(compensation>0)compensation=-compensation;
-const social=lastEuro(find(a,/Bono social/i)),tax=lastEuro(find(a,/Impuesto electricidad/i)),rental=lastEuro(find(a,/Alquiler Equipo medida/i));
+const social=lastEuro(find(a,/Bono social/i)),tax=lastEuro(find(a,/Impuesto electricidad/i)),rental=lastEuro(find(a,/Alquiler Equipo medida/i)),discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),discounts=round2(discountLines.reduce((sum,line)=>sum+lastEuro(line),0));
 let integratorAdjustment=0;const ii=a.findIndex(l=>/Ajuste por Integrador/i.test(l));if(ii>=0){const v=euros(a.slice(ii,ii+5).join(' ')),neg=v.find(x=>x<0);integratorAdjustment=neg??(v.length===1?v[0]:0)}
 const regularizationReactive=lastEuro(find(a,/Regularizaci[oó]n\s+Reactiva/i));
 const taxLines=taxRows(a),vat=round2(taxLines.filter(x=>x.tax_type==='IVA').reduce((s,x)=>s+x.amount_eur,0)),igic=round2(taxLines.filter(x=>x.tax_type==='IGIC').reduce((s,x)=>s+x.amount_eur,0));
 let db='';const rightsRe=/Derechos (?:de )?(?:Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche|Actuaci[oó]n Equipos) Distribuidora/i,di=a.findIndex(l=>rightsRe.test(l));if(di>=0)for(let i=di;i<Math.min(a.length,di+8);i++){if(i>di&&/^(?:Impuesto electricidad|Alquiler Equipo|IVA\b|IGIC\b|TOTAL FACTURA)/i.test(a[i]))break;db+=' '+a[i]}const dv=euros(db),distributorCharges=dv.length?Math.max(...dv):0;
 const rights=rightsDetail(a,distributorCharges);
-const other=round2(social+rental+integratorAdjustment+regularizationReactive),accounted=round2(energy+power+excess+reactive+compensation+other+tax+vat+igic+distributorCharges),diff=round2(total-accounted);
+const other=round2(social+rental+discounts+integratorAdjustment+regularizationReactive),accounted=round2(energy+power+excess+reactive+compensation+other+tax+vat+igic+distributorCharges),diff=round2(total-accounted);
 const distributor=((find(a,/Empresa Distribuidora\s*:/i).replace(/.*?Empresa Distribuidora\s*:\s*/i,'').trim())||'');
 const adjustments=[];
+if(discounts)adjustments.push({concept:'Descuento FENIE',amount_eur:discounts,category:'discount',source_text:discountLines.join(' | ')});
 if(integratorAdjustment)adjustments.push({concept:'Ajuste por Integrador',amount_eur:integratorAdjustment,category:'adjustment'});
 if(regularizationReactive)adjustments.push({concept:'Regularización Reactiva',amount_eur:regularizationReactive,category:'reactive_adjustment'});
 
@@ -209,6 +210,7 @@ power_periods:pd.reliable?'extracted':'unreliable',power_price_components:powerP
 excess_detail:excessSection.length?(excessPeriods.length?'extracted':'unreliable'):'not_present',
 reactive_detail:reactiveSection.length?(reactivePeriods.length?'extracted':'unreliable'):(reactiveApplicable?'unreliable':'not_applicable'),
 compensation:find(a,/Compensaci[oó]n Excedente/i)?'extracted':'not_present',social_bonus:find(a,/Bono social/i)?'extracted':'unreliable',
+discounts:discountLines.length?'extracted':'not_present',
 meter_rental:find(a,/Alquiler Equipo medida/i)?'extracted':'unreliable',electricity_tax:find(a,/Impuesto electricidad/i)?'extracted':'unreliable',
 tax_lines:taxLines.length?'extracted':'unreliable',distributor_rights:rights.status,
 integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
