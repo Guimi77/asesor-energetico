@@ -312,6 +312,7 @@
 
   function parseNormalized(d,file,options={}){
     const row=parse(d,file,options),a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
+      discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
       period=parseBillingPeriod(row.period),tariff=norm(row.tariff),
       holderLine=find(a,/Raz[oó]n Social\s*:/i),taxIdLine=find(a,/NIF\s*\/\s*CIF\s*:/i),
       addressLine=find(a,/Dir\.\s*Suministro\s*:/i),accessLine=find(a,/Contrato Acceso\s*:/i),
