@@ -93,7 +93,7 @@ test('Existing validated invoices refresh completeness without changing core amo
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
  assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
- assert(source.includes("const COMPLETENESS_VERSION='energy-2026.09.28.1'"));
+ assert(source.includes("const COMPLETENESS_VERSION='energy-2026.10.06.1'"));
 });
 
 test('Automatic history write cannot bypass the validated main parser row',()=>{
@@ -182,7 +182,7 @@ test('Los motivos de no guardado del histórico se muestran en español claro',(
 });
 
 test('El histórico refresca lecturas mejoradas sin depender de la comercializadora',()=>{
- assert(appSource.includes("const PARSER_VERSION='2026.09.29.1';"));
+ assert(appSource.includes("const PARSER_VERSION='2026.10.06.1';"));
  assert(refreshPolicySql.includes("private.parser_version_is_newer"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'better_completeness'"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));
