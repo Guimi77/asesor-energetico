@@ -15,7 +15,7 @@ on:
       - 'internal-db-usage.css'
       - 'tests/ui-layout-contract.test.cjs'
       - 'tests/brand-theme.test.cjs'
-      - 'assets/bt-energia-logo.webp'
+      - 'assets/bt-energia-logo.jpg'
       - '.github/workflows/ui-layout-regression.yml'
   pull_request:
     paths:
@@ -30,7 +30,7 @@ on:
       - 'internal-db-usage.css'
       - 'tests/ui-layout-contract.test.cjs'
       - 'tests/brand-theme.test.cjs'
-      - 'assets/bt-energia-logo.webp'
+      - 'assets/bt-energia-logo.jpg'
       - '.github/workflows/ui-layout-regression.yml'
 
 permissions:
