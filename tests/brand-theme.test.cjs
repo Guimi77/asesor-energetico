@@ -12,21 +12,21 @@ const auth=fs.readFileSync(path.join(root,'auth.css'),'utf8');
 const compact=fs.readFileSync(path.join(root,'ui-compact.css'),'utf8');
 const recommendations=fs.readFileSync(path.join(root,'history-recommendations.css'),'utf8');
 const dbUsage=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
-const logoPath=path.join(root,'assets','bt-energia-logo.jpg');
+const logoPath=path.join(root,'assets','bt-energia-logo.png');
 const logo=fs.readFileSync(logoPath);
 const i18n=fs.readFileSync(path.join(root,'i18n.js'),'utf8');
 const authJs=fs.readFileSync(path.join(root,'auth.js'),'utf8');
 
 test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
-  assert.equal(logo.length,7768,'brand logo byte length changed unexpectedly');
-  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'0a4c78e35476bb52046365db019b5fc47e7b6c33','brand logo bytes must match the verified source');
-  assert.equal(logo[0],0xff);
-  assert.equal(logo[1],0xd8);
-  assert.equal(logo[logo.length-2],0xff);
-  assert.equal(logo[logo.length-1],0xd9);
-  const refs=index.match(/assets\/bt-energia-logo\.jpg\?v=be93d080a8a4/g)||[];
+  // Source replacement explicitly requested by Guimi on 2026-10-08: same logo, transparent PNG.
+  assert.equal(logo.length,158606,'brand logo byte length changed unexpectedly');
+  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'9f30d034ef7c3157205fb182d83ce7c6c0a70472','brand logo bytes must match the supplied transparent source');
+  assert.deepEqual([...logo.subarray(0,8)],[137,80,78,71,13,10,26,10],'brand asset must remain PNG');
+  assert.equal(logo[25],6,'PNG must preserve its RGBA channel');
+  const refs=index.match(/assets\/bt-energia-logo\.png\?v=7ba8169eac64/g)||[];
   assert.equal(refs.length,2,'login/maintenance and topbar must share the new logo');
   assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
+  assert(!index.includes('assets/bt-energia-logo.jpg'),'opaque JPEG must not remain referenced');
   assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');
   assert(index.includes('alt="BT Energía"'));
   assert(index.includes('alt="BT Energía · Gestionam la teva factura elèctrica"'));
