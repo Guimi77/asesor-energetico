@@ -14,6 +14,8 @@ const recommendations=fs.readFileSync(path.join(root,'history-recommendations.cs
 const dbUsage=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
 const logoPath=path.join(root,'assets','bt-energia-logo.jpg');
 const logo=fs.readFileSync(logoPath);
+const i18n=fs.readFileSync(path.join(root,'i18n.js'),'utf8');
+const authJs=fs.readFileSync(path.join(root,'auth.js'),'utf8');
 
 test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
   assert.equal(logo.length,7768,'brand logo byte length changed unexpectedly');
@@ -28,6 +30,16 @@ test('BT Energía logo is the single visible brand asset in app and access gate'
   assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');
   assert(index.includes('alt="BT Energía"'));
   assert(index.includes('alt="BT Energía · Gestionam la teva factura elèctrica"'));
+});
+
+test('legacy Instal·lacions BT brand copy is gone from user-facing sources',()=>{
+  for(const [name,source] of [['index.html',index],['i18n.js',i18n],['auth.js',authJs]]){
+    assert(!source.includes('Instal·lacions BT'),name+' still contains the legacy brand name');
+  }
+  assert(index.includes('<title>BT Energía · Asesor Energético Alpha</title>'));
+  assert(index.includes('BT Energía revisará la solicitud'));
+  assert(index.includes('BT Energía revisará tus datos'));
+  assert(authJs.includes('pendiente de aprobación por BT Energía'));
 });
 
 test('brand palette uses turquoise and charcoal without replacing semantic statuses',()=>{

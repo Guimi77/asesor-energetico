@@ -103,7 +103,7 @@ function applySession(session,profile){
   if(settingsLink)settingsLink.classList.toggle('hidden',profile?.role!=='admin');
   enforceRoleAccess(profile);
   if(profile?.active===false){
-    setAuthMessage(profile?.role==='client'?'Tu solicitud está pendiente de activación. Instal·lacions BT te avisará cuando puedas entrar.':'Tu cuenta está desactivada. Contacta con el administrador.','error');
+    setAuthMessage(profile?.role==='client'?'Tu solicitud está pendiente de activación. BT Energía te avisará cuando puedas entrar.':'Tu cuenta está desactivada. Contacta con el administrador.','error');
     supabase.auth.signOut();
   }
 }
@@ -229,7 +229,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(error){
       const msg=String(error.message||'');
       if(msg.toLowerCase().includes('email not confirmed')){
-        setAuthMessage('Tu solicitud todavía está pendiente de aprobación por Instal·lacions BT.','error');
+        setAuthMessage('Tu solicitud todavía está pendiente de aprobación por BT Energía.','error');
       }else{
         setAuthMessage(msg,'error');
       }
