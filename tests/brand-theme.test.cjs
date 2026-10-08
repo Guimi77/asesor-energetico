@@ -19,11 +19,11 @@ const authJs=fs.readFileSync(path.join(root,'auth.js'),'utf8');
 
 test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
   // Source replacement explicitly requested by Guimi on 2026-10-08: same logo, transparent PNG.
-  assert.equal(logo.length,158606,'brand logo byte length changed unexpectedly');
-  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'9f30d034ef7c3157205fb182d83ce7c6c0a70472','brand logo bytes must match the supplied transparent source');
+  assert.equal(logo.length,131229,'brand logo byte length changed unexpectedly');
+  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'153c7810bcafded909690e5ebdf1c715bc828d64','brand logo bytes must match the supplied transparent source');
   assert.deepEqual([...logo.subarray(0,8)],[137,80,78,71,13,10,26,10],'brand asset must remain PNG');
   assert.equal(logo[25],6,'PNG must preserve its RGBA channel');
-  const refs=index.match(/assets\/bt-energia-logo\.png\?v=7ba8169eac64/g)||[];
+  const refs=index.match(/assets\/bt-energia-logo\.png\?v=186342746abb/g)||[];
   assert.equal(refs.length,2,'login/maintenance and topbar must share the new logo');
   assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
   assert(!index.includes('assets/bt-energia-logo.jpg'),'opaque JPEG must not remain referenced');
