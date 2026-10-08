@@ -9,6 +9,8 @@ const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const styles=fs.readFileSync(path.join(root,'styles.css'),'utf8');
 const auth=fs.readFileSync(path.join(root,'auth.css'),'utf8');
 const compact=fs.readFileSync(path.join(root,'ui-compact.css'),'utf8');
+const recommendations=fs.readFileSync(path.join(root,'history-recommendations.css'),'utf8');
+const dbUsage=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
 const logoPath=path.join(root,'assets','bt-energia-logo.webp');
 const logo=fs.readFileSync(logoPath);
 
@@ -35,6 +37,8 @@ test('brand palette uses turquoise and charcoal without replacing semantic statu
   assert(auth.includes('.auth-gate{background:radial-gradient(circle at top,#e6fbf7'));
   assert(auth.includes('.maintenance-icon{background:#e8faf7;color:#007d78}'));
   assert(compact.includes('.company-logo{max-width:112px!important;max-height:74px!important}'));
+  assert(recommendations.includes('border-left:3px solid #009b91'));
+  assert(dbUsage.includes('background:linear-gradient(90deg,#009b91,#00c8b8)'));
 });
 
 console.log('BT Energía brand regression checks passed');
