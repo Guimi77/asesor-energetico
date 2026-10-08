@@ -17,14 +17,18 @@ const logo=fs.readFileSync(logoPath);
 const i18n=fs.readFileSync(path.join(root,'i18n.js'),'utf8');
 const authJs=fs.readFileSync(path.join(root,'auth.js'),'utf8');
 
-test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
+test('BT Energía uses horizontal app branding while preserving the access logo',()=>{
   // Source replacement explicitly requested by Guimi on 2026-10-08: same logo, transparent PNG.
   assert.equal(logo.length,131229,'brand logo byte length changed unexpectedly');
   assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'153c7810bcafded909690e5ebdf1c715bc828d64','brand logo bytes must match the supplied transparent source');
   assert.deepEqual([...logo.subarray(0,8)],[137,80,78,71,13,10,26,10],'brand asset must remain PNG');
   assert.equal(logo[25],6,'PNG must preserve its RGBA channel');
   const refs=index.match(/assets\/bt-energia-logo\.png\?v=186342746abb/g)||[];
-  assert.equal(refs.length,2,'login/maintenance and topbar must share the new logo');
+  assert.equal(refs.length,1,'login/maintenance must retain the vertical logo');
+  assert(index.includes('class="auth-logo" src="assets/bt-energia-logo.png?v=186342746abb"'));
+  assert(index.includes('class="company-logo" src="assets/bt-energia-logo-horizontal.png?v=f69426786088"'));
+  const horizontal=fs.readFileSync(path.join(root,'assets','bt-energia-logo-horizontal.png'));
+  assert.equal(crypto.createHash('sha1').update(horizontal).digest('hex'),'bfa9904a156fa45f1145e39d205f17dbd78092d3','horizontal logo must match the user source');
   assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
   assert(!index.includes('assets/bt-energia-logo.jpg'),'opaque JPEG must not remain referenced');
   assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');

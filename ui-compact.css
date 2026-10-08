@@ -627,3 +627,6 @@ td{padding:10px 8px}
 @media (max-width:900px){
   .company-logo{max-width:112px!important;max-height:74px!important}
 }
+
+/* Horizontal logo fills the existing app header slot without distortion. */
+.company-logo-wrap .company-logo{width:100%!important;max-width:100%!important;height:auto!important;object-fit:contain}
