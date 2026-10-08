@@ -11,16 +11,19 @@ const auth=fs.readFileSync(path.join(root,'auth.css'),'utf8');
 const compact=fs.readFileSync(path.join(root,'ui-compact.css'),'utf8');
 const recommendations=fs.readFileSync(path.join(root,'history-recommendations.css'),'utf8');
 const dbUsage=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
-const logoPath=path.join(root,'assets','bt-energia-logo.webp');
+const logoPath=path.join(root,'assets','bt-energia-logo.jpg');
 const logo=fs.readFileSync(logoPath);
 
 test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
   assert(logo.length>10000,'brand logo looks unexpectedly small');
-  assert.equal(logo.subarray(0,4).toString('ascii'),'RIFF');
-  assert.equal(logo.subarray(8,12).toString('ascii'),'WEBP');
-  const refs=index.match(/assets\/bt-energia-logo\.webp\?v=376e7075fc06/g)||[];
+  assert.equal(logo[0],0xff);
+  assert.equal(logo[1],0xd8);
+  assert.equal(logo[logo.length-2],0xff);
+  assert.equal(logo[logo.length-1],0xd9);
+  const refs=index.match(/assets\/bt-energia-logo\.jpg\?v=8d6a8d68c726/g)||[];
   assert.equal(refs.length,2,'login/maintenance and topbar must share the new logo');
   assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
+  assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');
   assert(index.includes('alt="BT Energía"'));
   assert(index.includes('alt="BT Energía · Gestionam la teva factura elèctrica"'));
 });
