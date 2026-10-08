@@ -53,7 +53,7 @@
   line-height:1.15;
   box-shadow:none;
 }
-.primary{box-shadow:0 2px 5px rgba(24,52,184,.12)}
+.primary{box-shadow:0 2px 5px rgba(0,155,145,.12)}
 .secondary{margin-left:5px}
 
 #historyUploadStatus,
@@ -94,14 +94,14 @@
 #exportExcel,
 #exportClientExcel{
   background:#fff!important;
-  color:#1834b8!important;
+  color:#009b91!important;
   border:1px solid #b9c7dc!important;
   box-shadow:none!important;
 }
 #exportExcel:hover,
 #exportClientExcel:hover{
   background:#f3f6ff!important;
-  border-color:#1834b8!important;
+  border-color:#009b91!important;
 }
 #auditParser{
   background:#fff!important;
@@ -135,7 +135,7 @@ td{padding:10px 8px}
   border:1px solid #d7e1eb;
   border-radius:10px;
   background:rgba(255,255,255,.98);
-  color:#10233f;
+  color:#1d292d;
   box-shadow:0 14px 38px rgba(6,27,56,.18);
   opacity:0;
   transform:translateY(10px);
@@ -165,7 +165,7 @@ td{padding:10px 8px}
   font-size:17px;
   line-height:1;
 }
-.ibt-toast button:hover{background:#f1f4f7;color:#10233f}
+.ibt-toast button:hover{background:#eff4f3;color:#1d292d}
 
 @media (max-width:1180px) and (min-width:901px){
   .topbar{min-height:118px!important}
@@ -450,7 +450,7 @@ td{padding:10px 8px}
   position:sticky!important;
   top:0!important;
   z-index:12!important;
-  background:#10233f!important;
+  background:#1d292d!important;
   color:#fff!important;
   box-shadow:0 1px 0 rgba(255,255,255,.16),0 2px 5px rgba(6,27,56,.16)!important;
 }
@@ -555,8 +555,8 @@ td{padding:10px 8px}
     border:2px solid #aebed0!important;
     border-radius:9px!important;
     background:#fff!important;
-    color:#10233f!important;
-    box-shadow:0 1px 3px rgba(16,35,63,.05),inset 0 0 0 1px rgba(255,255,255,.7)!important;
+    color:#1d292d!important;
+    box-shadow:0 1px 3px rgba(29,41,45,.05),inset 0 0 0 1px rgba(255,255,255,.7)!important;
     outline:none!important;
     font:inherit;
   }
@@ -580,8 +580,8 @@ td{padding:10px 8px}
   input[type="search"]:focus,
   input[id$="Search"]:focus,
   input[id*="Search"]:focus{
-    border-color:#1834b8!important;
-    box-shadow:0 0 0 3px rgba(24,52,184,.10)!important;
+    border-color:#009b91!important;
+    box-shadow:0 0 0 3px rgba(0,155,145,.10)!important;
   }
   .section-head > .search-box{
     flex:0 1 820px!important;
@@ -615,3 +615,15 @@ td{padding:10px 8px}
   .language-switcher select{max-width:132px}
 }
 
+
+/* BT ENERGIA compact/mobile polish. */
+@media (min-width:901px){
+  .company-logo-wrap{width:min(210px,20vw)!important;min-height:94px!important}
+  .company-logo{max-height:94px!important;width:auto!important}
+}
+@media (max-width:1180px) and (min-width:901px){
+  .company-logo-wrap{width:min(190px,21vw)!important}
+}
+@media (max-width:900px){
+  .company-logo{max-width:112px!important;max-height:74px!important}
+}
