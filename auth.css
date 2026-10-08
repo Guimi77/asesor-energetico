@@ -5,7 +5,7 @@
 /* BT ENERGIA access and maintenance brand refresh 2026-10-08. */
 .auth-gate{background:radial-gradient(circle at top,#e6fbf7 0,#f5f8f8 44%,#e8efef 100%)}
 .auth-card{border-color:#d6e4e2;box-shadow:0 22px 64px rgba(23,33,38,.16)}
-.auth-logo{width:min(300px,82%);max-height:270px;margin-bottom:22px}
+.auth-logo{width:min(210px,70%);max-height:205px;margin-bottom:20px}
 .auth-form input:focus,.maintenance-message-label textarea:focus{border-color:#009b91;box-shadow:0 0 0 3px rgba(0,155,145,.10)}
 .auth-link{color:#007d78}
 .auth-link-secondary{color:#52666a}
@@ -14,4 +14,4 @@
 .maintenance-icon{background:#e8faf7;color:#007d78}
 .maintenance-switch-row input{accent-color:#009b91}
 .session-box>span{border-color:#d6e4e2;color:#40565a}
-@media(max-width:900px){.auth-logo{width:min(270px,78%);max-height:240px}}
+@media(max-width:900px){.auth-logo{width:min(190px,68%);max-height:185px}}
