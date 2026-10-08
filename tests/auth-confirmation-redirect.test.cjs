@@ -15,7 +15,7 @@ test('confirmation page verifies the authenticated user before claiming success'
   assert(confirmation.includes('supabase.auth.getUser()'));
   assert(confirmation.includes("render('ok','Registro completado'"));
   assert(confirmation.includes('No mostramos “registro completado” por suposición.'));
-  assert(confirmation.includes('assets/bt-energia-logo.png?v=7ba8169eac64')); // Transparent source requested on 2026-10-08.
+  assert(confirmation.includes('assets/bt-energia-logo.png?v=186342746abb')); // Transparent source requested on 2026-10-08.
 });
 
 test('confirmation page leaves the user signed out after verification',()=>{
