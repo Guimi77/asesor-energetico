@@ -6,12 +6,15 @@ on:
     paths:
       - 'index.html'
       - 'styles.css'
+      - 'auth.css'
       - 'ui-compact.css'
       - 'ui-compact.js'
       - 'client-archive-integrated.js'
       - 'internal-db-usage.js'
       - 'internal-db-usage.css'
       - 'tests/ui-layout-contract.test.cjs'
+      - 'tests/brand-theme.test.cjs'
+      - 'assets/bt-energia-logo.webp'
       - '.github/workflows/ui-layout-regression.yml'
   pull_request:
     paths:
@@ -42,3 +45,4 @@ jobs:
           node --check internal-db-usage.js
           node --check client-archive-integrated.js
           node --test tests/ui-layout-contract.test.cjs
+          node --test tests/brand-theme.test.cjs
