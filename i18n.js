@@ -22,13 +22,13 @@
     'Crear cuenta / Solicitar acceso':{ca:'Crear compte / Sol·licitar accés',en:'Create account / Request access'},
     'Solicitud de acceso':{ca:"Sol·licitud d'accés",en:'Access request'},
     'Crear cuenta':{ca:'Crear compte',en:'Create account'},
-    'Introduce tus datos. Instal·lacions BT revisará la solicitud y te avisará cuando tu cuenta esté vinculada con tu cliente.':{ca:"Introdueix les teves dades. Instal·lacions BT revisarà la sol·licitud i t'avisarà quan el teu compte estigui vinculat amb el teu client.",en:'Enter your details. Instal·lacions BT will review the request and notify you when your account is linked to your client.'},
+    'Introduce tus datos. BT Energía revisará la solicitud y te avisará cuando tu cuenta esté vinculada con tu cliente.':{ca:"Introdueix les teves dades. BT Energía revisarà la sol·licitud i t'avisarà quan el teu compte estigui vinculat amb el teu client.",en:'Enter your details. BT Energía will review the request and notify you when your account is linked to your client.'},
     'Nombre':{ca:'Nom',en:'Name'},
     'Enviar solicitud':{ca:'Enviar sol·licitud',en:'Submit request'},
     'Volver al inicio de sesión':{ca:"Tornar a l'inici de sessió",en:'Back to sign in'},
     'Solicitud enviada':{ca:'Sol·licitud enviada',en:'Request sent'},
     'Petición recibida':{ca:'Sol·licitud rebuda',en:'Request received'},
-    'Hemos recibido tu solicitud de acceso. Instal·lacions BT revisará tus datos, vinculará tu cuenta con el cliente correspondiente y te avisará cuando puedas entrar.':{ca:"Hem rebut la teva sol·licitud d'accés. Instal·lacions BT revisarà les teves dades, vincularà el teu compte amb el client corresponent i t'avisarà quan hi puguis entrar.",en:'We have received your access request. Instal·lacions BT will review your details, link your account to the relevant client and notify you when you can sign in.'},
+    'Hemos recibido tu solicitud de acceso. BT Energía revisará tus datos, vinculará tu cuenta con el cliente correspondiente y te avisará cuando puedas entrar.':{ca:"Hem rebut la teva sol·licitud d'accés. BT Energía revisarà les teves dades, vincularà el teu compte amb el client corresponent i t'avisarà quan hi puguis entrar.",en:'We have received your access request. BT Energía will review your details, link your account to the relevant client and notify you when you can sign in.'},
     'Volver al inicio':{ca:"Tornar a l'inici",en:'Back to start'},
     'Recuperar acceso':{ca:"Recuperar l'accés",en:'Recover access'},
     'Nueva contraseña':{ca:'Contrasenya nova',en:'New password'},
@@ -206,7 +206,7 @@
 
 
   Object.assign(CATALOG,{
-    'Instal·lacions BT · Asesor Energético Alpha':{ca:'Instal·lacions BT · Assessor Energètic Alpha',en:'Instal·lacions BT · Energy Advisor Alpha'},
+    'BT Energía · Asesor Energético Alpha':{ca:'BT Energía · Assessor Energètic Alpha',en:'BT Energía · Energy Advisor Alpha'},
 
     'Facturas únicas procesadas':{ca:'Factures úniques processades',en:'Unique invoices processed'},
     'Los PDF duplicados no cuentan':{ca:'Els PDF duplicats no compten',en:'Duplicate PDFs are not counted'},
@@ -425,7 +425,7 @@
     'Portal de cliente':{ca:'Portal de client',en:'Client portal'},
     'Consulta únicamente la información energética asignada a tu cuenta.':{ca:'Consulta únicament la informació energètica assignada al teu compte.',en:'View only the energy information assigned to your account.'},
     'Acceso cliente':{ca:'Accés client',en:'Client access'},
-    'Tu solicitud está pendiente de activación. Instal·lacions BT te avisará cuando puedas entrar.':{ca:"La teva sol·licitud està pendent d'activació. Instal·lacions BT t'avisarà quan puguis entrar.",en:'Your request is pending activation. Instal·lacions BT will notify you when you can sign in.'},
+    'Tu solicitud está pendiente de activación. BT Energía te avisará cuando puedas entrar.':{ca:"La teva sol·licitud està pendent d'activació. BT Energía t'avisarà quan puguis entrar.",en:'Your request is pending activation. BT Energía will notify you when you can sign in.'},
     'Tu cuenta está desactivada. Contacta con el administrador.':{ca:'El teu compte està desactivat. Contacta amb l’administrador.',en:'Your account is disabled. Contact the administrator.'},
     'Acceso interno · todos':{ca:'Accés intern · tots',en:'Internal access · all'},
     'Sin cliente asignado':{ca:'Sense client assignat',en:'No client assigned'},
@@ -880,7 +880,7 @@
     syncSelectors();
     translateTree(root.document?.body);
     if(root.document){
-      if(!titleSource)titleSource=reverseText.get(root.document.title)||root.document.title||'Instal·lacions BT · Asesor Energético Alpha';
+      if(!titleSource)titleSource=reverseText.get(root.document.title)||root.document.title||'BT Energía · Asesor Energético Alpha';
       root.document.title=translateString(titleSource,next);
     }
     if(emit&&root.dispatchEvent)root.dispatchEvent(new CustomEvent('ibt:languagechange',{detail:{language:next,locale:LOCALES[next]}}));
@@ -908,7 +908,7 @@
   }
   function init(){
     current=safeStored()||'es';
-    titleSource=root.document?.title||'Instal·lacions BT · Asesor Energético Alpha';
+    titleSource=root.document?.title||'BT Energía · Asesor Energético Alpha';
     bindSelectors();
     applyLanguage(current,{persist:false,emit:false});
     startObserver();
