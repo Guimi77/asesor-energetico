@@ -6,12 +6,12 @@
   }
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
-  const VERSION='2026.10.01.2';
+  const VERSION='2026.10.08.1';
   const text=v=>String(v??'').replace(/\s+/g,' ').trim();
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])).filter(v=>v!=null);return a.length?a.at(-1):null};
+  const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+)\s*,\s*((?:\d\s*){2})\s*€/g)].map(m=>num(`${m[1]},${m[2].replace(/\s/g,'')}`)).filter(v=>v!=null);return a.length?a.at(-1):null};
   const validRef=v=>/^\d{8,20}$/.test(text(v).replace(/\D/g,''));
 
   function sourcePeriod(pages,fallback){
@@ -63,10 +63,10 @@
   function sourceContracted(p2,tariff,current){
     const out={...(current||{})},joined=(p2||[]).join(' ');
     if(/^2\.0TD$/i.test(tariff)){
-      const h=joined.match(/Potencias?\s+contratadas?\s*:\s*(?:punta(?:\s*[-–]\s*llano)?|punta-llano)\s*([\d.,]+)\s*kW\s*;?\s*valle\s*([\d.,]+)\s*kW/i);
+      const h=joined.match(/Potencias?\s+contratadas?\s*:\s*(?:punta(?:\s*[-–]\s*llano)?|punta-llano)\s*([\d.,]+(?:\s+\d+)*)\s*kW\s*;?\s*valle\s*([\d.,]+(?:\s+\d+)*)\s*kW/i);
       if(h){out.P1=num(h[1]);out.P2=num(h[2]);}
-      if(!(out.P1>0)){const l=(p2||[]).find(x=>/Pot\.?\s*Punta/i.test(x)&&/kW/i.test(x)),m=l&&l.match(/([\d.,]+)\s*kW/i);if(m)out.P1=num(m[1]);}
-      if(!(out.P2>0)){const l=(p2||[]).find(x=>/Pot\.?\s*Valle/i.test(x)&&/kW/i.test(x)),m=l&&l.match(/([\d.,]+)\s*kW/i);if(m)out.P2=num(m[1]);}
+      if(!(out.P1>0)){const l=(p2||[]).find(x=>/Pot\.?\s*Punta/i.test(x)&&/kW/i.test(x)),m=l&&l.match(/([\d.,]+(?:\s+\d+)*)\s*kW/i);if(m)out.P1=num(m[1]);}
+      if(!(out.P2>0)){const l=(p2||[]).find(x=>/Pot\.?\s*Valle/i.test(x)&&/kW/i.test(x)),m=l&&l.match(/([\d.,]+(?:\s+\d+)*)\s*kW/i);if(m)out.P2=num(m[1]);}
       return out;
     }
     const start=joined.search(/Potencia\s+contratada\s*\[kW\]\s*:/i);

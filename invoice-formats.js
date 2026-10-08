@@ -9,8 +9,8 @@
   const num=v=>{if(v==null||v==='')return null;let s=String(v).replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');if(!s||s==='-'||s==='.')return null;const n=Number(s);return Number.isFinite(n)?n:null};
   const money=n=>Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
   const line=(a,re)=>(a||[]).find(x=>re.test(String(x||'')))||'';
-  const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+,\d{2})\s*€/g)].map(m=>num(m[1])).filter(v=>v!=null);return a.length?a.at(-1):null};
-  const amount=(a,re)=>{for(const raw of a||[]){const s=String(raw||'');if(re.test(s)&&/(-?[\d.]+,\d{2})\s*€/.test(s)){const v=lastEuro(s);if(v!=null)return v;}}return null};
+  const lastEuro=s=>{const a=[...String(s||'').matchAll(/(-?[\d.]+)\s*,\s*((?:\d\s*){2})\s*€/g)].map(m=>num(`${m[1]},${m[2].replace(/\s/g,'')}`)).filter(v=>v!=null);return a.length?a.at(-1):null};
+  const amount=(a,re)=>{for(const raw of a||[]){const s=String(raw||'');if(!re.test(s))continue;const v=lastEuro(s);if(v!=null)return v;}return null};
   const sumEuroCharges=(a,re)=>round2((a||[]).reduce((sum,raw)=>{const s=String(raw||'');if(!re.test(s))return sum;const v=lastEuro(s);return v==null?sum:sum+v;},0));
   const findMatch=(s,re)=>String(s||'').match(re);
   const canonicalEndesaLine=value=>String(value||'')
@@ -93,7 +93,7 @@
   function parseContracted(p2,tariff){
     const out={},all=(p2||[]).join(' ');
     if(/^2\.0TD$/i.test(tariff)){
-      const m=all.match(/Potencias?\s+contratadas?\s*:\s*(?:punta(?:\s*[-–]\s*llano)?|punta-llano)\s*([\d.,]+)\s*kW\s*;?\s*valle\s*([\d.,]+)\s*kW/i);
+      const m=all.match(/Potencias?\s+contratadas?\s*:\s*(?:punta(?:\s*[-–]\s*llano)?|punta-llano)\s*([\d.,]+(?:\s+\d+)*)\s*kW\s*;?\s*valle\s*([\d.,]+(?:\s+\d+)*)\s*kW/i);
       if(m){out.P1=num(m[1]);out.P2=num(m[2]);}
       return out;
     }
@@ -240,7 +240,7 @@
       supply:{cups:row.cups||'',address:row.supplyAddress||''},
       contract:{number:row.contract||row.contractNumber||'',accessNumber:row.accessContract||'',type:row.contractType||'',endDate:row.renewalDate||'',meterNumber:''},
       energy:{totalKwh:Number(row.kwh)||0,totalEur:Number(row.energy)||0,periods:energyPeriods},
-      power:{totalEur:Number(row.power)||0,periods:powerPeriods,maximeters,reliable:!!row.readOk&&Number.isFinite(Number(row.power))},
+      power:{totalEur:Number(row.power)||0,periods:powerPeriods,maximeters,reliable:!!row.powerDetail?.reliable&&Number.isFinite(Number(row.power))},
       excess:{totalEur:Number(row.excess)||0,periods:[]},
       reactive:{totalEur:Number(row.reactive)||0,periods:[]},
       costs:{compensationEur:Number(row.compensation)||0,socialBonusEur:Number(row.social)||0,meterRentalEur:Number(row.rental)||0,electricityTaxEur:Number(row.tax)||0,

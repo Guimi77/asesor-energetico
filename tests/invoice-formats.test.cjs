@@ -19,6 +19,26 @@ test('Endesa 2.0TD real invoice includes service invoices in the amount actually
   assert.equal(r.retailer,'Endesa Energía S.A.U.');
 });
 
+test('Endesa tolera decimales y potencias fragmentados por PDF.js sin perder el total',()=>{
+  const p1=['Nº factura: P26CON000000777','Periodo de facturación: del 10/09/2025 a 11/10/2025 (31 días)','Potencia 13,38 €','Energía 22,22 €','Otros 1,91 €','Impuestos 10,10 €','Total 47 ,61 €','Consumo Total 131,680 kWh'];
+  const p2=['Titular del contrato: CLIENTE PRUEBA FRAGMENTOS','CUPS: ES0000000000000004AA0F','Peaje de transporte y distribución: 2.0TD','Potencias contratadas: punta-llano 5,70 0 kW; valle 5,70 0 kW','Pot. Punta-Llano 5,700 kW x 0,073782 Eur/kW x 31 días 13,04 €','Pot. Valle 5,700 kW x 0,001911 Eur/kW x 31 días 0,34 €','Financiación Bono Social 31 días x 0,012742 Eur/día 0,40 €','Alquiler del contador 31 días x 0,048658 Eur/día 1,51 €','Impuesto electricidad ( 36,00 Eur X 5,1126963 %) 1,84 €','IVA normal 21 % s/ 39,35 8,26 €','Lectura Lectura','real real','Energía kWh','Punta 6.124,19 6.186,30 1,00 0,00 62,104','Llano 4.527,64 4.571,05 1,00 0,00 43,411','Valle 1.366,72 1.392,89 1,00 0,00 26,165'];
+  const data=d(p1,p2),r=api.parseEndesa(data,{name:'endesa-fragmentada-sintetica.pdf'});
+  assert.equal(r.total,47.61);
+  assert.equal(r.contracted.P1,5.7);assert.equal(r.contracted.P2,5.7);
+  assert.equal(r.social,.4);assert.equal(r.rental,1.51);assert.equal(r.other,0);
+  assert.equal(r.accounted,47.61);assert.equal(r.diff,0);assert.equal(r.balanced,true);assert.equal(r.readOk,true);
+  const normalized=api.normalizeEndesaRow(r,{completenessVersion:'energy-test.fragmented'});
+  assert.equal(normalized.power.reliable,true);
+  assert.equal(normalized.validation.assessment,'complete');
+});
+
+test('La fiabilidad del detalle de potencia Endesa no depende de un error ajeno de la factura',()=>{
+  const row={invoiceNumber:'P26CON000000778',company:'CLIENTE PRUEBA POTENCIA',cups:'ES0000000000000003AA',period:'01/01/2026 - 31/01/2026 (31 días)',tariff:'2.0TD',kwh:100,energy:20,power:10,excess:0,reactive:0,compensation:0,social:0,rental:0,other:0,tax:1,vat:0,igic:0,distributorCharges:0,total:0,accounted:31,diff:-31,balanced:false,readOk:false,readMessage:'Falta o revisar: total',periods:{P1:{consumption:30},P2:{consumption:30},P3:{consumption:40}},contracted:{P1:5.75,P2:5.75},maximeters:{},powerDetail:{reliable:true,entries:[{period:1,amount:6},{period:2,amount:4}]},sourceFormat:'endesa'};
+  const normalized=api.normalizeEndesaRow(row,{completenessVersion:'energy-test.power'});
+  assert.equal(normalized.validation.readOk,false);
+  assert.equal(normalized.power.reliable,true);
+});
+
 test('Endesa separates discount, Bono Social and meter rental without hiding them in Otros',()=>{
   const cases=[
     {name:'mayo',discount:-278.63,social:1.20,rental:1.68,socialLines:['Financiación Bono Social 30 días x 0,040000 Eur/día 1,20 €'],rentalLines:['Alquiler del contador 10 días x 0,061000 Eur/día 0,61 €','Alquiler del contador 20 días x 0,053500 Eur/día 1,07 €']},

@@ -93,7 +93,7 @@ test('Existing validated invoices refresh completeness without changing core amo
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
  assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
- assert(source.includes("const COMPLETENESS_VERSION='energy-2026.10.06.1'"));
+ assert(source.includes("const COMPLETENESS_VERSION='energy-2026.10.08.1'"));
 });
 
 test('Automatic history write cannot bypass the validated main parser row',()=>{
@@ -119,12 +119,18 @@ test('Endesa usa el modelo portable solo con paridad total y conserva fallback l
  assert(source.includes('endesaShadowSummary:endesaHistoryShadowSummary'));
 });
 
+test('Endesa legacy shadow conserva cargos estructurados sin degradar la fiabilidad de potencia',()=>{
+  assert(source.includes("if(Number(row.otherResidual))adjustments.push({concept:'Otros'"));
+  assert(source.includes("social_bonus:Number(row.social)?'extracted':'not_present',meter_rental:Number(row.rental)?'extracted':'not_present'"));
+  assert(source.includes('powerReliable:!!row.powerDetail?.reliable&&Number.isFinite(Number(row.power))'));
+});
+
 test('Historical persistence routes Endesa through the validated shared parser',()=>{
  assert(source.includes('function extractEndesa(d,file)'));
  assert(source.includes("formats.parseEndesa(d,file,{parserVersion:window.IBT_PARSER_VERSION||'ENDESA'"));
  assert(source.includes("if(format==='endesa')return extractEndesa(d,file)"));
  assert(source.includes("if(fenie?.detect?.(d))return extractFenie(d,file)"));
- assert(source.includes('powerReliable:row.readOk&&Number.isFinite(Number(row.power))'));
+ assert(source.includes('powerReliable:!!row.powerDetail?.reliable&&Number.isFinite(Number(row.power))'));
 });
 
 test('Limpiar análisis elimina estados transitorios del cargador y permite el siguiente lote',()=>{
@@ -182,7 +188,7 @@ test('Los motivos de no guardado del histórico se muestran en español claro',(
 });
 
 test('El histórico refresca lecturas mejoradas sin depender de la comercializadora',()=>{
- assert(appSource.includes("const PARSER_VERSION='2026.10.06.1';"));
+ assert(appSource.includes("const PARSER_VERSION='2026.10.08.1';"));
  assert(refreshPolicySql.includes("private.parser_version_is_newer"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'better_completeness'"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));

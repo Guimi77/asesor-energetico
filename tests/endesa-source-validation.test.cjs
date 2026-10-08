@@ -5,6 +5,11 @@ const base=require('../invoice-formats.js');
 const fix=require('../endesa-source-validation.js');
 const doc=(p1,p2,p3=[])=>({pages:[p1,p2,p3],text:[...p1,...p2,...p3].join('\n')});
 
+test('Source helpers recover Endesa monetary and contracted-power fragments from PDF.js',()=>{
+  assert.equal(fix.sourceTotal(['Total 47 ,61 €'],null),47.61);
+  assert.deepEqual(fix.sourceContracted(['Potencias contratadas: punta-llano 5,70 0 kW; valle 5,70 0 kW'],'2.0TD',{}),{P1:5.7,P2:5.7});
+});
+
 test('Old Endesa layout recovers wrapped period and total even when PDF.js prefixes dots',()=>{
   const api=fix.patch(base,{});
   const p1=[
@@ -135,7 +140,7 @@ test('Endesa economic summary supplies billed excess when detail uses abbreviate
   assert.equal(r.balanced,true);
   assert.equal(r.readOk,true);
   assert.match(r.opportunity,/Exceso de potencia: 20,00 €/);
-  assert.equal(r.parserRevision,'2026.10.01.2');
+  assert.equal(r.parserRevision,'2026.10.08.1');
 });
 
 test('Endesa summary excess explicitly printed as zero overrides no charge without inventing one',()=>{
@@ -168,5 +173,5 @@ test('Endesa refuses green status when Otros contains known charges that cannot 
   assert.equal(r.balanced,true);
   assert.equal(r.readOk,false);
   assert.match(r.readMessage,/otros Endesa sin desglose validado/i);
-  assert.equal(r.parserRevision,'2026.10.01.2');
+  assert.equal(r.parserRevision,'2026.10.08.1');
 });
