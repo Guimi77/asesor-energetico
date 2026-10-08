@@ -2,6 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const crypto=require('node:crypto');
 const path=require('node:path');
 
 const root=path.join(__dirname,'..');
@@ -15,12 +16,13 @@ const logoPath=path.join(root,'assets','bt-energia-logo.jpg');
 const logo=fs.readFileSync(logoPath);
 
 test('BT Energía logo is the single visible brand asset in app and access gate',()=>{
-  assert(logo.length>10000,'brand logo looks unexpectedly small');
+  assert.equal(logo.length,7768,'brand logo byte length changed unexpectedly');
+  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'0a4c78e35476bb52046365db019b5fc47e7b6c33','brand logo bytes must match the verified source');
   assert.equal(logo[0],0xff);
   assert.equal(logo[1],0xd8);
   assert.equal(logo[logo.length-2],0xff);
   assert.equal(logo[logo.length-1],0xd9);
-  const refs=index.match(/assets\/bt-energia-logo\.jpg\?v=8d6a8d68c726/g)||[];
+  const refs=index.match(/assets\/bt-energia-logo\.jpg\?v=be93d080a8a4/g)||[];
   assert.equal(refs.length,2,'login/maintenance and topbar must share the new logo');
   assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
   assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');
