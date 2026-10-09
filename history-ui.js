@@ -598,13 +598,13 @@
     const tickFractions = [0,.25,.5,.75,1];
     const ticks = tickFractions.map(f => scale.inverse(scale.min + span * f));
     const padL = Math.max(102, ...ticks.map(v => formatter(v).length * 7 + 18));
-    const W = Math.max(680, padL + 300), H = 180, padR = 40, padT = 12, padB = 28;
+    const W = Math.max(680, padL + 300), H = 192, padR = 40, padT = 12, padB = 40;
     const innerW = W - padL - padR, innerH = H - padT - padB;
     const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (scale.forward(vals[i]) - scale.min) / span * innerH }));
     let connected = false;
     const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
-    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(chartPointLabel(c.p))}</text>`).join('');
+    const labels = chartAxisLabels(coords, H);
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
@@ -622,7 +622,7 @@
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const pointLabel=p=>p?.label||monthLabel(p?.key);
     const pointContext=p=>p?.chartMode==='period'&&p?.billingDays?' · '+p.billingDays+' días':'';
-    const W=680,H=180,padL=106,padR=40,padT=12,padB=28;
+    const W=680,H=192,padL=106,padR=40,padT=12,padB=40;
     const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
     const valid=values.filter(v=>v!==null&&Number.isFinite(v));
     const max=Math.max(...valid,0.01),min=Math.min(...valid,0),span=Math.max(max-min,0.01);
@@ -642,7 +642,7 @@
       const value=min+span*f,y=padT+innerH-innerH*f;
       return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#65758a">'+esc(qty(value,4))+'</text>';
     }).join('');
-    const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#65758a">'+esc(pointLabel(c.p))+'</text>').join('');
+    const labels=chartAxisLabels(coords,H);
     const dots=coords.map(c=>{
       if(c.p.chartExcluded)return'';
       return c.y===null?
@@ -650,6 +650,24 @@
         '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(pointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+pointContext(c.p)+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
     }).join('');
     return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
+  }
+
+  function chartAxisLabels(coords, height) {
+    // Keep a full year readable; thin only longer series, including both ends.
+    const count = coords.length;
+    const indices = count <= 12
+      ? coords.map((_, i) => i)
+      : [0, 1, 2, 3, 4, 5, 6, 7].map(i => Math.round(i * (count - 1) / 7));
+    return indices.map(i => {
+      const c = coords[i], label = c.p?.label || monthLabel(c.p?.key);
+      const parts = c.p?.chartMode === 'period' ? label.split(' - ') : [label];
+      const split = parts.length === 2;
+      const fontSize = split && count > 8 ? 10 : 11;
+      const text = split
+        ? `<tspan x="${c.x}" y="${height-17}">${esc(parts[0])}</tspan><tspan x="${c.x}" y="${height-4}">${esc('– ' + parts[1])}</tspan>`
+        : esc(label);
+      return `<text class="history-axis-label" data-point-index="${i}" x="${c.x}" y="${height-7}" text-anchor="middle" font-size="${fontSize}" fill="#65758a"><title>${esc(label)}</title>${text}</text>`;
+    }).join('');
   }
 
   function powerSignature(r) {
