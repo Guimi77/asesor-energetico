@@ -35,7 +35,7 @@
   };
   function closeSearchMenu(input, menu) {
     if (menu) menu.hidden = true;
-    if (input) input.setAttribute('aria-expanded', 'true');
+    if (input) input.setAttribute('aria-expanded', 'false');
   }
   function closeAllSearchMenus(except = null) {
     $$('.history-combo-menu').forEach(menu => {
@@ -281,7 +281,7 @@
       });
       if (note) note.textContent = '';
     } else {
-      const current = state.clients.find(x => x.id === state.currentClient) || state.clients[0];
+      const current = state.clients.find(c=>c.id===state.currentClient) || state.clients[0];
       host.innerHTML = `<div class="history-client-fixed">${esc(current?.name || 'Cliente')}</div>`;
       if (note) note.textContent = 'Solo datos asignados a tu cuenta.';
     }
@@ -590,24 +590,6 @@
     return { mode:'linear', min:low, max:high || 1, forward:v=>v, inverse:v=>v };
   }
 
-  function chartAxisLabels(coords, height) {
-    // Keep a full year readable; thin only longer series, including both ends.
-    const count = coords.length;
-    const indices = count <= 12
-      ? coords.map((_, i) => i)
-      : Array.from({ length: 8 }, (_, i) => Math.round(i * (count - 1) / 7));
-    return indices.map(i => {
-      const c = coords[i], label = chartPointLabel(c.p);
-      const parts = c.p.chartMode === 'period' ? label.split(' - ') : [label];
-      const split = parts.length === 2;
-      const fontSize = split && count > 8 ? 10 : 11;
-      const text = split
-        ? `<tspan x="${c.x}" y="${height-17}">${esc(parts[0])}</tspan><tspan x="${c.x}" y="${height-4}">${esc('– ' + parts[1])}</tspan>`
-        : esc(label);
-      return `<text class="history-axis-label" data-point-index="${i}" x="${c.x}" y="${height-7}" text-anchor="middle" font-size="${fontSize}" fill="#65758a"><title>${esc(label)}</title>${text}</text>`;
-    }).join('');
-  }
-
   function svgChart(points, field, formatter, { valueTransform = v => v } = {}) {
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
@@ -616,7 +598,7 @@
     const tickFractions = [0,.25,.5,.75,1];
     const ticks = tickFractions.map(f => scale.inverse(scale.min + span * f));
     const padL = Math.max(102, ...ticks.map(v => formatter(v).length * 7 + 18));
-    const W = Math.max(680, padL + 300), H = 180, padR = 40, padT = 12, padB = 28;
+    const W = Math.max(680, padL + 300), H = 192, padR = 40, padT = 12, padB = 40;
     const innerW = W - padL - padR, innerH = H - padT - padB;
     const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (scale.forward(vals[i]) - scale.min) / span * innerH }));
     let connected = false;
@@ -640,7 +622,7 @@
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const pointLabel=p=>p?.label||monthLabel(p?.key);
     const pointContext=p=>p?.chartMode==='period'&&p?.billingDays?' · '+p.billingDays+' días':'';
-    const W=680,H=180,padL=106,padR=40,padT=12,padB=28;
+    const W=680,H=192,padL=106,padR=40,padT=12,padB=40;
     const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
     const valid=values.filter(v=>v!==null&&Number.isFinite(v));
     const max=Math.max(...valid,0.01),min=Math.min(...valid,0),span=Math.max(max-min,0.01);
@@ -668,6 +650,24 @@
         '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(pointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+pointContext(c.p)+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
     }).join('');
     return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
+  }
+
+  function chartAxisLabels(coords, height) {
+    // Keep a full year readable; thin only longer series, including both ends.
+    const count = coords.length;
+    const indices = count <= 12
+      ? coords.map((_, i) => i)
+      : Array.from({ length: 8 }, (_, i) => Math.round(i * (count - 1) / 7));
+    return indices.map(i => {
+      const c = coords[i], label = c.p?.label || monthLabel(c.p?.key);
+      const parts = c.p?.chartMode === 'period' ? label.split(' - ') : [label];
+      const split = parts.length === 2;
+      const fontSize = split && count > 8 ? 10 : 11;
+      const text = split
+        ? `<tspan x="${c.x}" y="${height-17}">${esc(parts[0])}</tspan><tspan x="${c.x}" y="${height-4}">${esc('– ' + parts[1])}</tspan>`
+        : esc(label);
+      return `<text class="history-axis-label" data-point-index="${i}" x="${c.x}" y="${height-7}" text-anchor="middle" font-size="${fontSize}" fill="#65758a"><title>${esc(label)}</title>${text}</text>`;
+    }).join('');
   }
 
   function powerSignature(r) {
