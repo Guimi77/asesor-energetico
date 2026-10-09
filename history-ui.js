@@ -35,7 +35,7 @@
   };
   function closeSearchMenu(input, menu) {
     if (menu) menu.hidden = true;
-    if (input) input.setAttribute('aria-expanded', 'false');
+    if (input) input.setAttribute('aria-expanded', 'true');
   }
   function closeAllSearchMenus(except = null) {
     $$('.history-combo-menu').forEach(menu => {
@@ -590,6 +590,24 @@
     return { mode:'linear', min:low, max:high || 1, forward:v=>v, inverse:v=>v };
   }
 
+  function chartAxisLabels(coords, height) {
+    // Keep a full year readable; thin only longer series, including both ends.
+    const count = coords.length;
+    const indices = count <= 12
+      ? coords.map((_, i) => i)
+      : Array.from({ length: 8 }, (_, i) => Math.round(i * (count - 1) / 7));
+    return indices.map(i => {
+      const c = coords[i], label = chartPointLabel(c.p);
+      const parts = c.p.chartMode === 'period' ? label.split(' - ') : [label];
+      const split = parts.length === 2;
+      const fontSize = split && count > 8 ? 10 : 11;
+      const text = split
+        ? `<tspan x="${c.x}" y="${height-17}">${esc(parts[0])}</tspan><tspan x="${c.x}" y="${height-4}">${esc('– ' + parts[1])}</tspan>`
+        : esc(label);
+      return `<text class="history-axis-label" data-point-index="${i}" x="${c.x}" y="${height-7}" text-anchor="middle" font-size="${fontSize}" fill="#65758a"><title>${esc(label)}</title>${text}</text>`;
+    }).join('');
+  }
+
   function svgChart(points, field, formatter, { valueTransform = v => v } = {}) {
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
@@ -604,7 +622,7 @@
     let connected = false;
     const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
-    const labels = coords.filter((_,i) => points.length <= 8 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length/6) === 0).map(c => `<text x="${c.x}" y="${H-7}" text-anchor="middle" font-size="11" fill="#65758a">${esc(chartPointLabel(c.p))}</text>`).join('');
+    const labels = chartAxisLabels(coords, H);
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
@@ -642,7 +660,7 @@
       const value=min+span*f,y=padT+innerH-innerH*f;
       return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#65758a">'+esc(qty(value,4))+'</text>';
     }).join('');
-    const labels=coords.filter((_,i)=>points.length<=8||i===0||i===points.length-1||i%Math.ceil(points.length/6)===0).map(c=>'<text x="'+c.x+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#65758a">'+esc(pointLabel(c.p))+'</text>').join('');
+    const labels=chartAxisLabels(coords,H);
     const dots=coords.map(c=>{
       if(c.p.chartExcluded)return'';
       return c.y===null?
