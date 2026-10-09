@@ -281,7 +281,7 @@
       });
       if (note) note.textContent = '';
     } else {
-      const current = state.clients.find(c=>c.id===state.currentClient) || state.clients[0];
+      const current = state.clients.find(x => x.id === state.currentClient) || state.clients[0];
       host.innerHTML = `<div class="history-client-fixed">${esc(current?.name || 'Cliente')}</div>`;
       if (note) note.textContent = 'Solo datos asignados a tu cuenta.';
     }
@@ -657,7 +657,7 @@
     const count = coords.length;
     const indices = count <= 12
       ? coords.map((_, i) => i)
-      : Array.from({ length: 8 }, (_, i) => Math.round(i * (count - 1) / 7));
+      : [0, 1, 2, 3, 4, 5, 6, 7].map(i => Math.round(i * (count - 1) / 7));
     return indices.map(i => {
       const c = coords[i], label = c.p?.label || monthLabel(c.p?.key);
       const parts = c.p?.chartMode === 'period' ? label.split(' - ') : [label];
