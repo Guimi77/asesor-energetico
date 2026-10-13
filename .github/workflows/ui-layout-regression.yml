@@ -16,6 +16,8 @@ on:
       - 'tests/ui-layout-contract.test.cjs'
       - 'tests/brand-theme.test.cjs'
       - 'assets/bt-energia-logo.png'
+      - 'assets/energia-bt-lateral.jpg'
+      - 'assets/energia-bt-inferior.jpg'
       - '.github/workflows/ui-layout-regression.yml'
   pull_request:
     paths:
@@ -31,6 +33,8 @@ on:
       - 'tests/ui-layout-contract.test.cjs'
       - 'tests/brand-theme.test.cjs'
       - 'assets/bt-energia-logo.png'
+      - 'assets/energia-bt-lateral.jpg'
+      - 'assets/energia-bt-inferior.jpg'
       - '.github/workflows/ui-layout-regression.yml'
 
 permissions:

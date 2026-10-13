@@ -12,28 +12,17 @@ const auth=fs.readFileSync(path.join(root,'auth.css'),'utf8');
 const compact=fs.readFileSync(path.join(root,'ui-compact.css'),'utf8');
 const recommendations=fs.readFileSync(path.join(root,'history-recommendations.css'),'utf8');
 const dbUsage=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
-const logoPath=path.join(root,'assets','bt-energia-logo.png');
-const logo=fs.readFileSync(logoPath);
 const i18n=fs.readFileSync(path.join(root,'i18n.js'),'utf8');
 const authJs=fs.readFileSync(path.join(root,'auth.js'),'utf8');
 
-test('BT Energía uses horizontal app branding while preserving the access logo',()=>{
-  // Source replacement explicitly requested by Guimi on 2026-10-08: same logo, transparent PNG.
-  assert.equal(logo.length,131229,'brand logo byte length changed unexpectedly');
-  assert.equal(crypto.createHash('sha1').update(logo).digest('hex'),'153c7810bcafded909690e5ebdf1c715bc828d64','brand logo bytes must match the supplied transparent source');
-  assert.deepEqual([...logo.subarray(0,8)],[137,80,78,71,13,10,26,10],'brand asset must remain PNG');
-  assert.equal(logo[25],6,'PNG must preserve its RGBA channel');
-  const refs=index.match(/assets\/bt-energia-logo\.png\?v=186342746abb/g)||[];
-  assert.equal(refs.length,1,'login/maintenance must retain the vertical logo');
-  assert(index.includes('class="auth-logo" src="assets/bt-energia-logo.png?v=186342746abb"'));
-  assert(index.includes('class="company-logo" src="assets/bt-energia-logo-horizontal.png?v=f69426786088"'));
-  const horizontal=fs.readFileSync(path.join(root,'assets','bt-energia-logo-horizontal.png'));
-  assert.equal(crypto.createHash('sha1').update(horizontal).digest('hex'),'bfa9904a156fa45f1145e39d205f17dbd78092d3','horizontal logo must match the user source');
-  assert(!index.includes('assets/capcalera-documents.png'),'old logo must not remain referenced');
-  assert(!index.includes('assets/bt-energia-logo.jpg'),'opaque JPEG must not remain referenced');
-  assert(!index.includes('assets/bt-energia-logo.webp'),'broken WebP must not remain referenced');
-  assert(index.includes('alt="BT Energía"'));
-  assert(index.includes('alt="BT Energía · Gestionam la teva factura elèctrica"'));
+test('requested lateral and lower-text logos are mapped to app and access respectively',()=>{
+  // Both original JPEG sources explicitly supplied and requested on 2026-10-13.
+  assert(index.includes('class="company-logo" src="assets/energia-bt-lateral.jpg?v=fb457adaa405" alt="Energia BT"'));
+  const lateral=fs.readFileSync(path.join(root,'assets','energia-bt-lateral.jpg'));
+  assert.equal(crypto.createHash('sha1').update(lateral).digest('hex'),'64ede9b894307a6664b1405403672084035275cd','original lateral JPEG must be preserved');
+  assert(index.includes('class="auth-logo" src="assets/energia-bt-inferior.jpg?v=628006832ae8" alt="Energia BT"'));
+  const inferior=fs.readFileSync(path.join(root,'assets','energia-bt-inferior.jpg'));
+  assert.equal(crypto.createHash('sha1').update(inferior).digest('hex'),'ecc24da87a84c23e19cbe6a64968e0a125901a8e','original inferior JPEG must be preserved');
 });
 
 test('legacy Instal·lacions BT brand copy is gone from user-facing sources',()=>{
