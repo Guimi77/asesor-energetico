@@ -127,8 +127,62 @@ function bringDiagnosticForward(){
 }
 new MutationObserver(bringDiagnosticForward).observe($('#resultsBody'),{childList:true});
 bringDiagnosticForward();
+
 $('#exportExcel').onclick=()=>{
  const original=rows.map(r=>r.opportunity);
  rows.forEach(r=>{r.opportunity=diagnosticFor(r)});
  try{exportExcel()}finally{rows.forEach((r,i)=>{r.opportunity=original[i]})}
 };
+
+// The DOM is presentation only. If a late compatibility/role script leaves it
+// inconsistent with the validated in-memory rows, restore it from the source
+// of truth instead of letting a stale "No compatible" row survive.
+let runtimeRepairQueued=false,runtimeRepairing=false;
+function runtimeExpected(){
+ const active=activeRows(),visible=[...rows].sort((a,b)=>Number(!!a.superseded)-Number(!!b.superseded));
+ return{active,visible,invoices:active.length,ok:active.filter(r=>r.readOk).length,review:active.filter(r=>!r.readOk).length};
+}
+function runtimeDomInSync(){
+ const expected=runtimeExpected(),body=$('#resultsBody'),domRows=[...(body?.querySelectorAll('tr:not(.empty)')||[])];
+ if(Number($('#statInvoices')?.textContent||0)!==expected.invoices)return false;
+ if(Number($('#statOk')?.textContent||0)!==expected.ok)return false;
+ if(Number($('#statReview')?.textContent||0)!==expected.review)return false;
+ if(domRows.length!==expected.visible.length)return false;
+ for(let i=0;i<expected.visible.length;i++){
+  const row=expected.visible[i],tr=domRows[i],badge=tr?.querySelector('.status');
+  if(!badge)return false;
+  if(row.superseded){if(!badge.classList.contains('review'))return false;continue}
+  if(row.readOk){if(!badge.classList.contains('ok'))return false}
+  else if(!badge.classList.contains('danger'))return false;
+ }
+ return true;
+}
+function refreshRuntimeDom(){
+ if(runtimeRepairing)return false;
+ runtimeRepairing=true;
+ try{render();bringDiagnosticForward();return true}
+ finally{runtimeRepairing=false}
+}
+function scheduleRuntimeDomRepair(){
+ if(runtimeRepairQueued||runtimeRepairing)return;
+ runtimeRepairQueued=true;
+ queueMicrotask(()=>{
+  runtimeRepairQueued=false;
+  if(!runtimeDomInSync())refreshRuntimeDom();
+ });
+}
+const runtimeBody=$('#resultsBody');
+if(runtimeBody)new MutationObserver(scheduleRuntimeDomRepair).observe(runtimeBody,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});
+for(const selector of ['#statInvoices','#statOk','#statReview']){
+ const el=$(selector);if(el)new MutationObserver(scheduleRuntimeDomRepair).observe(el,{childList:true,subtree:true,characterData:true});
+}
+window.IBTAnalysisRuntime=Object.freeze({
+ revision:'ui-sync-2026.11.12.1',
+ snapshot:()=>({
+  rows:rows.map(r=>({invoiceNumber:r.invoiceNumber,company:r.company,cups:r.cups,period:r.period,tariff:r.tariff,total:r.total,readOk:!!r.readOk,unsupported:!!r.unsupported,balanced:!!r.balanced,sourceFormat:r.sourceFormat||'',parserVersion:r.parserVersion||'',parserRevision:r.parserRevision||''})),
+  stats:(()=>{const x=runtimeExpected();return{invoices:x.invoices,ok:x.ok,review:x.review,domInSync:runtimeDomInSync()}})(),
+  parsers:{sea:!!window.IBTSeaParser,naturgy:!!window.IBTNaturgyParser,fenie:!!window.IBTFenieParser,uenergia:!!window.IBTUenergiaParser,repsol:!!window.IBTRepsolParser,som:!!window.IBTSomEnergiaParser}
+ }),
+ refresh:refreshRuntimeDom
+});
+scheduleRuntimeDomRepair();
