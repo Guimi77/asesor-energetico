@@ -16,11 +16,15 @@ test('SEA se carga antes de sus consumidores de runtime',()=>{
 
 test('SEA tiene su propia etiqueta script cerrada y ejecutable',()=>{
   const html=source('index.html');
-  assert.match(html,/naturgy-parser\\.js\\?v=[0-9a-f]{12}"><\\/script><script src="sea-parser\\.js\\?v=[0-9a-f]{12}"><\\/script>/);
+  const naturgyOpen=html.indexOf('<script src="naturgy-parser.js?v=');
+  const naturgyClose=html.indexOf('</script>',naturgyOpen);
   const seaOpen=html.indexOf('<script src="sea-parser.js?v=');
   const seaClose=html.indexOf('</script>',seaOpen);
   const nested=html.indexOf('<script',seaOpen+1);
-  assert(seaOpen>=0&&seaClose>seaOpen,'SEA debe tener etiqueta script cerrada');
+  assert(naturgyOpen>=0&&naturgyClose>naturgyOpen,'Naturgy debe tener etiqueta script cerrada');
+  assert(seaOpen>naturgyClose,'SEA debe abrirse despues de cerrar Naturgy');
+  assert.equal(html.slice(naturgyClose+'</script>'.length,seaOpen).trim(),'','no debe quedar contenido entre el cierre de Naturgy y SEA');
+  assert(seaClose>seaOpen,'SEA debe tener etiqueta script cerrada');
   assert(nested<0||nested>seaClose,'no puede haber otro <script> antes de cerrar SEA');
 });
 
