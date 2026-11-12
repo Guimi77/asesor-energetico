@@ -52,6 +52,86 @@ test('parser FENIE mantiene el contrato económico sintético 2.0TD',()=>{
 });
 
 
+test('parser FENIE reconoce y cuadra la variante inglesa sin afectar el modelo comun',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA',
+    'Company Name: CLIENTE SINTETICO ENGLISH',
+    'Tax ID: TEST-TAX-ID',
+    'CUPS code: ES0000000000000000AA',
+    'Address of Supply: TEST STREET 7, 00000 TEST',
+    'Access Contract 500000000000 Tariff: 2.0TD',
+    'Distribution Company TEST DISTRIBUTION, S.L.U.',
+    'Date of invoice: 09/11/2026',
+    'Invoicing Period: 01/10/2026 - 31/10/2026 (31 days)',
+    'Invoice no. SYNTH-EN-001',
+    'Contract Number: CO-2026-SYNTH_2.0',
+    'Type of contract:: Indexed',
+    'End date of supply contract: 24/02/2027',
+    'Variable energy term',
+    'P1: 0,033261 '+euro+'/kWh + 0,064292 '+euro+'/kWh + 0,321747 '+euro+'/kWh = 0,419300 '+euro+'/kWh x 110,00 kWh = 46,12 '+euro+' 111,98 '+euro,
+    'P2: 0,016409 '+euro+'/kWh + 0,012858 '+euro+'/kWh + 0,295095 '+euro+'/kWh = 0,324362 '+euro+'/kWh x 91,00 kWh = 29,52 '+euro,
+    'P3: 0,000077 '+euro+'/kWh + 0,003215 '+euro+'/kWh + 0,280616 '+euro+'/kWh = 0,283908 '+euro+'/kWh x 128,00 kWh = 36,34 '+euro,
+    'Power Term',
+    'P1: 0,063904 '+euro+'/kW day + 0,011999 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,075903 '+euro+'/kW dayx 14,490kW x 31 days= 34,09 '+euro,
+    '34,98 '+euro,
+    'P2: 0,001216 '+euro+'/kW day + 0,000772 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,001988 '+euro+'/kW dayx 14,490kW x 31 days= 0,89 '+euro,
+    'Excesses of Power',
+    'P1: 0,000000 x 8,662206 = 0,00 '+euro,
+    'P2: 0,000000 x 0,164796 = 0,00 '+euro,
+    'Rates reduction Royal Decree test 0,77 '+euro,
+    'Electricity tax 5,11269632% s/ 147,73 7,55 '+euro,
+    'Metering Equipment lease (Meter Nº TESTMETER): 0,83 '+euro,
+    'VAC 21,00% s/ 156,11 32,78 '+euro,
+    'TOTAL INVOICED: 188,89'+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\\n')};
+  assert.equal(fenie.detect(data),true);
+  const row=fenie.parse(data,{name:'synthetic-fenie-english.pdf'});
+  assert.equal(row.invoiceNumber,'SYNTH-EN-001');
+  assert.equal(row.company,'CLIENTE SINTETICO ENGLISH');
+  assert.equal(row.cups,'ES0000000000000000AA');
+  assert.equal(row.period,'01/10/2026 - 31/10/2026 (31 days)');
+  assert.equal(row.tariff,'2.0TD');
+  assert.equal(row.kwh,329);
+  assert.equal(row.energy,111.98);
+  assert.equal(row.power,34.98);
+  assert.equal(row.social,0.77);
+  assert.equal(row.tax,7.55);
+  assert.equal(row.rental,0.83);
+  assert.equal(row.vat,32.78);
+  assert.equal(row.total,188.89);
+  assert.equal(row.accounted,188.89);
+  assert.equal(row.diff,0);
+  assert.equal(row.balanced,true);
+  assert.equal(row.readOk,true);
+  assert.deepEqual(row.periods.P1,{consumption:110,cost:46.12,price:0.4193});
+  assert.deepEqual(row.periods.P2,{consumption:91,cost:29.52,price:0.324362});
+  assert.deepEqual(row.periods.P3,{consumption:128,cost:36.34,price:0.283908});
+  assert.equal(row.contracted.P1,14.49);
+  assert.equal(row.contracted.P2,14.49);
+
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-fenie-english.pdf'},{completenessVersion:'energy-test.english'});
+  assert.equal(normalized.invoice.number,'SYNTH-EN-001');
+  assert.equal(normalized.invoice.issueDate,'2026-11-09');
+  assert.equal(normalized.invoice.billing.start,'2026-10-01');
+  assert.equal(normalized.invoice.billing.end,'2026-10-31');
+  assert.equal(normalized.invoice.billing.days,31);
+  assert.equal(normalized.parties.holder.name,'CLIENTE SINTETICO ENGLISH');
+  assert.equal(normalized.parties.holder.taxId,'TEST-TAX-ID');
+  assert.equal(normalized.supply.address,'TEST STREET 7, 00000 TEST');
+  assert.equal(normalized.contract.accessNumber,'500000000000');
+  assert.equal(normalized.contract.type,'Indexed');
+  assert.equal(normalized.contract.endDate,'2027-02-24');
+  assert.equal(normalized.contract.meterNumber,'TESTMETER');
+  assert.equal(normalized.parties.distributor,'TEST DISTRIBUTION, S.L.U.');
+  assert.equal(normalized.costs.totalEur,188.89);
+  assert.equal(normalized.validation.completeness.energy_periods,'extracted');
+  assert.equal(normalized.validation.completeness.power_periods,'extracted');
+  assert.equal(normalized.taxLines[0].tax_type,'IVA');
+  assert.equal(normalized.taxLines[0].label,'VAC');
+});
+
 test('parser FENIE contabiliza descuentos comerciales impresos sin esconderlos',()=>{
   const euro='€';
   const page=[
