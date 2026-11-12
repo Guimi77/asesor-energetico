@@ -8,6 +8,7 @@ const expectedEnergyPeriods=tariff=>/^2\.0TD$/i.test(tariff)?3:/^(?:3\.0TD|6\.[1
 function getRows(wb,name){const ws=wb?.Sheets?.[name];return ws?XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(3):[]}
 function pdfJsDiagnosticItems(){try{return window.IBTParserDiagnostics?.items?.()||[]}catch{return[]}}
 function pdfJsDiagnosticLines(){try{return window.IBTParserDiagnostics?.lines?.()||[]}catch{return[]}}
+function runtimeSnapshot(){try{return window.IBTAnalysisRuntime?.snapshot?.()||null}catch{return null}}
 function diagnosticStats(){
  try{
   const s=window.IBTParserDiagnostics?.stats?.();
@@ -96,7 +97,7 @@ function auditWorkbook(wb){
     if(total>0&&power===0&&consumption===0)add('FACTURA SIN CONSUMO','Factura con importe y 0 kWh: comprobar que potencia/derechos/otros conceptos estén capturados.');
   }
   const total=summary.length,diagnostic=diagnosticStats();
-  return{version:parserVersion(),total,supported,unsupported,issueDocuments:issueDocuments.size,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticPages:diagnostic.pages,diagnosticItems:diagnostic.items,diagnosticLines:diagnostic.lines};
+  return{version:parserVersion(),total,supported,unsupported,issueDocuments:issueDocuments.size,identityOk,consumptionOk,energyOk,economicOk,periodOk,issues,diagnosticPages:diagnostic.pages,diagnosticItems:diagnostic.items,diagnosticLines:diagnostic.lines,runtime:runtimeSnapshot()};
 }
 function auditBook(a){
   const wb=XLSX.utils.book_new();wb.Props={Comments:`Parser ${a.version}`};
@@ -133,6 +134,22 @@ function auditBook(a){
   const dl=diagnosticLineRows(invoices),wdl=XLSX.utils.aoa_to_sheet([['ALCANCE DEL DIAGNÓSTICO',scope],[],dl.header].concat(dl.rows));
   wdl['!cols']=[{wch:34},{wch:22},{wch:14},{wch:18},{wch:8},{wch:18},{wch:120}];
   XLSX.utils.book_append_sheet(wb,wdl,'Filas PDF.js');
+  const rt=a.runtime||{},stats=rt.stats||{},parsers=rt.parsers||{},runtimeRows=[
+    ['RUNTIME DEL NAVEGADOR','Estado interno real en el momento de generar la auditoría'],
+    ['Revisión runtime',window.IBTAnalysisRuntime?.revision||'no disponible'],
+    ['DOM sincronizado',stats.domInSync===true?'SÍ':stats.domInSync===false?'NO':'NO DISPONIBLE'],
+    ['Facturas internas',stats.invoices??''],
+    ['Correctas internas',stats.ok??''],
+    ['A revisar internas',stats.review??''],
+    ['Parser SEA cargado',parsers.sea?'SÍ':'NO'],
+    ['Parser Naturgy cargado',parsers.naturgy?'SÍ':'NO'],
+    ['Parser FENIE cargado',parsers.fenie?'SÍ':'NO'],
+    [],
+    ['Nº factura','Empresa','CUPS','Periodo','Tarifa','Total €','readOk','unsupported','balanced','sourceFormat','parserVersion','parserRevision']
+  ];
+  for(const row of rt.rows||[])runtimeRows.push([row.invoiceNumber,row.company,row.cups,row.period,row.tariff,row.total,row.readOk?'TRUE':'FALSE',row.unsupported?'TRUE':'FALSE',row.balanced?'TRUE':'FALSE',row.sourceFormat,row.parserVersion,row.parserRevision]);
+  const wrt=XLSX.utils.aoa_to_sheet(runtimeRows);wrt['!cols']=[{wch:24},{wch:36},{wch:28},{wch:28},{wch:12},{wch:14},{wch:12},{wch:14},{wch:12},{wch:16},{wch:18},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,wrt,'Runtime navegador');
   return wb;
 }
 function show(a){
