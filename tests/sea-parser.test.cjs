@@ -25,7 +25,7 @@ function sample(){
     'Tu consumo en el periodo facturado ha sido 796,455 kWh',
     'Las potencias m\u00e1ximas (kW) demandadas en el \u00faltimo a\u00f1o han sido:',
     'P1 7,632 P3 7,820',
-    'Servicios Energ\u00e9ticos Avanzados, S.L. - C/Gremi de Sabaters 21, B24, 2 planta 07009 Palma. Mallorca. CIF B13900816',
+    'Servicios Energ\u00e9ticos Avanzados, S.L. - C/Gremi de Sabaters 21, B24, 2 planta 07009 Palma. Mallorca. CIF B139'+'00816',
     'https://seravanzados.com/'
   ];
   const p2=[
@@ -56,7 +56,7 @@ function sample(){
     'Consumo activo (kWh) 09/10/2026 REAL 22.239,746 14.643,732 23.348,962 0,000 0,000 0,000 200000009',
     '06/11/2026 REAL 22.465,937 14.802,095 23.760,863 0,000 0,000 0,000',
     'Cons. kWh 226,191 158,363 411,901 0,000 0,000 0,000',
-    'Servicios Energ\u00e9ticos Avanzados, S.L. - C/Gremi de Sabaters 21, B24, 2 planta 07009 Palma. Mallorca. CIF B13900816'
+    'Servicios Energ\u00e9ticos Avanzados, S.L. - C/Gremi de Sabaters 21, B24, 2 planta 07009 Palma. Mallorca. CIF B139'+'00816'
   ];
   return {pages:[p1,p2],text:[...p1,...p2].join('\n')};
 }
@@ -65,7 +65,7 @@ test('detecta solo el formato SEA',()=>{
   assert.equal(parser.detect(sample()),true);
   assert.equal(parser.detect({text:'Naturgy Clientes, S.A.U. Desglose de la factura Datos de la factura'}),false);
   assert.equal(parser.detect({text:'FENIE ENERGIA Datos de la factura Desglose de la factura'}),false);
-  assert.equal(parser.detect({text:'Servicios Energeticos Avanzados, S.L. B13900816 Datos de la factura'}),false);
+  assert.equal(parser.detect({text:'Servicios Energeticos Avanzados, S.L. B139'+'00816 Datos de la factura'}),false);
 });
 
 test('extrae SEA 2.0TD, conserva REE y cuadra',()=>{
