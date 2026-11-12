@@ -14,6 +14,16 @@ test('SEA se carga antes de sus consumidores de runtime',()=>{
   assert(master>parser,'supply-enricher debe cargarse despues de SEA');
 });
 
+test('SEA tiene su propia etiqueta script cerrada y ejecutable',()=>{
+  const html=source('index.html');
+  assert.match(html,/naturgy-parser\\.js\\?v=[0-9a-f]{12}"><\\/script><script src="sea-parser\\.js\\?v=[0-9a-f]{12}"><\\/script>/);
+  const seaOpen=html.indexOf('<script src="sea-parser.js?v=');
+  const seaClose=html.indexOf('</script>',seaOpen);
+  const nested=html.indexOf('<script',seaOpen+1);
+  assert(seaOpen>=0&&seaClose>seaOpen,'SEA debe tener etiqueta script cerrada');
+  assert(nested<0||nested>seaClose,'no puede haber otro <script> antes de cerrar SEA');
+});
+
 test('el parser principal enruta SEA antes del fallback OCR FENIE',()=>{
   const app=source('app.js');
   assert(app.includes('const sea=window.IBTSeaParser'));
