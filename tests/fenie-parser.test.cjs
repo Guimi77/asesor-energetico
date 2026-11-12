@@ -52,6 +52,7 @@ test('parser FENIE mantiene el contrato económico sintético 2.0TD',()=>{
 });
 
 
+// Fixture 100% sintetico: reproduce solo la estructura del formato ingles, sin datos reales de cliente.
 test('parser FENIE reconoce y cuadra la variante inglesa sin afectar el modelo comun',()=>{
   const euro='€';
   const page=[
