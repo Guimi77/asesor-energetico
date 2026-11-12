@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='sea-2026.11.12.1';
+  const REVISION='sea-2026.11.12.2';
   const RETAILER='Servicios Energ\u00e9ticos Avanzados, S.L.';
   const BRAND='Energia BT';
 
@@ -39,11 +39,17 @@
 
   function detect(value){
     const text=textOf(value);
-    return /Servicios\s+Energ(?:e|\u00e9)ticos\s+Avanzados\s*,?\s*S\.?\s*L\.?/i.test(text)
-      && /\bB13900816\b/i.test(text)
-      && /Datos\s+de\s+la\s+factura/i.test(text)
+    const legalIssuer=/Servicios\s+Energ(?:e|\u00e9)ticos\s+Avanzados\s*,?\s*S\.?\s*L\.?/i.test(text)&&/\bB13900816\b/i.test(text);
+    const horizontalIssuer=/(?:seravanzados\.com|info@seravanzados\.com)/i.test(text);
+    const layout=/Datos\s+de\s+la\s+factura/i.test(text)
       && /Desglose\s+de\s+la\s+factura/i.test(text)
-      && (/(?:seravanzados\.com|info@seravanzados\.com)/i.test(text)||/Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema\s*\(REE\)/i.test(text));
+      && /Tarifa\s+de\s+acceso\s+mercado\s+libre/i.test(text)
+      && /Segmento\s+de\s+cargos/i.test(text)
+      && /Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema\s*\(REE\)/i.test(text);
+    // En las facturas reales el nombre legal y el CIF van rotados 90 grados en el margen.
+    // PDF.js no garantiza reconstruir ese texto vertical como una linea continua, por eso
+    // el detector acepta el dominio horizontal oficial como ancla de emisor equivalente.
+    return layout&&(horizontalIssuer||legalIssuer);
   }
 
   function capture(text,re){const m=String(text||'').match(re);return clean(m?.[1]||'');}
