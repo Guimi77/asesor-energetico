@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const parser=require('./sea-parser.js');
+const parser=require('../sea-parser.js');
 
 function sample(){
   const p1=[
