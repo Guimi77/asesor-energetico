@@ -227,6 +227,17 @@ test('El cargador muestra el detalle de las facturas históricas a revisar',()=>
  assert(source.includes("historyReview:x.assessment==='needs_review'"));
 });
 
+test('FENIE ingles mantiene anclas equivalentes en el historico legacy',()=>{
+ assert(source.includes('Invoice\\s+(?:no\\.?|number)'));
+ assert(source.includes('Invoicing Period'));
+ assert(source.includes('Variable energy term'));
+ assert(source.includes('Power Term'));
+ assert(source.includes('TOTAL INVOICED'));
+ assert(source.includes('Electricity tax'));
+ assert(source.includes('Metering Equipment lease'));
+ assert(source.includes('Distribution Company'));
+});
+
 test('FENIE usa el modelo portable solo con paridad total y conserva fallback legacy',()=>{
  assert(source.includes('const FENIE_HISTORY_SHADOW=new Map()'));
  assert(source.includes('function fenieHistoryFromNormalized(model,file)'));
