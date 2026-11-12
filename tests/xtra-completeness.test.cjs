@@ -83,6 +83,22 @@ test('Distributor rights keep explicit detail and surface any unknown residual',
  assert(!source.includes('adjustments.push(...rights.items)'));
  assert(source.includes('distributor_rights:rights.status'));
 });
+test('FENIE legacy conserva cuota indexada y derechos ingleses con trazabilidad',()=>{
+ const rights=plain(ctx.api.rightsDetail([
+  'Distributor Access Fees (R.D. 1048/2013, Article 24) (80,00€).Distributor Equipment Action Fees (R.D. 1048/2013, Article 125,00 €',
+  '29) (5,00€).Distributor Extension Fees (R.D. 1048/2013, Article 25) (40,00€).'
+ ],125));
+ assert.equal(rights.status,'extracted');
+ assert.deepEqual(rights.items.map(x=>[x.concept,x.amount_eur]),[
+  ['Derechos Acceso Distribuidora',80],['Derechos Actuación Equipos Distribuidora',5],['Derechos Extensión Distribuidora',40]
+ ]);
+ assert(source.includes("billingFeeLine=find(a,/(?:Cuota Facturaci[oó]n Indexado|Indexed Billing (?:Fee|Charge))/i)"));
+ assert(source.includes("category:'billing_fee'"));
+ assert(source.includes("billing_fee:billingFeeLine?'extracted':'not_present'"));
+ assert(source.includes('billingFee:Number(costs.billingFeeEur)||0'));
+ assert(source.includes('billingFee:Number(x?.billingFee)||0'));
+});
+
 test('Structured payload carries completeness detail and never carries PDF bytes or filenames',()=>{
  const start=source.indexOf('const payload={'),end=source.indexOf("const {data,error}=await",start);assert(start>=0&&end>start);const payload=source.slice(start,end);
  for(const required of ['issue_date:x.issueDate','source_holder_name:x.holderName','source_holder_tax_id:x.holderTaxId','source_supply_address:x.sourceSupplyAddress','access_contract_number:x.accessContract','contract_number:x.contract','contract_type:x.contractType','contract_end_date:x.contractEndDate','meter_number:x.meterNumber','completeness_assessment_status:x.assessment','source_completeness:x.completeness','energy_periods:x.energyPeriods','power_periods:x.powerPeriods','maximeters:x.maximeterRows','excess_periods:x.excessPeriods','reactive_periods:x.reactivePeriods','tax_lines:x.taxLines','distributor_rights:x.distributorRights','adjustments:x.adjustments'])assert(payload.includes(required),required);
@@ -93,7 +109,7 @@ test('Existing validated invoices refresh completeness without changing core amo
  assert(persist.includes("supabase.rpc('enrich_xtra_invoice_completeness',{p_payload:payload})"));
  assert(persist.includes("result={...result,completeness:completenessData.completeness}"));
  assert(persist.indexOf("supabase.rpc('upsert_xtra_energy_history_v3'")<persist.indexOf("supabase.rpc('enrich_xtra_invoice_completeness'"));
- assert(source.includes("const COMPLETENESS_VERSION='energy-2026.11.12.1'"));
+ assert(source.includes("const COMPLETENESS_VERSION='energy-2026.11.12.2'"));
 });
 
 test('Automatic history write cannot bypass the validated main parser row',()=>{
@@ -188,7 +204,7 @@ test('Los motivos de no guardado del histórico se muestran en español claro',(
 });
 
 test('El histórico refresca lecturas mejoradas sin depender de la comercializadora',()=>{
- assert(appSource.includes("const PARSER_VERSION='2026.11.12.1';"));
+ assert(appSource.includes("const PARSER_VERSION='2026.11.12.2';"));
  assert(refreshPolicySql.includes("private.parser_version_is_newer"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'better_completeness'"));
  assert(refreshPolicySql.includes("v_refresh_reason := 'newer_issue_date'"));

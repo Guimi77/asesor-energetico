@@ -133,6 +133,71 @@ test('parser FENIE reconoce y cuadra la variante inglesa sin afectar el modelo c
   assert.equal(normalized.taxLines[0].label,'VAC');
 });
 
+test('parser FENIE contabiliza la cuota de facturacion indexada como concepto estructurado',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA','Company Name: CLIENTE SINTETICO CUOTA','CUPS code: ES0000000000000000AA','Tariff: 2.0TD',
+    'Invoicing Period: 01/06/2026 - 30/06/2026 (30 days)','Invoice no. SYNTH-FEE-001',
+    'Variable energy term',
+    'P1: 0,033261 '+euro+'/kWh + 0,064292 '+euro+'/kWh + 0,097221 '+euro+'/kWh = 0,194774 '+euro+'/kWh x 6,00 kWh = 1,17 '+euro+' 3,52 '+euro,
+    'P2: 0,016409 '+euro+'/kWh + 0,012858 '+euro+'/kWh + 0,100495 '+euro+'/kWh = 0,129762 '+euro+'/kWh x 6,00 kWh = 0,78 '+euro,
+    'P3: 0,000077 '+euro+'/kWh + 0,003215 '+euro+'/kWh + 0,117414 '+euro+'/kWh = 0,120706 '+euro+'/kWh x 13,00 kWh = 1,57 '+euro,
+    'Power Term',
+    'P1: 0,063904 '+euro+'/kW day + 0,011999 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,075903 '+euro+'/kW dayx 14,490kW x 30 days= 32,99 '+euro,
+    '33,86 '+euro,
+    'P2: 0,001216 '+euro+'/kW day + 0,000772 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,001988 '+euro+'/kW dayx 14,490kW x 30 days= 0,86 '+euro,
+    'Excesses of Power','P1: 0,000000 x 8,382780 = 0,00 '+euro,'P2: 0,000000 x 0,159480 = 0,00 '+euro,
+    'Cuota Facturación Indexado 6,90 '+euro,
+    'Rates reduction Royal Decree test 0,57 '+euro,'Electricity tax 5,11269632% s/ 44,85 2,29 '+euro,
+    'Metering Equipment lease (Meter Nº TESTMETER): 0,80 '+euro,'VAC 21,00% s/ 47,94 10,07 '+euro,'TOTAL INVOICED: 58,01'+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\\n')};
+  const row=fenie.parse(data,{name:'synthetic-fenie-billing-fee.pdf'});
+  assert.equal(row.billingFee,6.9);
+  assert.equal(row.other,8.27);
+  assert.equal(row.accounted,58.01);
+  assert.equal(row.diff,0);
+  assert.equal(row.balanced,true);
+  assert.equal(row.readOk,true);
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-fenie-billing-fee.pdf'},{completenessVersion:'energy-test.billing-fee'});
+  assert.equal(normalized.costs.billingFeeEur,6.9);
+  assert.equal(normalized.validation.completeness.billing_fee,'extracted');
+  assert.deepEqual(normalized.adjustments.find(x=>x.category==='billing_fee'),{concept:'Cuota Facturación Indexado',amount_eur:6.9,category:'billing_fee',source_text:'Cuota Facturación Indexado 6,90 €'});
+});
+
+test('parser FENIE desglosa derechos de distribuidora impresos en ingles y conserva el cuadre',()=>{
+  const euro='€';
+  const page=[
+    'FENIE ENERGIA','Company Name: CLIENTE SINTETICO DERECHOS','CUPS code: ES0000000000000000AA','Tariff: 2.0TD',
+    'Invoicing Period: 24/02/2026 - 22/03/2026 (27 days)','Invoice no. SYNTH-RIGHTS-001',
+    'Variable energy term',
+    'P1: 0,033261 '+euro+'/kWh + 0,064292 '+euro+'/kWh + 0,266291 '+euro+'/kWh = 0,363844 '+euro+'/kWh x 13,11 kWh = 4,77 '+euro+' 12,03 '+euro,
+    'P2: 0,016409 '+euro+'/kWh + 0,012858 '+euro+'/kWh + 0,237801 '+euro+'/kWh = 0,267068 '+euro+'/kWh x 9,96 kWh = 2,66 '+euro,
+    'P3: 0,000077 '+euro+'/kWh + 0,003215 '+euro+'/kWh + 0,236666 '+euro+'/kWh = 0,239958 '+euro+'/kWh x 19,17 kWh = 4,60 '+euro,
+    'Power Term',
+    'P1: 0,063904 '+euro+'/kW day + 0,011999 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,075903 '+euro+'/kW dayx 14,490kW x 27 days= 29,70 '+euro,
+    '30,48 '+euro,
+    'P2: 0,001216 '+euro+'/kW day + 0,000772 '+euro+'/kW day + 0,00 '+euro+'/kW day = 0,001988 '+euro+'/kW dayx 14,490kW x 27 days= 0,78 '+euro,
+    'Excesses of Power','P1: 0,000000 x 7,544502 = 0,00 '+euro,'P2: 0,000000 x 0,143532 = 0,00 '+euro,
+    'Distributor Access Fees (R.D. 1048/2013, Article 24) (80,00€).Distributor Equipment Action Fees (R.D. 1048/2013, Article 125,00 €',
+    '29) (5,00€).Distributor Extension Fees (R.D. 1048/2013, Article 25) (40,00€).',
+    'Rates reduction Royal Decree test 0,52 '+euro,'Electricity tax 0,50000000% s/ 43,03 0,22 '+euro,
+    'Metering Equipment lease (Meter Nº TESTMETER): 0,72 '+euro,'VAC 21,00% s/ 168,97 35,48 '+euro,'TOTAL INVOICED: 204,45'+euro
+  ];
+  const data={pages:[page],rawPages:[[],[]],text:page.join('\\n')};
+  const row=fenie.parse(data,{name:'synthetic-fenie-rights-en.pdf'});
+  assert.equal(row.distributorCharges,125);
+  assert.equal(row.accounted,204.45);
+  assert.equal(row.diff,0);
+  assert.equal(row.balanced,true);
+  assert.equal(row.readOk,true);
+  const normalized=fenie.parseNormalized(data,{name:'synthetic-fenie-rights-en.pdf'},{completenessVersion:'energy-test.rights-en'});
+  assert.equal(normalized.validation.completeness.distributor_rights,'extracted');
+  assert.deepEqual(normalized.distributorRights.map(x=>[x.concept,x.amount_eur]),[
+    ['Derechos Acceso Distribuidora',80],['Derechos Actuación Equipos Distribuidora',5],['Derechos Extensión Distribuidora',40]
+  ]);
+});
+
 test('parser FENIE contabiliza descuentos comerciales impresos sin esconderlos',()=>{
   const euro='€';
   const page=[
