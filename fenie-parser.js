@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='fenie-2026.10.06.1';
+  const REVISION='fenie-2026.11.12.1';
   const RETAILER='FENIE ENERGIA';
 
   const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -55,7 +55,7 @@
 
   function powerSectionDetails(a,expectedPeriods=0){
     const text=(a||[]).join('\n');
-    const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*d[ií]as?\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
+    const expression=/([\d.,]+)\s*kW\s*[x×]\s*(\d+)\s*(?:d[ií]as?|days?)\s*=\s*(-?[\d.]+,\d{2})\s*€(?!\s*\/)/gi;
     const entries=[...text.matchAll(expression)].map(m=>({contractedKw:num(m[1]),days:Number(m[2]),amount:num(m[3])}));
     const sum=round2(entries.reduce((s,e)=>s+e.amount,0));
     const remaining=text.replace(expression,'');
@@ -74,7 +74,7 @@
   function maximeters(items){
     const out={};
     if(!items?.length)return out;
-    const anchor=items.find(i=>/Max[ií]metro\s*\(kW\)/i.test(String(i.str||'')));
+    const anchor=items.find(i=>/(?:Max[ií]metro|Maximeter)\s*\(kW\)/i.test(String(i.str||'')));
     if(!anchor)return out;
     const ay=anchor.transform?.[5],ax=anchor.transform?.[4]??0;
     if(!Number.isFinite(ay))return out;
@@ -91,17 +91,17 @@
 
   function parse(d,file,options={}){
     const a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
-      companyLine=find(a,/Raz[oó]n Social:/i),
-      company=(companyLine.match(/Raz[oó]n Social:\s*(.+)$/i)||[])[1]?.trim()||'',
-      invoiceLine=find(a,/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)/i),
-      invoiceNumber=((invoiceLine.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)
-        ||text.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?)\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)||[])[1])||'Por identificar',
-      cups=((find(a,/CUPS:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||'',
-      tariff=((find(a,/Tarifa:/i).match(/(2\.0TD|3\.0TD|6\.1TD|6\.2TD|6\.3TD|6\.4TD)/i)||text.match(/(2\.0TD|3\.0TD|6\.1TD|6\.2TD|6\.3TD|6\.4TD)/i)||[])[1])||'—',
-      period=((find(a,/Periodo Facturaci[oó]n:/i).match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}(?:\s*\(\d+\s*d[ií]as\))?/i)||[])[0])||'Por identificar',
-      total=lastEuro(find(a,/TOTAL FACTURA/i));
+      companyLine=find(a,/(?:Raz[oó]n Social|Company Name)\s*:/i),
+      company=(companyLine.match(/(?:Raz[oó]n Social|Company Name)\s*:\s*(.+)$/i)||[])[1]?.trim()||'',
+      invoiceLine=find(a,/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?|Invoice\s+(?:no\.?|number))/i),
+      invoiceNumber=((invoiceLine.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?|Invoice\s+(?:no\.?|number))\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)
+        ||text.match(/(?:N[º°o.]?\s*Factura|N[uú]mero\s+(?:de\s+)?Factura|Factura\s+n[º°o.]?|Invoice\s+(?:no\.?|number))\s*:?\s*([A-Z0-9][A-Z0-9._\/-]*)/i)||[])[1])||'Por identificar',
+      cups=((find(a,/(?:CUPS|CUPS code)\s*:/i).match(/ES[A-Z0-9]{16,24}/i)||text.match(/ES[A-Z0-9]{16,24}/i)||[])[0])||'',
+      tariff=((find(a,/(?:Tarifa|Tariff)\s*:/i).match(/(2\.0TD|3\.0TD|6\.1TD|6\.2TD|6\.3TD|6\.4TD)/i)||text.match(/(2\.0TD|3\.0TD|6\.1TD|6\.2TD|6\.3TD|6\.4TD)/i)||[])[1])||'—',
+      period=((find(a,/(?:Periodo Facturaci[oó]n|Invoicing Period)\s*:/i).match(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}(?:\s*\(\d+\s*(?:d[ií]as|days)\))?/i)||[])[0])||'Por identificar',
+      total=lastEuro(find(a,/(?:TOTAL FACTURA|TOTAL INVOICED)/i));
 
-    const es=section(a,/T[eé]rmino (?:de )?energ[ií]a(?: variable)?/i,[/T[eé]rmino de potencia/i]),periods={};
+    const es=section(a,/(?:T[eé]rmino (?:de )?energ[ií]a(?: variable)?|Variable energy term)/i,[/(?:T[eé]rmino de potencia|Power Term)/i]),periods={};
     let kwh=0;
     for(let p=1;p<=6;p++){
       const l=prow(es,p);
@@ -113,7 +113,7 @@
     }
     const energy=round2(Object.values(periods).reduce((s,x)=>s+x.cost,0));
 
-    const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),contracted={};
+    const ps=section(a,/(?:T[eé]rmino de potencia|Power Term)/i,[/(?:Excesos? de Potencia|Excesses? of Power)/i,/(?:Energ[ií]a reactiva|Reactive Energy)/i,/(?:Bono social|Rates reduction)/i]),contracted={};
     for(let p=1;p<=6;p++){
       const l=prow(ps,p),m=l.match(/([\d.]+,\d{3})\s*kW/i);
       if(m)contracted[`P${p}`]=num(m[1]);
@@ -124,8 +124,8 @@
       for(let p=1;p<=expectedPowerPeriods;p++)if(contracted[`P${p}`]==null)contracted[`P${p}`]=powerDetail.entries[p-1].contractedKw;
 
     const power=powerDetail.value,
-      excess=sectionTotal(section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/Bono social/i,/Impuesto electricidad/i])),
-      reactive=sectionTotal(section(a,/Energ[ií]a reactiva/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/Bono social/i,/Impuesto electricidad/i])),
+      excess=sectionTotal(section(a,/(?:Excesos? de Potencia|Excesses? of Power)/i,[/(?:Energ[ií]a reactiva|Reactive Energy)/i,/(?:Bono social|Rates reduction)/i,/(?:Impuesto electricidad|Electricity tax)/i])),
+      reactive=sectionTotal(section(a,/(?:Energ[ií]a reactiva|Reactive Energy)/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/(?:Bono social|Rates reduction)/i,/(?:Impuesto electricidad|Electricity tax)/i])),
       mx=maximeters(d?.rawPages?.[1]||[]);
 
     let compensation=lastEuro(find(a,/Compensaci[oó]n Excedente/i));
@@ -135,9 +135,9 @@
       if(m)compensation=num(m[1])>0?-num(m[1]):num(m[1]);
     }
 
-    const social=lastEuro(find(a,/Bono social/i)),
-      tax=lastEuro(find(a,/Impuesto electricidad/i)),
-      rental=lastEuro(find(a,/Alquiler Equipo medida/i)),
+    const social=lastEuro(find(a,/(?:Bono social|Rates reduction)/i)),
+      tax=lastEuro(find(a,/(?:Impuesto electricidad|Electricity tax)/i)),
+      rental=lastEuro(find(a,/(?:Alquiler Equipo medida|Metering Equipment lease)/i)),
       discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
       discounts=round2(discountLines.reduce((sum,line)=>sum+lastEuro(line),0));
 
@@ -149,14 +149,14 @@
     }
 
     const regularizationReactive=lastEuro(find(a,/Regularizaci[oó]n\s+Reactiva/i));
-    const vat=round2(a.filter(l=>/^\s*IVA\b/i.test(l)).reduce((s,l)=>s+lastEuro(l),0)),
+    const vat=round2(a.filter(l=>/^\s*(?:IVA|VAT|VAC)\b/i.test(l)).reduce((s,l)=>s+lastEuro(l),0)),
       igic=round2(a.filter(l=>/^\s*IGIC\b/i.test(l)).reduce((s,l)=>s+lastEuro(l),0));
 
     let db='';
     const rightsRe=/Derechos (?:de )?(?:Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche|Actuaci[oó]n Equipos) Distribuidora/i,
       di=a.findIndex(l=>rightsRe.test(l));
     if(di>=0)for(let i=di;i<Math.min(a.length,di+6);i++){
-      if(i>di&&/^(?:Impuesto electricidad|Alquiler Equipo|IVA\b|IGIC\b|TOTAL FACTURA)/i.test(a[i]))break;
+      if(i>di&&/^(?:Impuesto electricidad|Electricity tax|Alquiler Equipo|Metering Equipment lease|IVA\b|VAT\b|VAC\b|IGIC\b|TOTAL FACTURA|TOTAL INVOICED)/i.test(a[i]))break;
       db+=' '+a[i];
     }
 
@@ -236,11 +236,11 @@
   const afterLabel=(line,re)=>norm(String(line||'').replace(re,'').replace(/^\s*:?\s*/,''));
   const dateIn=line=>((String(line||'').match(/\d{2}\/\d{2}\/\d{4}/)||[])[0])||'';
   const isoDate=value=>{const m=norm(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:''};
-  const parseBillingPeriod=value=>{const m=norm(value).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*d[ií]as\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}};
+  const parseBillingPeriod=value=>{const m=norm(value).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\((\d+)\s*(?:d[ií]as|days)\))?/i);return m?{start:isoDate(m[1]),end:isoDate(m[2]),days:m[3]?Number(m[3]):null}:{start:'',end:'',days:null}};
   const sourceStatus=(value,present=true)=>value!==''&&value!=null?'extracted':present?'unreliable':'not_present';
 
   function powerPriceRows(a){
-    const re=/([\d.,]+)\s*€\s*\/\s*kW\s*d[ií]a/gi;
+    const re=/([\d.,]+)\s*€\s*\/\s*kW\s*(?:d[ií]a|day)/gi;
     return (a||[]).map(line=>[...String(line||'').matchAll(re)].map(m=>num(m[1]))).filter(values=>values.length>=4);
   }
 
@@ -269,9 +269,10 @@
   function taxRows(a){
     const out=[];
     for(const line of a||[]){
-      if(!/^\s*(IVA|IGIC)\b/i.test(line))continue;
-      const type=/^\s*IGIC\b/i.test(line)?'IGIC':'IVA',
-        label=(line.match(/^\s*((?:IVA|IGIC)(?:\s+(?:Reducido|Normal))?)/i)||[])[1]||type,
+      if(!/^\s*(IVA|IGIC|VAT|VAC)\b/i.test(line))continue;
+      const rawType=((line.match(/^\s*(IVA|IGIC|VAT|VAC)\b/i)||[])[1]||'').toUpperCase(),
+        type=rawType==='IGIC'?'IGIC':'IVA',
+        label=(line.match(/^\s*((?:IVA|IGIC|VAT|VAC)(?:\s+(?:Reducido|Normal))?)/i)||[])[1]||type,
         rate=(line.match(/([\d.,]+)\s*%/)||[])[1],
         base=(line.match(/s\/\s*(-?[\d.]+,\d{2})/i)||[])[1];
       out.push({tax_type:type,label:norm(label),rate_pct:rate?num(rate):null,taxable_base_eur:base?num(base):null,amount_eur:lastEuro(line)});
@@ -285,7 +286,7 @@
     for(const line of a||[]){
       signal.lastIndex=0;
       if(signal.test(line)){active=true;block.push(line);continue}
-      if(active){if(/^(?:Impuesto electricidad|Alquiler Equipo|IVA\b|IGIC\b|TOTAL FACTURA)/i.test(line))break;block.push(line)}
+      if(active){if(/^(?:Impuesto electricidad|Electricity tax|Alquiler Equipo|Metering Equipment lease|IVA\b|VAT\b|VAC\b|IGIC\b|TOTAL FACTURA|TOTAL INVOICED)/i.test(line))break;block.push(line)}
     }
     const text=clean(block.join(' '));
     if(!text)return {text:'',items:[],status:'not_present',residual:0};
@@ -314,21 +315,21 @@
     const row=parse(d,file,options),a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
       discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
       period=parseBillingPeriod(row.period),tariff=norm(row.tariff),
-      holderLine=find(a,/Raz[oó]n Social\s*:/i),taxIdLine=find(a,/NIF\s*\/\s*CIF\s*:/i),
-      addressLine=find(a,/Dir\.\s*Suministro\s*:/i),accessLine=find(a,/Contrato Acceso\s*:/i),
-      holderName=afterLabel(holderLine,/.*?Raz[oó]n Social\s*:/i),
-      holderTaxId=afterLabel(taxIdLine,/.*?NIF\s*\/\s*CIF\s*:/i).split(/\s+/)[0]||'',
-      supplyAddress=afterLabel(addressLine,/.*?Dir\.\s*Suministro\s*:/i),
-      accessContract=((afterLabel(accessLine,/.*?Contrato Acceso\s*:/i).match(/[A-Z0-9._-]+/i)||[])[0])||'',
-      issueDate=isoDate(dateIn(find(a,/Fecha de Factura\s*:/i))),
+      holderLine=find(a,/(?:Raz[oó]n Social|Company Name)\s*:/i),taxIdLine=find(a,/(?:NIF\s*\/\s*CIF|Tax ID)\s*:/i),
+      addressLine=find(a,/(?:Dir\.\s*Suministro|Address of Supply)\s*:/i),accessLine=find(a,/(?:Contrato Acceso|Access Contract)\b/i),
+      holderName=afterLabel(holderLine,/.*?(?:Raz[oó]n Social|Company Name)\s*:/i),
+      holderTaxId=afterLabel(taxIdLine,/.*?(?:NIF\s*\/\s*CIF|Tax ID)\s*:/i).split(/\s+/)[0]||'',
+      supplyAddress=afterLabel(addressLine,/.*?(?:Dir\.\s*Suministro|Address of Supply)\s*:/i),
+      accessContract=((afterLabel(accessLine,/.*?(?:Contrato Acceso|Access Contract)\s*:?\s*/i).match(/[A-Z0-9._-]+/i)||[])[0])||'',
+      issueDate=isoDate(dateIn(find(a,/(?:Fecha de Factura|Date of invoice)\s*:/i))),
       contract=((text.match(/\b(CO-\d{4}-[A-Z0-9._-]+)\b/i)||[])[1])||'',
-      contractType=afterLabel(find(a,/Tipo Contrato\s*:/i),/.*?Tipo Contrato\s*:/i),
-      contractEndDate=isoDate(dateIn(find(a,/Fecha fin del contrato de suministro\s*:/i))),
-      meterLine=find(a,/Alquiler Equipo medida.*N[º°o.]?\s*Contador/i),
-      meterNumber=((meterLine.match(/N[º°o.]?\s*Contador\s*([A-Z0-9._-]+)/i)||[])[1])||'',
-      distributor=afterLabel(find(a,/Empresa Distribuidora\s*:/i),/.*?Empresa Distribuidora\s*:/i);
+      contractType=afterLabel(find(a,/(?:Tipo Contrato|Type of contract)\s*:/i),/.*?(?:Tipo Contrato|Type of contract)\s*:/i),
+      contractEndDate=isoDate(dateIn(find(a,/(?:Fecha fin del contrato de suministro|End date of supply contract)\s*:/i))),
+      meterLine=find(a,/(?:Alquiler Equipo medida.*N[º°o.]?\s*Contador|Metering Equipment lease.*Meter\s*N[º°o.]?)/i),
+      meterNumber=((meterLine.match(/(?:N[º°o.]?\s*Contador|Meter\s*N[º°o.]?)\s*([A-Z0-9._-]+)/i)||[])[1])||'',
+      distributor=afterLabel(find(a,/(?:Empresa Distribuidora|Distribution Company)\b/i),/.*?(?:Empresa Distribuidora|Distribution Company)\s*:?\s*/i);
 
-    const es=section(a,/T[eé]rmino (?:de )?energ[ií]a(?: variable)?/i,[/T[eé]rmino de potencia/i]),
+    const es=section(a,/(?:T[eé]rmino (?:de )?energ[ií]a(?: variable)?|Variable energy term)/i,[/(?:T[eé]rmino de potencia|Power Term)/i]),
       energyPeriods=[];let energyPricesReliable=true;
     for(let p=1;p<=6;p++){
       const l=prow(es,p);if(!l)continue;
@@ -338,7 +339,7 @@
       energyPeriods.push({period:p,consumption_kwh:consumption,energy_cost_eur:cost,unit_price_eur_kwh:pr.at(-1)||null,toll_price_eur_kwh:pr[0]??null,charges_price_eur_kwh:pr[1]??null,retailer_price_eur_kwh:pr[2]??null});
     }
 
-    const ps=section(a,/T[eé]rmino de potencia/i,[/Excesos? de Potencia/i,/Energ[ií]a reactiva/i,/Bono social/i]),
+    const ps=section(a,/(?:T[eé]rmino de potencia|Power Term)/i,[/(?:Excesos? de Potencia|Excesses? of Power)/i,/(?:Energ[ií]a reactiva|Reactive Energy)/i,/(?:Bono social|Rates reduction)/i]),
       expectedPowerPeriods=/^2\.0TD$/i.test(tariff)?2:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0,
       priceRows=powerPriceRows(ps),powerEntries=row.powerDetail?.entries||[];
     let powerPricesReliable=!!row.powerDetail?.reliable&&priceRows.length>=powerEntries.length;
@@ -347,8 +348,8 @@
       return {period:expectedPowerPeriods?i+1:i+1,contracted_kw:entry.contractedKw,billed_power_eur:entry.amount,unit_price_eur_kw_day:pr.at(-1)??null,toll_price_eur_kw_day:pr[0]??null,charges_price_eur_kw_day:pr[1]??null,retailer_price_eur_kw_day:pr[2]??null};
     }):[];
 
-    const excessSection=section(a,/Excesos? de Potencia/i,[/Energ[ií]a reactiva/i,/Bono social/i,/Impuesto electricidad/i]),
-      reactiveSection=section(a,/Energ[ií]a reactiva/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/Bono social/i,/Impuesto electricidad/i]),
+    const excessSection=section(a,/(?:Excesos? de Potencia|Excesses? of Power)/i,[/(?:Energ[ií]a reactiva|Reactive Energy)/i,/(?:Bono social|Rates reduction)/i,/(?:Impuesto electricidad|Electricity tax)/i]),
+      reactiveSection=section(a,/(?:Energ[ií]a reactiva|Reactive Energy)/i,[/Compensaci[oó]n Excedente/i,/Regularizaci[oó]n/i,/(?:Bono social|Rates reduction)/i,/(?:Impuesto electricidad|Electricity tax)/i]),
       excessPeriods=excessRows(excessSection),reactivePeriods=reactiveRows(reactiveSection),
       maximeterRows=Object.keys(row.maximeters||{}).filter(k=>/^P\d$/.test(k)).map(k=>({period:Number(k.slice(1)),maximeter_kw:row.maximeters[k],reliable:!!row.maximeters._reliable,source:'FENIE · tabla maxímetro'})),
       taxes=taxRows(a),rights=rightsDetail(a,row.distributorCharges),
@@ -363,14 +364,14 @@
         version:options.completenessVersion||'energy-1',
         invoice_number:sourceStatus(row.invoiceNumber),cups:sourceStatus(row.cups),billing_period:sourceStatus(period.start&&period.end),issue_date:sourceStatus(issueDate),
         holder_name:sourceStatus(holderName),holder_tax_id:sourceStatus(holderTaxId),supply_address:sourceStatus(supplyAddress),access_contract_number:sourceStatus(accessContract),
-        contract_number:sourceStatus(contract),contract_type:sourceStatus(contractType,!!find(a,/Tipo Contrato\s*:/i)),contract_end_date:sourceStatus(contractEndDate),meter_number:sourceStatus(meterNumber),
+        contract_number:sourceStatus(contract),contract_type:sourceStatus(contractType,!!find(a,/(?:Tipo Contrato|Type of contract)\s*:/i)),contract_end_date:sourceStatus(contractEndDate),meter_number:sourceStatus(meterNumber),
         tariff:sourceStatus(tariff),distributor:sourceStatus(distributor),energy_periods:energyPeriods.length?'extracted':'unreliable',energy_price_components:energyPricesReliable?'extracted':'unreliable',
         power_periods:row.powerDetail?.reliable?'extracted':'unreliable',power_price_components:powerPricesReliable?'extracted':'unreliable',maximeters:row.maximeters?._reliable?'extracted':'unreliable',
         excess_detail:excessSection.length?(excessPeriods.length?'extracted':'unreliable'):'not_present',
         reactive_detail:reactiveSection.length?(reactivePeriods.length?'extracted':'unreliable'):(reactiveApplicable?'unreliable':'not_applicable'),
-        compensation:find(a,/Compensaci[oó]n Excedente/i)?'extracted':'not_present',social_bonus:find(a,/Bono social/i)?'extracted':'unreliable',
+        compensation:find(a,/Compensaci[oó]n Excedente/i)?'extracted':'not_present',social_bonus:find(a,/(?:Bono social|Rates reduction)/i)?'extracted':'unreliable',
         discounts:discountLines.length?'extracted':'not_present',
-        meter_rental:find(a,/Alquiler Equipo medida/i)?'extracted':'unreliable',electricity_tax:find(a,/Impuesto electricidad/i)?'extracted':'unreliable',
+        meter_rental:find(a,/(?:Alquiler Equipo medida|Metering Equipment lease)/i)?'extracted':'unreliable',electricity_tax:find(a,/(?:Impuesto electricidad|Electricity tax)/i)?'extracted':'unreliable',
         tax_lines:taxes.length?'extracted':'unreliable',distributor_rights:rights.status,
         integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
       },
