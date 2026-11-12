@@ -158,7 +158,7 @@
     const rightsRe=/(?:Derechos (?:de )?(?:Verificaci[oó]n|Extensi[oó]n|Acceso|Enganche|Actuaci[oó]n Equipos) Distribuidora|Distributor (?:Verification|Extension|Access|Connection|Equipment Action) Fees)/i,
       di=a.findIndex(l=>rightsRe.test(l));
     if(di>=0)for(let i=di;i<Math.min(a.length,di+6);i++){
-      if(i>di&&/^(?:Impuesto electricidad|Electricity tax|Alquiler Equipo|Metering Equipment lease|IVA\b|VAT\b|VAC\b|IGIC\b|TOTAL FACTURA|TOTAL INVOICED)/i.test(a[i]))break;
+      if(i>di&&/^(?:Bono social|Rates reduction|Impuesto electricidad|Electricity tax|Alquiler Equipo|Metering Equipment lease|IVA\b|VAT\b|VAC\b|IGIC\b|TOTAL FACTURA|TOTAL INVOICED)/i.test(a[i]))break;
       db+=' '+a[i];
     }
 
@@ -320,6 +320,7 @@
 
   function parseNormalized(d,file,options={}){
     const row=parse(d,file,options),a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
+      billingFeeLine=find(a,/(?:Cuota Facturaci[oó]n Indexado|Indexed Billing (?:Fee|Charge))/i),
       discountLines=a.filter(l=>/^\s*Descuento\b/i.test(l)),
       period=parseBillingPeriod(row.period),tariff=norm(row.tariff),
       holderLine=find(a,/(?:Raz[oó]n Social|Company Name)\s*:/i),taxIdLine=find(a,/(?:NIF\s*\/\s*CIF|Tax ID)\s*:/i),
