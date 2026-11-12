@@ -68,6 +68,27 @@ test('detecta solo el formato SEA',()=>{
   assert.equal(parser.detect({text:'Servicios Energeticos Avanzados, S.L. B139'+'00816 Datos de la factura'}),false);
 });
 
+test('detecta el layout PDF.js aunque el pie legal vertical no se reconstruya',()=>{
+  const d=sample();
+  d.pages=d.pages.map(page=>page.filter(line=>!line.includes('Servicios Energ')));
+  d.text=d.pages.flat().join('\n');
+  assert.equal(/B13900816/.test(d.text),false);
+  assert.equal(/Servicios Energ/i.test(d.text),false);
+  assert.equal(parser.detect(d),true);
+  const r=parser.parse(d,{name:'sea-pdfjs-vertical-footer.pdf'});
+  assert.ok(r);
+  assert.equal(r.readOk,true,r.readMessage);
+  assert.equal(r.cups,'ES0000000000000009AA0F');
+  assert.equal(r.total,176.42);
+});
+
+test('no acepta un formato generico con REE sin ancla de emisor SEA',()=>{
+  const d=sample();
+  d.pages=d.pages.map(page=>page.filter(line=>!line.includes('Servicios Energ')&&!line.includes('seravanzados.com')));
+  d.text=d.pages.flat().join('\n');
+  assert.equal(parser.detect(d),false);
+});
+
 test('extrae SEA 2.0TD, conserva REE y cuadra',()=>{
   const r=parser.parse(sample(),{name:'sea-demo.pdf'},{parserVersion:'test'});
   assert.ok(r);
