@@ -74,8 +74,8 @@ function sampleCatalanFixed(){
     'Núm. Contracte: 9101 Núm. Compte: ****1998',
     'Data fi contracte: 13/10/2027 Data de càrrec: 24/11/2026',
     'Dades del punt de subministrament',
-    'CUPS: ES0000000000000010AA0F',
-    'Direcció del subministrament: Calle PROVA 29 BJO 07190 Esporles (Balears, Illes)',
+    'CUPS: ES0000000000000001AA0F',
+    'Direcció del subministrament: Calle PRUEBA CAT 29 BJO 07190 Esporles (Balears, Illes)',
     "Tarifa d'accés mercat lliure: 2.0TD Contracte d'Accés: 500000000010 Comptador: 200000010",
     'Potència Contractada: P1: 5,600 kW. P2: 5,600 kW.',
     'Distribuïdora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.',
@@ -125,8 +125,8 @@ function sampleCatalanIndexed(){
     'Núm. Contracte: 9102 Núm. Compte: ****1998',
     'Data fi contracte: 13/10/2027 Data de càrrec: 24/11/2026',
     'Dades del punt de subministrament',
-    'CUPS: ES0000000000000011AA0F',
-    'Direcció del subministrament: Calle PROVA 29 GARAGE 07190 Esporles (Balears, Illes)',
+    'CUPS: ES0000000000000002AA0F',
+    'Direcció del subministrament: Calle PRUEBA CAT 29 GARAGE 07190 Esporles (Balears, Illes)',
     "Tarifa d'accés mercat lliure: 2.0TD Contracte d'Accés: 500000000011 Comptador: 200000011",
     'Potència Contractada: P1: 2,200 kW. P2: 2,200 kW.',
     'Distribuïdora: EDISTRIBUCIÓN REDES DIGITALES S.L.U.',
@@ -136,7 +136,7 @@ function sampleCatalanIndexed(){
     'El teu consum en el període facturat ha estat 108,893 kWh',
     'Les potències màximes (kW) demandades el darrer any han estat:',
     'P1 1,984 P3 1,968',
-    'info@seravanzados.com'
+    'https://seravanzados.com/'
   ];
   const p2=[
     'Desglossament de la factura',
@@ -263,7 +263,7 @@ test('extrae variante catalana SEA 2.0TD fija y cuadra',()=>{
   assert.equal(r.invoiceNumber,'FVE20990001001');
   assert.equal(r.company,'CLIENT PROVA CAT');
   assert.equal(r.taxId,'00000000T');
-  assert.equal(r.cups,'ES0000000000000010AA0F');
+  assert.equal(r.cups,'ES0000000000000001AA0F');
   assert.equal(r.period,'13/10/2026 - 10/11/2026 (28 días)');
   assert.equal(r.tariff,'2.0TD');
   assert.equal(r.contract,'9101');
