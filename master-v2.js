@@ -128,7 +128,19 @@
     const merged = { ...existing };
     const identityFields = new Set(['client', 'clientTaxId', 'type', 'company', 'holder']);
 
-    const clearableFields = new Set(['clientAlias', 'supplyEmailOverride', 'supplyPhoneOverride', 'supplyBankAccountOverride', 'alias']);
+    const clearableFields = new Set([
+      'clientAlias',
+      'holderEmail',
+      'holderPhone',
+      'holderBankAccount',
+      'supplyEmailOverride',
+      'supplyPhoneOverride',
+      'supplyBankAccountOverride',
+      'effectiveEmail',
+      'effectivePhone',
+      'effectiveBankAccount',
+      'alias',
+    ]);
     for (const [field, value] of Object.entries(incoming)) {
       if (empty(value)) {
         if (!fillOnly && clearableFields.has(field)) merged[field] = '';
