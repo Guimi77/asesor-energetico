@@ -293,8 +293,11 @@
 
       const { data: aliasPayload, error: aliasError } = await supabase.rpc('get_internal_aliases');
       if (aliasError) throw aliasError;
+      const { data: contactPayload, error: contactError } = await supabase.rpc('get_internal_client_contacts');
+      if (contactError) throw contactError;
       const clientAliases = aliasPayload?.clients || {};
       const supplyAliases = aliasPayload?.supplies || {};
+      const clientContacts = contactPayload || {};
 
       const legacy = await reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies });
       if (legacy.attempted) {
@@ -320,10 +323,14 @@
         if (!holder || !client || !norm(supply.cups)) continue;
 
         const type = clientType(client);
+        const contact = clientContacts[client.id] || {};
         centralRows.push({
           client: client.name,
           clientAlias: clientAliases[client.id] || '',
           clientTaxId: client.tax_id || '',
+          clientEmail: contact.email || '',
+          clientPhone: contact.phone || '',
+          clientBankAccount: contact.bank_account || '',
           clientType: type,
           type,
           company: holder.legal_name,

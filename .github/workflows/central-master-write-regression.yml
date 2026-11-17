@@ -10,8 +10,10 @@ on:
       - 'supabase/migrations/20260925094000_central_master_writes.sql'
       - 'supabase/migrations/20261001071500_persist_client_type.sql'
       - 'supabase/migrations/20261001104000_canonical_cups_identity.sql'
+      - 'supabase/migrations/20261117113606_add_private_client_contact_details.sql'
       - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
+      - 'tests/client-contact-details.test.cjs'
       - '.github/workflows/central-master-write-regression.yml'
   pull_request:
     paths:
@@ -22,8 +24,10 @@ on:
       - 'supabase/migrations/20260925094000_central_master_writes.sql'
       - 'supabase/migrations/20261001071500_persist_client_type.sql'
       - 'supabase/migrations/20261001104000_canonical_cups_identity.sql'
+      - 'supabase/migrations/20261117113606_add_private_client_contact_details.sql'
       - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
+      - 'tests/client-contact-details.test.cjs'
       - '.github/workflows/central-master-write-regression.yml'
 
 jobs:
@@ -34,4 +38,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/central-master-write.test.cjs
+      - run: node --test tests/central-master-write.test.cjs tests/client-contact-details.test.cjs
