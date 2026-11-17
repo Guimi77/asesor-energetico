@@ -50,4 +50,5 @@ test('analysis can classify a finding as alert or discard without visiting each 
   assert.match(alerts, /state\.activeIncidentByKey/);
   assert.match(alerts, /\.update\(\{status:'dismissed',resolved_at:resolvedAt\}\)/);
   assert.match(alerts, /window\.dispatchEvent\(new CustomEvent\('ibt-alerts-changed'\)\)/);
+  assert.doesNotMatch(alerts, /knownDismissed/);
 });
