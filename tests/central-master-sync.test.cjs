@@ -484,7 +484,7 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=72ee28caabcc/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=d026c9b20528/);
   assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
