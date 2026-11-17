@@ -17,10 +17,11 @@ as $function$
 begin
   -- All existing invoice/master import paths write only current_retailer.
   -- If manually fixed, keep that choice regardless of later automatic writes.
+  if old.manual_retailer is not null and new.manual_retailer is null then
+    new.manual_retailer := old.manual_retailer;
+  end if;
   if new.manual_retailer is not null then
     new.current_retailer := new.manual_retailer;
-  elsif old.manual_retailer is not null and new.manual_retailer is not distinct from old.manual_retailer then
-    new.current_retailer := old.manual_retailer;
   end if;
   return new;
 end;
