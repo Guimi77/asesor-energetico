@@ -72,6 +72,12 @@ test('retailer is secondary metadata and remains directly editable',()=>{
   assert.doesNotMatch(clientUi,/\.supply-current-retailer\{[\s\S]{0,500}background:#eafaf7/);
 });
 
+test('Clientes hides positive holder coherence notices but keeps mismatch warnings',()=>{
+  assert.match(clientUi,/source\.querySelector\('\.db-mismatch'\)/);
+  assert.doesNotMatch(clientUi,/source\.querySelector\('\.db-mismatch,\.db-mismatch-ok'\)/);
+  assert.match(clientUi,/notice\.classList\.add\('warning'\)/);
+});
+
 test('holder contact data has an explicit visual hierarchy',()=>{
   assert.match(masterUi,/class="holder-title-main"/);
   assert.match(masterUi,/class="holder-contact-line"/);
