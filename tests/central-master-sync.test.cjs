@@ -95,7 +95,10 @@ function buildHarness(role = 'admin', options = {}) {
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
         if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
-        if (name === 'get_internal_client_contacts') return { data: options.clientContacts || {}, error: null };
+        if (name === 'get_internal_billing_profiles') return {
+          data: options.billingProfiles || { holders: {}, supplies: {}, legacy_clients: {} },
+          error: null,
+        };
 
         if (name === 'ensure_supply_from_master') {
           if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
@@ -301,29 +304,41 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.match(status.innerHTML, /caché alineada con Supabase/);
 });
 
-test('internal client contacts are merged into every supply row for that client', async () => {
+test('holder billing profile is inherited and supply override wins', async () => {
   const { window, replacements, calls } = buildHarness('admin', {
-    clientContacts: {
-      'client-maria': {
-        email: 'maria@example.com',
-        phone: '+34 600 000 001',
-        bank_account: 'CUENTA-PRUEBA-0001',
+    billingProfiles: {
+      holders: {
+        'holder-maria': {
+          email: 'titular@example.com',
+          phone: '+34 600 000 001',
+          bank_account: 'CUENTA-PRUEBA-TITULAR',
+        },
       },
+      supplies: {
+        's-maria': {
+          bank_account: 'CUENTA-PRUEBA-SUMINISTRO',
+        },
+      },
+      legacy_clients: {},
     },
   });
 
   await window.CentralSupabaseMaster.reload();
 
-  const contactCall = calls.find((call) => call.op === 'rpc' && call.name === 'get_internal_client_contacts');
-  assert.ok(contactCall, 'internal sync must load the private client contacts');
+  const billingCall = calls.find((call) => call.op === 'rpc' && call.name === 'get_internal_billing_profiles');
+  assert.ok(billingCall, 'internal sync must load private billing profiles');
   assert.equal(replacements.length, 1);
-  const mariaRows = replacements[0].filter((item) => item.client === 'CLIENTE PRUEBA DOS');
-  assert.ok(mariaRows.length >= 1);
-  for (const row of mariaRows) {
-    assert.equal(row.clientEmail, 'maria@example.com');
-    assert.equal(row.clientPhone, '+34 600 000 001');
-    assert.equal(row.clientBankAccount, 'CUENTA-PRUEBA-0001');
-  }
+
+  const maria = replacements[0].find((item) => item.supplyId === 's-maria');
+  assert.ok(maria);
+  assert.equal(maria.holderId, 'holder-maria');
+  assert.equal(maria.holderEmail, 'titular@example.com');
+  assert.equal(maria.holderPhone, '+34 600 000 001');
+  assert.equal(maria.holderBankAccount, 'CUENTA-PRUEBA-TITULAR');
+  assert.equal(maria.supplyEmailOverride, '');
+  assert.equal(maria.supplyBankAccountOverride, 'CUENTA-PRUEBA-SUMINISTRO');
+  assert.equal(maria.effectiveEmail, 'titular@example.com');
+  assert.equal(maria.effectiveBankAccount, 'CUENTA-PRUEBA-SUMINISTRO');
 });
 
 test('CUPS extensions share the same canonical supply identity', async () => {
