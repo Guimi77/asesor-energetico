@@ -53,3 +53,15 @@ test('analysis can classify a finding as alert or discard without visiting each 
   assert.match(alerts, /window\.dispatchEvent\(new CustomEvent\('ibt-alerts-changed'\)\)/);
   assert.doesNotMatch(alerts, /knownDismissed/);
 });
+
+
+test('global analysis groups findings by client while keeping per-supply actions', () => {
+  assert.match(analysis, /function groupItemsByClient\(/);
+  assert.match(analysis, /function renderAllClients\(/);
+  assert.match(analysis, /analysis-client-group/);
+  assert.match(analysis, /analysis-client-group-counts/);
+  assert.match(analysis, /group\.priority\.map\(item => card\(item,true/);
+  assert.match(analysis, /group\.other\.map\(item => card\(item,false/);
+  assert.match(analysis, /renderAllClients\(priority, other, supplyMap, holderMap, clientMap\)/);
+  assert.match(analysis, /group\.supplyIds\.size/);
+});
