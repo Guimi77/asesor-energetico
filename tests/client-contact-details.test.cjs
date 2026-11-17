@@ -53,7 +53,9 @@ test('la sincronizacion calcula dato efectivo como override o titular',()=>{
 test('los datos privados no quedan persistidos en localStorage y la cuenta se enmascara',()=>{
   assert.match(master,/holderEmail,[\s\S]*supplyBankAccountOverride,[\s\S]*effectiveBankAccount/);
   assert.match(master,/maskedBankAccount/);
-  assert.match(master,/Cuenta \$\{esc\(maskedBankAccount\(holder\.bankAccount\)\)\}/);
+  assert.match(master,/maskedBankAccount\(holder\.bankAccount\)/);
+  assert.match(master,/class="holder-contact-label">Cuenta/);
+  assert.match(master,/class="holder-contact-value"/);
 });
 
 test('base privada separa perfil de titular y excepciones de suministro',()=>{
