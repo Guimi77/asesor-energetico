@@ -99,6 +99,16 @@ function buildHarness(role = 'admin', options = {}) {
           data: options.billingProfiles || { holders: {}, supplies: {}, legacy_clients: {} },
           error: null,
         };
+        if (name === 'set_internal_supply_power_profile') {
+          const supply = datasets.supplies.find((item) => cupsKey(item.cups) === cupsKey(args.p_cups));
+          if (!supply) return { data: { ok: false, reason: 'supply_not_found' }, error: null };
+          supply.contracted_power_kw = { ...(args.p_contracted_power_kw || {}), ...(supply.contracted_power_kw || {}) };
+          if (supply.max_contractable_power_kw == null && args.p_max_contractable_power_kw != null) {
+            supply.max_contractable_power_kw = args.p_max_contractable_power_kw;
+          }
+          supply.power_profile_source = args.p_source || '';
+          return { data: { ok: true, supply_id: supply.id }, error: null };
+        }
 
         if (name === 'ensure_supply_from_master') {
           if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
