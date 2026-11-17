@@ -90,3 +90,26 @@ test('holder contact data has an explicit visual hierarchy',()=>{
   assert.match(clientUi,/\.holder-contact-label\{[\s\S]*text-transform:uppercase/);
   assert.match(clientUi,/const titleMain = \$\('\.holder-title-main', summary\)/);
 });
+
+test('supply editor is grouped and shows effective contact values instead of inheritance placeholders',()=>{
+  assert.match(html,/class="client-form client-form-organized"/);
+  assert.match(html,/Cliente y titular/);
+  assert.match(html,/Contacto y cobro/);
+  assert.match(html,/Suministro/);
+  assert.match(html,/Contrato y potencia/);
+  assert.doesNotMatch(html,/placeholder="Heredad[oa] del titular"/);
+  assert.doesNotMatch(html,/id="supplyContactInheritance"/);
+  assert.match(masterUi,/supply\.supplyEmailOverride \|\| holderDefaults\.email/);
+  assert.match(masterUi,/supply\.supplyPhoneOverride \|\| holderDefaults\.phone/);
+  assert.match(masterUi,/supply\.supplyBankAccountOverride \|\| holderDefaults\.bankAccount/);
+  assert.match(masterUi,/emailValue === holderDefaults\.email \? '' : emailValue/);
+});
+
+test('supply editor exposes periodized contracted power and max contractable power',()=>{
+  for(let p=1;p<=6;p++) assert.match(html,new RegExp(`id="supplyPowerP${p}"`));
+  assert.match(html,/id="supplyMaxContractablePower"/);
+  assert.match(masterUi,/function updatePowerPeriodVisibility\(\)/);
+  assert.match(masterUi,/powerPeriodCount/);
+  assert.match(masterUi,/set_internal_supply_power_profile/);
+  assert.match(masterUi,/contracted_exceeds_max_contractable/);
+});

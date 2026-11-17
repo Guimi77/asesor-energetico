@@ -30,14 +30,19 @@ test('editar titular usa una ficha real y no prompts para nombre o nif',()=>{
   assert.doesNotMatch(segment,/prompt\(/);
 });
 
-test('el suministro declara excepciones y puede volver a heredar del titular',()=>{
-  assert.match(index,/Datos de cobro\/contacto de este suministro/);
-  assert.match(index,/Correo distinto al titular/);
-  assert.match(index,/Teléfono distinto al titular/);
-  assert.match(index,/Cuenta \/ IBAN distinta al titular/);
+test('el suministro muestra los datos efectivos y guarda solo excepciones respecto al titular',()=>{
+  assert.match(index,/Contacto y cobro/);
+  assert.match(index,/Correo electrónico/);
+  assert.match(index,/Teléfono de contacto/);
+  assert.match(index,/Cuenta \/ IBAN/);
   assert.match(index,/id="clearSupplyContactOverrides"/);
+  assert.doesNotMatch(index,/Heredad[oa] del titular/);
+  assert.doesNotMatch(index,/supplyContactInheritance/);
+  assert.match(master,/supply\.supplyEmailOverride \|\| holderDefaults\.email/);
+  assert.match(master,/supply\.supplyPhoneOverride \|\| holderDefaults\.phone/);
+  assert.match(master,/supply\.supplyBankAccountOverride \|\| holderDefaults\.bankAccount/);
+  assert.match(master,/emailValue === holderDefaults\.email \? '' : emailValue/);
   assert.match(master,/set_internal_supply_contact_overrides/);
-  assert.match(master,/Usar datos del titular|usará los datos del titular/);
 });
 
 test('la sincronizacion calcula dato efectivo como override o titular',()=>{

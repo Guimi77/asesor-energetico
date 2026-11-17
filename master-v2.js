@@ -44,6 +44,25 @@
     const compact = norm(value).replace(/\s+/g, '');
     return compact ? `•••• ${compact.slice(-4)}` : '';
   };
+  const kwValue = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    const parsed = Number(String(value).replace(',', '.'));
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : '';
+  };
+  const contractedPowerObject = (supply = {}) => {
+    const out = {};
+    for (let p = 1; p <= 6; p += 1) {
+      const value = kwValue(supply[`p${p}`] ?? supply.contractedPower?.[`P${p}`]);
+      if (value !== '') out[`P${p}`] = value;
+    }
+    return out;
+  };
+  const powerPeriodCount = (tariff = '') => /^(?:3\.0TD|6\.[1-4]TD)$/i.test(norm(tariff)) ? 6 : 2;
+  const holderDefaultsFor = (supply = {}) => ({
+    email: norm(supply.holderEmail),
+    phone: norm(supply.holderPhone),
+    bankAccount: norm(supply.holderBankAccount),
+  });
 
   function show(name) {
     document.querySelectorAll('.app-view').forEach((view) => view.classList.add('hidden'));
@@ -113,6 +132,14 @@
       effectiveEmail: norm(raw.effectiveEmail),
       effectivePhone: norm(raw.effectivePhone),
       effectiveBankAccount: norm(raw.effectiveBankAccount),
+      p1: kwValue(raw.p1 ?? raw.contractedPower?.P1),
+      p2: kwValue(raw.p2 ?? raw.contractedPower?.P2),
+      p3: kwValue(raw.p3 ?? raw.contractedPower?.P3),
+      p4: kwValue(raw.p4 ?? raw.contractedPower?.P4),
+      p5: kwValue(raw.p5 ?? raw.contractedPower?.P5),
+      p6: kwValue(raw.p6 ?? raw.contractedPower?.P6),
+      maxContractablePower: kwValue(raw.maxContractablePower ?? raw.max_contractable_power_kw),
+      powerProfileSource: norm(raw.powerProfileSource ?? raw.power_profile_source),
       company,
       holder: norm(raw.holder) || company,
       status: norm(raw.status) || 'ACTIVO',
@@ -601,6 +628,7 @@
         return result;
       },
       learnInvoice,
+      persistPowerProfile,
       removeLocal,
       replaceActiveFromCentral,
       archiveLocal,
@@ -653,6 +681,7 @@
           p4: pick(row, ['Potencia Contratada P4 (kW)', 'P4 KW']),
           p5: pick(row, ['Potencia Contratada P5 (kW)', 'P5 KW']),
           p6: pick(row, ['Potencia Contratada P6 (kW)', 'P6 KW']),
+          maxContractablePower: pick(row, ['Potencia Máxima Contratable (kW)', 'POTENCIA MAXIMA CONTRATABLE', 'MAX CONTRATABLE KW']),
           product: pick(row, ['Producto']),
           renewalDate: pick(row, ['Fecha Renovación']),
           status: pick(row, ['Estado']) || 'ACTIVO',
@@ -676,19 +705,10 @@
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
     const sameLegalIdentity = key(supply.client) === key(supply.holder || supply.company);
     $('#clientTaxId').value = supply.clientTaxId || (sameLegalIdentity ? (supply.holderTaxId || '') : '');
-    $('#clientEmail').value = supply.supplyEmailOverride || '';
-    $('#clientPhone').value = supply.supplyPhoneOverride || '';
-    $('#clientBankAccount').value = supply.supplyBankAccountOverride || '';
-    const inherited = [
-      supply.holderEmail ? `correo ${supply.holderEmail}` : '',
-      supply.holderPhone ? `tel. ${supply.holderPhone}` : '',
-      supply.holderBankAccount ? `cuenta ${maskedBankAccount(supply.holderBankAccount)}` : '',
-    ].filter(Boolean);
-    if ($('#supplyContactInheritance')) {
-      $('#supplyContactInheritance').textContent = inherited.length
-        ? `Hereda del titular: ${inherited.join(' · ')}. Rellena solo lo distinto.`
-        : 'El titular todavía no tiene datos de contacto/cobro. Rellena aquí solo si este suministro debe usar datos propios.';
-    }
+    const holderDefaults = holderDefaultsFor(supply);
+    $('#clientEmail').value = supply.supplyEmailOverride || holderDefaults.email || '';
+    $('#clientPhone').value = supply.supplyPhoneOverride || holderDefaults.phone || '';
+    $('#clientBankAccount').value = supply.supplyBankAccountOverride || holderDefaults.bankAccount || '';
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
     if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
@@ -698,6 +718,12 @@
     $('#supplyProvince').value = supply.province || '';
     $('#supplyTariff').value = supply.tariff || '';
     $('#supplyContract').value = supply.contract || '';
+    for (let p = 1; p <= 6; p += 1) {
+      const input = $(`#supplyPowerP${p}`);
+      if (input) input.value = supply[`p${p}`] === '' || supply[`p${p}`] == null ? '' : supply[`p${p}`];
+    }
+    $('#supplyMaxContractablePower').value = supply.maxContractablePower === '' || supply.maxContractablePower == null ? '' : supply.maxContractablePower;
+    updatePowerPeriodVisibility();
     $('#supplyRetailer').value = supply.retailer || '';
     $('#supplyRetailerSource').textContent = supply.manualRetailer
       ? 'Fijada manualmente. Las facturas no modificarán este valor.'
@@ -719,16 +745,21 @@
       $('#clientType').value = existing.type || 'PENDIENTE';
       $('#clientTaxId').value = existing.clientTaxId || '';
       if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
-      $('#clientEmail').value = '';
-      $('#clientPhone').value = '';
-      $('#clientBankAccount').value = '';
-      if ($('#supplyContactInheritance')) $('#supplyContactInheritance').textContent = 'El suministro heredará los datos del titular salvo que indiques una excepción.';
-      $('#holderName').value = blankHolder ? '' : (holder || existing.holder || existing.company || client);
+      const targetHolder = blankHolder ? '' : (holder || existing.holder || existing.company || client);
+      const holderSupply = blankHolder
+        ? {}
+        : (supplies.find((supply) => key(supply.client) === key(client) && key(supply.holder || supply.company) === key(targetHolder)) || existing);
+      const holderDefaults = holderDefaultsFor(holderSupply);
+      $('#clientEmail').value = holderDefaults.email;
+      $('#clientPhone').value = holderDefaults.phone;
+      $('#clientBankAccount').value = holderDefaults.bankAccount;
+      $('#holderName').value = targetHolder;
     } else {
       $('#clientName').value = client;
       $('#holderName').value = holder;
     }
 
+    updatePowerPeriodVisibility();
     editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('#clientName').focus();
   }
@@ -750,6 +781,41 @@
     $('#clientEditor').classList.add('hidden');
     $('#clientForm').reset();
     $('#clientFormMsg').textContent = '';
+  }
+
+  function updatePowerPeriodVisibility() {
+    const count = powerPeriodCount($('#supplyTariff')?.value || '');
+    document.querySelectorAll('[data-power-period]').forEach((label) => {
+      const period = Number(String(label.dataset.powerPeriod || '').replace('P', ''));
+      label.hidden = period > count;
+    });
+    const hint = $('#contractedPowerHint');
+    if (hint) hint.textContent = count === 6
+      ? 'Tarifa con seis periodos de potencia: P1-P6.'
+      : 'Tarifa 2.0TD: potencia contratada P1 y P2.';
+  }
+
+  async function persistPowerProfile(cups, supply, { mode = 'manual', source = 'manual' } = {}) {
+    const supabase = window.ibtSupabase;
+    const role = window.ibtCurrentProfile?.role;
+    if (!supabase || !['admin', 'staff'].includes(role)) return { ok: false, reason: 'not_authorized' };
+    const contracted = contractedPowerObject(supply);
+    const maxValue = kwValue(supply.maxContractablePower);
+    try {
+      const { data, error } = await supabase.rpc('set_internal_supply_power_profile', {
+        p_cups: cups || null,
+        p_contracted_power_kw: contracted,
+        p_max_contractable_power_kw: maxValue === '' ? null : maxValue,
+        p_mode: mode,
+        p_source: source,
+      });
+      if (error) throw error;
+      if (!data?.ok) return { ok: false, reason: data?.reason || 'power_profile_write_rejected', data };
+      return { ok: true, data };
+    } catch (error) {
+      console.warn('No se pudo guardar el perfil de potencia del suministro', error);
+      return { ok: false, reason: 'power_profile_write_failed', error };
+    }
   }
 
   async function persistSupplyOverrides(supplyId, supply) {
@@ -858,11 +924,17 @@
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
+    $('#supplyTariff').addEventListener('input', updatePowerPeriodVisibility);
+    $('#supplyTariff').addEventListener('change', updatePowerPeriodVisibility);
     $('#clearSupplyContactOverrides').onclick = () => {
-      $('#clientEmail').value = '';
-      $('#clientPhone').value = '';
-      $('#clientBankAccount').value = '';
-      $('#clientFormMsg').textContent = 'Este suministro usará los datos del titular.';
+      const current = editingCups
+        ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
+        : supplies.find((supply) => key(supply.client) === key($('#clientName').value) && key(supply.holder || supply.company) === key($('#holderName').value));
+      const holderDefaults = holderDefaultsFor(current || {});
+      $('#clientEmail').value = holderDefaults.email;
+      $('#clientPhone').value = holderDefaults.phone;
+      $('#clientBankAccount').value = holderDefaults.bankAccount;
+      $('#clientFormMsg').textContent = 'Se usarán los datos actuales del titular.';
     };
 
     $('#clientForm').onsubmit = async (event) => {
@@ -891,13 +963,22 @@
         return;
       }
 
+      const inheritedSupply = existingBefore || supplies.find((supply) =>
+        key(supply.client) === key(client) &&
+        key(supply.holder || supply.company) === key($('#holderName').value || client)
+      ) || {};
+      const holderDefaults = holderDefaultsFor(inheritedSupply);
+      const emailValue = norm($('#clientEmail').value);
+      const phoneValue = norm($('#clientPhone').value);
+      const bankValue = norm($('#clientBankAccount').value);
+      const visiblePowerPeriods = powerPeriodCount($('#supplyTariff').value);
       const data = {
         client,
         clientTaxId: $('#clientTaxId').value,
         clientAlias: $('#clientAlias')?.value || '',
-        supplyEmailOverride: $('#clientEmail').value,
-        supplyPhoneOverride: $('#clientPhone').value,
-        supplyBankAccountOverride: $('#clientBankAccount').value,
+        supplyEmailOverride: emailValue === holderDefaults.email ? '' : emailValue,
+        supplyPhoneOverride: phoneValue === holderDefaults.phone ? '' : phoneValue,
+        supplyBankAccountOverride: bankValue === holderDefaults.bankAccount ? '' : bankValue,
         clientType: $('#clientType').value,
         company: $('#holderName').value || client,
         holder: $('#holderName').value || client,
@@ -909,6 +990,13 @@
         province: $('#supplyProvince').value,
         tariff: $('#supplyTariff').value,
         contract: $('#supplyContract').value,
+        p1: kwValue($('#supplyPowerP1').value),
+        p2: kwValue($('#supplyPowerP2').value),
+        p3: visiblePowerPeriods >= 3 ? kwValue($('#supplyPowerP3').value) : '',
+        p4: visiblePowerPeriods >= 4 ? kwValue($('#supplyPowerP4').value) : '',
+        p5: visiblePowerPeriods >= 5 ? kwValue($('#supplyPowerP5').value) : '',
+        p6: visiblePowerPeriods >= 6 ? kwValue($('#supplyPowerP6').value) : '',
+        maxContractablePower: kwValue($('#supplyMaxContractablePower').value),
         retailer: existingBefore?.retailer || '',
         manualRetailer: existingBefore?.manualRetailer || '',
         status: 'ACTIVO',
@@ -925,6 +1013,18 @@
 
       if (!centralSave.ok) {
         $('#clientFormMsg').textContent = centralWriteMessage(centralSave.reason);
+        return;
+      }
+
+      const powerSave = await persistPowerProfile(cups, data, { mode: 'manual', source: 'manual' });
+      if (!powerSave.ok) {
+        const powerMessages = {
+          contracted_exceeds_max_contractable: 'La potencia contratada no puede superar la potencia máxima contratable.',
+          invalid_contracted_power: 'Revisa las potencias contratadas.',
+          invalid_max_contractable_power: 'Revisa la potencia máxima contratable.',
+        };
+        $('#clientFormMsg').textContent = powerMessages[powerSave.reason] || 'Los datos principales se han guardado, pero NO el perfil de potencia.';
+        await window.CentralSupabaseMaster?.reload?.();
         return;
       }
 
@@ -1027,6 +1127,12 @@
         for (const supply of parsed) {
           const centralSave = await persistCentralSupply(supply, { mode: 'fill_only' });
           if (!centralSave.ok) {
+            blocked += 1;
+            continue;
+          }
+
+          const powerSave = await persistPowerProfile(supply.cups, supply, { mode: 'fill_only', source: 'import' });
+          if (!powerSave.ok) {
             blocked += 1;
             continue;
           }

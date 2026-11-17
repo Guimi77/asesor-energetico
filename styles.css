@@ -26,3 +26,33 @@ body{background:var(--bt-bg)}
 .search-box:focus,.db-admin-search:focus,input[type="search"]:focus,input[id$="Search"]:focus,input[id*="Search"]:focus{border-color:var(--bt-teal)!important;box-shadow:0 0 0 3px rgba(0,155,145,.10)!important}
 .language-switcher label{box-shadow:0 5px 18px rgba(23,33,38,.10)}
 .company-logo{filter:none}
+
+/* Supply editor hierarchy 2026-11-17 */
+.client-form-organized{display:block!important;padding:2px 20px 20px!important}
+.client-form-section{padding:16px 0;border-top:1px solid #e8edf3}
+.client-form-section:first-child{border-top:0;padding-top:4px}
+.client-form-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.client-form-section-head>div{display:grid;gap:2px}
+.client-form-section-head strong{font-size:.78rem;color:#25384a}
+.client-form-section-head small{font-size:.62rem;color:#8391a1}
+.client-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}
+.client-form-grid .span-2{grid-column:span 2}
+.client-form-organized .compact-action{margin:0;padding:6px 9px;font-size:.64rem}
+.power-profile-field{display:grid;gap:6px}
+.field-label{font-size:.72rem;font-weight:800;color:#52657b}
+.power-period-grid{display:grid;grid-template-columns:repeat(6,minmax(70px,1fr));gap:7px}
+.power-period-grid label{font-size:.62rem;color:#718096}
+.power-period-grid input{margin-top:4px!important;padding:9px 8px!important}
+.power-period-grid [hidden]{display:none!important}
+.power-profile-field>small{font-size:.6rem;color:#8795a6}
+.client-form-organized .form-actions{margin-top:2px}
+@media(max-width:1180px){
+  .client-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .power-period-grid{grid-template-columns:repeat(3,minmax(70px,1fr))}
+}
+@media(max-width:760px){
+  .client-form-grid{grid-template-columns:1fr}
+  .client-form-grid .span-2{grid-column:auto}
+  .client-form-section-head{align-items:flex-start;flex-direction:column}
+  .power-period-grid{grid-template-columns:repeat(2,minmax(70px,1fr))}
+}
