@@ -28,10 +28,10 @@ test('power profile RPC is internal-only and fail-closed',()=>{
 });
 
 test('2.0 and 3.0/6.x power fields are represented without collapsing periods',()=>{
-  for(let p=1;p<=6;p++){
-    assert.match(index,new RegExp(`id="supplyPowerP${p}"`));
-    assert.match(master,new RegExp(`p${p}: kwValue\\(\\$\\('#supplyPowerP${p}'\\)\\.value\\)`));
-  }
+  for(let p=1;p<=6;p++) assert.match(index,new RegExp(`id="supplyPowerP${p}"`));
+  assert.match(master,/p1: kwValue\(\$\('#supplyPowerP1'\)\.value\)/);
+  assert.match(master,/p2: kwValue\(\$\('#supplyPowerP2'\)\.value\)/);
+  for(let p=3;p<=6;p++) assert.match(master,new RegExp(`p${p}: visiblePowerPeriods >= ${p} \\? kwValue\\(\\$\\('#supplyPowerP${p}'\\)\\.value\\) : ''`));
   assert.match(master,/powerPeriodCount = \(tariff = ''\) => \/\^\(\?:3\\\.0TD\|6\\\.\[1-4\]TD\)\$\/i\.test/);
   assert.match(master,/Tarifa con seis periodos de potencia: P1-P6/);
   assert.match(master,/Tarifa 2\.0TD: potencia contratada P1 y P2/);
