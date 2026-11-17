@@ -968,6 +968,7 @@
       const emailValue = norm($('#clientEmail').value);
       const phoneValue = norm($('#clientPhone').value);
       const bankValue = norm($('#clientBankAccount').value);
+      const visiblePowerPeriods = powerPeriodCount($('#supplyTariff').value);
       const data = {
         client,
         clientTaxId: $('#clientTaxId').value,
@@ -988,10 +989,10 @@
         contract: $('#supplyContract').value,
         p1: kwValue($('#supplyPowerP1').value),
         p2: kwValue($('#supplyPowerP2').value),
-        p3: kwValue($('#supplyPowerP3').value),
-        p4: kwValue($('#supplyPowerP4').value),
-        p5: kwValue($('#supplyPowerP5').value),
-        p6: kwValue($('#supplyPowerP6').value),
+        p3: visiblePowerPeriods >= 3 ? kwValue($('#supplyPowerP3').value) : '',
+        p4: visiblePowerPeriods >= 4 ? kwValue($('#supplyPowerP4').value) : '',
+        p5: visiblePowerPeriods >= 5 ? kwValue($('#supplyPowerP5').value) : '',
+        p6: visiblePowerPeriods >= 6 ? kwValue($('#supplyPowerP6').value) : '',
         maxContractablePower: kwValue($('#supplyMaxContractablePower').value),
         retailer: existingBefore?.retailer || '',
         manualRetailer: existingBefore?.manualRetailer || '',
