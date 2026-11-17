@@ -296,6 +296,9 @@ async function inspect(file) {
   let powerProfile = { ok: true, skipped: true };
   if (result?.ok !== false && typeof master.persistPowerProfile === 'function') {
     powerProfile = await master.persistPowerProfile(data.cups, data, { mode: 'fill_only', source: 'invoice' });
+    if (powerProfile?.reason === 'supply_not_found') {
+      powerProfile = { ok: true, skipped: true, reason: 'pending_central_supply' };
+    }
   }
   return { read: true, changed: Boolean(result?.enriched), result, data, powerProfile };
 }
