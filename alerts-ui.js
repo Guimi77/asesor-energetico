@@ -22,7 +22,6 @@
     status: 'active',
     loading: false,
     knownActive: new Set(),
-    knownDismissed: new Set(),
     activeIncidentByKey: new Map(),
     supplyByCups: new Map(),
   };
@@ -124,7 +123,6 @@
     state.incidents = incidents || [];
     state.supplyByCups = new Map(state.supplies.map(s => [cupsKey(s.cups_key || s.cups), s]));
     state.knownActive = new Set(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => `${i.supply_id}|${i.title}`));
-    state.knownDismissed = new Set(state.incidents.filter(i => i.status === 'dismissed').map(i => `${i.supply_id}|${i.title}`));
     state.activeIncidentByKey = new Map(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => [`${i.supply_id}|${i.title}`, i]));
   }
 
@@ -202,7 +200,6 @@
     const incident = state.incidents.find(i => i.id === id);
     if (incident) { incident.status = status; incident.resolved_at = resolvedAt; }
     state.knownActive = new Set(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => `${i.supply_id}|${i.title}`));
-    state.knownDismissed = new Set(state.incidents.filter(i => i.status === 'dismissed').map(i => `${i.supply_id}|${i.title}`));
     state.activeIncidentByKey = new Map(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => [`${i.supply_id}|${i.title}`, i]));
     render();
     decorateAnalysis();
@@ -237,12 +234,6 @@
       button.disabled = true;
       return;
     }
-    if (status === 'dismissed' && state.knownDismissed.has(key) && !state.knownActive.has(key)) {
-      button.textContent = 'Descartado ✓';
-      button.disabled = true;
-      return;
-    }
-
     const resolvedAt = status === 'dismissed' ? new Date().toISOString() : null;
     const description = [payload.summary, payload.review ? `Qué revisar: ${payload.review}` : ''].filter(Boolean).join('\n');
     button.disabled = true;
@@ -287,14 +278,12 @@
     if (status === 'dismissed') {
       state.knownActive.delete(key);
       state.activeIncidentByKey.delete(key);
-      state.knownDismissed.add(key);
       button.textContent = 'Descartado ✓';
       const addButton = $('.analysis-add-alert', card);
       if (addButton) addButton.disabled = true;
     } else {
       state.knownActive.add(key);
       state.activeIncidentByKey.set(key, data);
-      state.knownDismissed.delete(key);
       button.textContent = 'En Alertas ✓';
     }
     button.disabled = true;
@@ -324,18 +313,12 @@
         if (key && state.knownActive.has(key)) {
           addButton.textContent = 'En Alertas ✓';
           addButton.disabled = true;
-        } else if (key && state.knownDismissed.has(key)) {
-          addButton.disabled = true;
         }
         addButton.addEventListener('click', () => saveAnalysisDecision(card, addButton, 'open'));
       }
 
       if (dismissButton && dismissButton.dataset.bound !== '1') {
         dismissButton.dataset.bound = '1';
-        if (key && state.knownDismissed.has(key) && !state.knownActive.has(key)) {
-          dismissButton.textContent = 'Descartado ✓';
-          dismissButton.disabled = true;
-        }
         dismissButton.addEventListener('click', () => saveAnalysisDecision(card, dismissButton, 'dismissed'));
       }
     });
