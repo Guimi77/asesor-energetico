@@ -169,7 +169,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const loadAnalysisUi=()=>{
     if(document.querySelector('script[data-analysis-ui]')){loadAlertsUi();return;}
     const script=document.createElement('script');
-    script.src='analysis-ui.js?v=29012279f0bb';
+    script.src='analysis-ui.js?v=7841cbcf4865';
     script.dataset.analysisUi='1';
     script.onload=()=>{
       loadAlertsUi();
