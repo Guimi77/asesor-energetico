@@ -56,7 +56,7 @@
     if (!holderIds.length) return [];
     const { data, error } = await supabase
       .from('supplies')
-      .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,manual_retailer,current_distributor,status')
+      .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,manual_retailer,current_distributor,contracted_power_kw,max_contractable_power_kw,power_profile_source,status')
       .in('holder_id', holderIds)
       .eq('status', 'active')
       .order('cups');
@@ -228,6 +228,29 @@
           continue;
         }
 
+        const contracted = {};
+        for (let p = 1; p <= 6; p += 1) {
+          const raw = row[`p${p}`];
+          const value = raw === '' || raw == null ? null : Number(String(raw).replace(',', '.'));
+          if (Number.isFinite(value) && value >= 0) contracted[`P${p}`] = value;
+        }
+        const maxValueRaw = row.maxContractablePower;
+        const maxValue = maxValueRaw === '' || maxValueRaw == null ? null : Number(String(maxValueRaw).replace(',', '.'));
+        if (Object.keys(contracted).length || Number.isFinite(maxValue)) {
+          const { data: powerData, error: powerError } = await supabase.rpc('set_internal_supply_power_profile', {
+            p_cups: row.cups,
+            p_contracted_power_kw: contracted,
+            p_max_contractable_power_kw: Number.isFinite(maxValue) ? maxValue : null,
+            p_mode: 'fill_only',
+            p_source: 'legacy',
+          });
+          if (powerError || !powerData?.ok) {
+            failed += 1;
+            pendingDetails[key] = powerData?.reason || 'power_profile_write_failed';
+            continue;
+          }
+        }
+
         centralKeys.add(key);
         if (data.mode === 'inserted') migrated += 1;
       } catch (error) {
@@ -360,6 +383,14 @@
           retailer: supply.current_retailer || '',
           manualRetailer: supply.manual_retailer || '',
           distributor: supply.current_distributor || '',
+          p1: supply.contracted_power_kw?.P1 ?? '',
+          p2: supply.contracted_power_kw?.P2 ?? '',
+          p3: supply.contracted_power_kw?.P3 ?? '',
+          p4: supply.contracted_power_kw?.P4 ?? '',
+          p5: supply.contracted_power_kw?.P5 ?? '',
+          p6: supply.contracted_power_kw?.P6 ?? '',
+          maxContractablePower: supply.max_contractable_power_kw ?? '',
+          powerProfileSource: supply.power_profile_source || '',
           status: 'ACTIVO',
           source: 'Supabase · Base central',
         });
