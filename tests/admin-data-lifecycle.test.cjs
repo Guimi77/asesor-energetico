@@ -161,7 +161,7 @@ test('edge holder lifecycle is routed through the audited SQL function', () => {
 });
 
 test('holder admin browser cache marker matches the new lifecycle UI', () => {
-  assert.match(auth, /admin-data-management\.js\?v=0e1c3e21ccd0/);
+  assert.match(auth, /admin-data-management\.js\?v=45177f2cde19/);
 });
 
 
