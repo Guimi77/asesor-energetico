@@ -421,6 +421,18 @@
         font-size:.62rem;
         font-weight:700;
       }
+      .supply-current-retailer{
+        display:block;
+        margin-top:3px;
+        color:#334155;
+        font-size:.66rem;
+        line-height:1.25;
+        font-weight:600;
+      }
+      .supply-current-retailer-label{
+        color:#718096;
+        font-weight:700;
+      }
       .integrated-holder-notice.warning{color:#9a5b00}
       .integrated-holder-notice.ok{color:#237a45}
       .holder-supply-actions .integrated-holder-change{
