@@ -164,3 +164,16 @@ test('CUPS identity ignores the optional trailing extension everywhere', () => {
   assert.match(cupsIdentityMigration, /create unique index if not exists supplies_canonical_cups_identity_unique/i);
   assert.match(cupsIdentityMigration, /canonical_cups_identity_conflict/);
 });
+
+test('manual retailer is audited and cannot be overwritten by later invoices or imports', () => {
+  const sql = fs.readFileSync(path.join(root,'supabase','migrations','20261117110000_manual_supply_retailer.sql'),'utf8');
+  assert.match(sql,/add column if not exists manual_retailer text/);
+  assert.match(sql,/create trigger trg_supplies_manual_retailer/i);
+  assert.match(sql,/new\.current_retailer := new\.manual_retailer;/);
+  assert.match(sql,/private\.is_internal_user\(\)/);
+  assert.match(sql,/set_supply_retailer_manual\(p_cups text, p_retailer text\)/);
+  assert.match(sql,/supply_retailer_fixed_manually/);
+  assert.match(master,/supabase\.rpc\('set_supply_retailer_manual'/);
+  assert.match(master,/if \(manualError \|\| !manualResult\?\.ok\)/);
+  assert.match(pilot,/manualRetailer: supply\.manual_retailer \|\| ''/);
+});
