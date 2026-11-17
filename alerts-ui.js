@@ -34,7 +34,7 @@
     const style = document.createElement('style');
     style.id = 'alertsUiStyles';
     style.textContent = `
-      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.analysis-add-alert,.analysis-dismiss{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled],.analysis-dismiss[disabled]{opacity:.72;cursor:default}.analysis-dismiss:not([disabled]){color:#6f3b1f;border-color:#d8c3b4;background:#fffaf6}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
+      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.analysis-add-alert,.analysis-dismiss,.analysis-history-link{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled],.analysis-dismiss[disabled],.analysis-history-link[disabled]{opacity:.72;cursor:default}.analysis-dismiss:not([disabled]){color:#6f3b1f;border-color:#d8c3b4;background:#fffaf6}.analysis-history-link{color:#1834b8;border-color:#cbd4ff;background:#f7f8ff}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -290,6 +290,38 @@
     window.dispatchEvent(new CustomEvent('ibt-alerts-changed'));
   }
 
+  async function openAnalysisHistory(card, button) {
+    if (!isInternal()) return;
+    const supply = state.supplies.find(item => item.id === card.dataset.supplyId);
+    const holder = state.holders.find(item => item.id === supply?.holder_id);
+    const clientId = holder?.client_id || '';
+    if (!supply?.id || !clientId) {
+      button.textContent = 'Histórico no disponible';
+      button.disabled = true;
+      return;
+    }
+
+    const nav = document.querySelector('.sidebar nav a[data-view="historico"]');
+    nav?.click();
+
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = 'Abriendo histórico…';
+    try {
+      if (typeof window.IBTHistoryUI?.focusSupply === 'function') {
+        const result = await window.IBTHistoryUI.focusSupply(clientId, supply.id);
+        if (result?.ok === false) throw new Error(result.reason || 'history_focus_failed');
+      } else {
+        window.dispatchEvent(new CustomEvent('ibt-history-focus', { detail:{ clientId, supplyId:supply.id } }));
+      }
+    } catch (error) {
+      console.error('No se pudo abrir el histórico desde Análisis', error);
+      button.disabled = false;
+      button.textContent = original;
+      alert('No se pudo abrir el histórico de este suministro.');
+    }
+  }
+
   function decorateAnalysis() {
     if (!isInternal()) return;
     const host = $('#analysisContent');
@@ -299,11 +331,12 @@
       if (!actions) {
         actions = document.createElement('div');
         actions.className = 'analysis-alert-actions';
-        actions.innerHTML = '<button type="button" class="secondary analysis-add-alert">Añadir a Alertas</button><button type="button" class="secondary analysis-dismiss">Descartar</button>';
+        actions.innerHTML = '<button type="button" class="secondary analysis-add-alert">Añadir a Alertas</button><button type="button" class="secondary analysis-dismiss">Descartar</button><button type="button" class="secondary analysis-history-link">Ver histórico</button>';
         card.appendChild(actions);
       }
       const addButton = $('.analysis-add-alert', actions);
       const dismissButton = $('.analysis-dismiss', actions);
+      const historyButton = $('.analysis-history-link', actions);
       const payload = extractCardPayload(card);
       const supply = state.supplies.find(s => s.id === card.dataset.supplyId) || state.supplyByCups.get(cupsKey(payload.cups));
       const key = supply ? `${supply.id}|${payload.title}` : '';
@@ -320,6 +353,11 @@
       if (dismissButton && dismissButton.dataset.bound !== '1') {
         dismissButton.dataset.bound = '1';
         dismissButton.addEventListener('click', () => saveAnalysisDecision(card, dismissButton, 'dismissed'));
+      }
+
+      if (historyButton && historyButton.dataset.bound !== '1') {
+        historyButton.dataset.bound = '1';
+        historyButton.addEventListener('click', () => void openAnalysisHistory(card, historyButton));
       }
     });
   }

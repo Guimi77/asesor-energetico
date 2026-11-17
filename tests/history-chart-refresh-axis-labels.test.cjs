@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const ui = fs.readFileSync('history-ui.js', 'utf8');
-const marker = 'window.IBTHistoryUI = { reload: refreshRecords };';
+const marker = 'window.IBTHistoryUI = { reload: refreshRecords, focusSupply };';
 assert(ui.includes(marker), 'history test export boundary must exist');
 const ctx = { window: { addEventListener() {} }, document: {}, console };
 vm.createContext(ctx);

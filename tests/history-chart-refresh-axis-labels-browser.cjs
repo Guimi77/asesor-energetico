@@ -11,7 +11,7 @@ async function main() {
     await page.route('**/*', route => route.abort());
     await page.setContent('<style>body{font-family:Arial,sans-serif}</style><div id="historyContent"></div>');
     const source = fs.readFileSync('history-ui.js', 'utf8');
-    const marker = 'window.IBTHistoryUI = { reload: refreshRecords };';
+    const marker = 'window.IBTHistoryUI = { reload: refreshRecords, focusSupply };';
     assert(source.includes(marker));
     await page.addScriptTag({ content: source.replace(marker,
       'window.testCharts = { svgChart, svgCostChart, chartSeries, injectStyles };') });
