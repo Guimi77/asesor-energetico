@@ -956,6 +956,50 @@
     $('#historyTo')?.addEventListener('change', refreshRecords);
   }
 
+  async function focusSupply(clientId, supplyId) {
+    const profile = window.ibtCurrentProfile;
+    if (!profile || !window.ibtSupabase || !clientId || !supplyId) return { ok:false, reason:'invalid_target' };
+    injectStyles();
+    shell();
+    state.role = profile.role;
+    state.scopeLoading = true;
+    state.loadedScope = null;
+    updateExportButton();
+    try {
+      if (!state.clients.length || !state.clients.some(client => client.id === clientId)) {
+        state.clients = await getClients();
+      }
+      if (!state.clients.some(client => client.id === clientId)) return { ok:false, reason:'client_not_accessible' };
+
+      state.currentClient = clientId;
+      state.selectedHolders = [];
+      state.selectedSupplies = [];
+      renderClientControl();
+      await loadClientScope(clientId);
+
+      const supply = state.supplies.find(item => item.id === supplyId);
+      if (!supply) return { ok:false, reason:'supply_not_accessible' };
+
+      state.selectedSupplies = [supplyId];
+      renderHolderOptions();
+      renderSupplyOptions();
+      if (!state.initialized) { bindFilters(); state.initialized = true; }
+      state.scopeLoading = false;
+      await refreshRecords();
+
+      $('#historicoView')?.scrollIntoView({ behavior:'smooth', block:'start' });
+      return { ok:true, clientId, supplyId };
+    } catch (error) {
+      console.error('No se pudo abrir el histórico del suministro', error);
+      const host = $('#historyContent');
+      if (host) host.innerHTML = `<div class="history-error">No se pudo abrir el histórico del suministro: ${esc(error?.message || error)}</div>`;
+      return { ok:false, reason:'history_focus_failed', error };
+    } finally {
+      state.scopeLoading = false;
+      updateExportButton();
+    }
+  }
+
   async function init(profile) {
     if (!profile || !window.ibtSupabase) return;
     injectStyles();
@@ -985,6 +1029,11 @@
 
   window.addEventListener('ibt-role-changed', e => init(e.detail?.profile));
   window.addEventListener('xtra-history-saved', () => refreshRecords());
+  window.addEventListener('ibt-history-focus', event => {
+    const clientId = event.detail?.clientId || '';
+    const supplyId = event.detail?.supplyId || '';
+    void focusSupply(clientId, supplyId);
+  });
   window.addEventListener('xtra-history-updated', () => {
     if (window.ibtCurrentProfile) void init(window.ibtCurrentProfile);
   });
@@ -992,5 +1041,5 @@
     if (window.ibtCurrentProfile) init(window.ibtCurrentProfile);
   });
 
-  window.IBTHistoryUI = { reload: refreshRecords };
+  window.IBTHistoryUI = { reload: refreshRecords, focusSupply };
 })();
