@@ -118,7 +118,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 
 test('browser cache markers force the central-authoritative code', () => {
   assert.match(index, /master-v2\.js\?v=c1df1e95cf47/);
-  assert.match(index, /client-archive-integrated\.js\?v=fd8a38fa5c4a/);
+  assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   assert.match(index, /auth-bootstrap\.js\?v=0fda3a88c44c/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=72ee28caabcc/);
 });
