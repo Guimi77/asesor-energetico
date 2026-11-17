@@ -142,7 +142,7 @@
       if (!source) return;
 
       const info = row.querySelector(':scope > div:first-child');
-      const sourceNotice = source.querySelector('.db-mismatch,.db-mismatch-ok');
+      const sourceNotice = source.querySelector('.db-mismatch');
       let notice = $('.integrated-holder-notice', row);
       if (sourceNotice) {
         if (!notice) {
@@ -152,8 +152,8 @@
         }
         const nextNotice = sourceNotice.textContent || '';
         if (notice.textContent !== nextNotice) notice.textContent = nextNotice;
-        notice.classList.toggle('warning', sourceNotice.classList.contains('db-mismatch'));
-        notice.classList.toggle('ok', sourceNotice.classList.contains('db-mismatch-ok'));
+        notice.classList.add('warning');
+        notice.classList.remove('ok');
       } else {
         notice?.remove();
       }
