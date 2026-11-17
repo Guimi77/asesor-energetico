@@ -162,7 +162,7 @@
 
   function parseFinancials(pages,tariff){
     const text=pages.flat().join('\n');
-    const printedPower=lineAmount(text,/^(?:T(?:e|\u00e9)rmino\s+de\s+Potencia|Terme\s+de\s+Pot(?:e|\u00e8)ncia)\s+Contratada\b/i);
+    const printedPower=lineAmount(text,/^(?:T(?:e|\u00e9)rmino\s+de\s+Potencia\s+Contratada|Terme\s+de\s+Pot(?:e|\u00e8)ncia\s+Contractada)\b/i);
     const printedEnergy=lineAmount(text,/^(?:T(?:e|\u00e9)rmino\s+de\s+Energ(?:i|\u00ed)a|Terme\s+d['\u2019]Energia)\s+Activa\b/i);
     const statedKwh=num(capture(text,/(?:Tu\s+consumo\s+en\s+el\s+periodo\s+facturado\s+ha\s+sido|El\s+teu\s+consum\s+en\s+el\s+per(?:i|\u00ed)ode\s+facturat\s+ha\s+estat)\s+([\d.]+,\d{3})\s*kWh/i));
     const powerDetail=parsePower(text,printedPower,tariff),energyDetail=parseEnergy(text,printedEnergy,tariff,statedKwh);
