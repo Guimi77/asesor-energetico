@@ -56,7 +56,7 @@ test('Clientes uses only the integrated holder hierarchy, not duplicate admin pa
 test('Clientes shows the current retailer on every supply row',()=>{
   assert.match(masterUi,/const retailer = supply\.retailer \|\| 'Comercializadora pendiente'/);
   assert.match(masterUi,/class="supply-current-retailer"/);
-  assert.match(masterUi,/Comercializadora actual:/);
+  assert.match(masterUi,/Comercializadora:/);
   assert.match(clientUi,/\.supply-current-retailer\{/);
   assert.match(clientUi,/\.supply-current-retailer-label\{/);
 });
