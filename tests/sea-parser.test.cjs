@@ -128,13 +128,25 @@ test('extrae SEA 2.0TD, conserva REE y cuadra',()=>{
   assert.equal(r.periods.P1.cost,29.18);
   assert.equal(r.maximeters._reliable,false);
   assert.deepEqual(r.maximeters._raw,{P1:7.632,P3:7.82});
-  assert.match(r.maximeters._reason,/no se remapea/i);
+  assert.equal(r.maximeters._reason,'');
+  assert.match(r.maximeters._note,/Resumen anual informativo/i);
+  assert.equal(r.incidents.length,0);
+  assert.equal(r.opportunity,'Sin alertas');
   assert.ok(r.adjustments.some(x=>x.category==='system_adjustment'&&x.amount_eur===9.44));
   assert.equal(r.validation.consumptionPeriods,true);
   assert.equal(r.validation.consumptionTotal,true);
   assert.equal(r.validation.energyCost,true);
   assert.equal(r.validation.power,true);
   assert.equal(r.validation.economicBalance,true);
+});
+
+test('2.0TD acepta P1 P2 P3 en el resumen anual y solo alerta periodos fuera de rango',()=>{
+  const ok=parser._test.parseReportedMaxDemand('Las potencias máximas (kW) demandadas en el último año han sido:\nP1 8,572 P2 7,900 P3 8,112','2.0TD');
+  assert.deepEqual(ok._raw,{P1:8.572,P2:7.9,P3:8.112});
+  assert.equal(ok._reason,'');
+  const bad=parser._test.parseReportedMaxDemand('Las potencias máximas (kW) demandadas en el último año han sido:\nP1 8,572 P4 8,112','2.0TD');
+  assert.match(bad._reason,/periodos no compatibles/i);
+  assert.deepEqual(bad._raw,{P1:8.572,P4:8.112});
 });
 
 test('ignora el desglose informativo de peajes y cargos',()=>{

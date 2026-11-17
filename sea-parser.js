@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='sea-2026.11.12.2';
+  const REVISION='sea-2026.11.17.1';
   const RETAILER='Servicios Energ\u00e9ticos Avanzados, S.L.';
   const BRAND='Energia BT';
 
@@ -144,8 +144,16 @@
     const raw={};
     if(m)for(const p of m[1].matchAll(/\bP([1-6])\s+([\d.]+,\d{3})/gi))raw[`P${p[1]}`]=num(p[2]);
     if(!Object.keys(raw).length)return{};
-    const inconsistent=/^2\.0TD$/i.test(tariff)&&Object.keys(raw).some(k=>!['P1','P2'].includes(k));
-    return{_reliable:false,_source:'annual_max_demand_summary',_raw:raw,_reason:inconsistent?'La factura 2.0TD usa una etiqueta de periodo no compatible en el resumen anual; no se remapea automaticamente.':'Resumen anual informativo; no se usa como maximetro facturado.'};
+    const keys=Object.keys(raw);
+    const allowed=/^2\.0TD$/i.test(tariff)?['P1','P2','P3']:['P1','P2','P3','P4','P5','P6'];
+    const inconsistent=keys.some(k=>!allowed.includes(k));
+    return{
+      _reliable:false,
+      _source:'annual_max_demand_summary',
+      _raw:raw,
+      _note:'Resumen anual informativo; no se usa como maximetro facturado.',
+      _reason:inconsistent?`El resumen anual incluye periodos no compatibles con la tarifa ${tariff}; se conserva la lectura original sin remapear.`:''
+    };
   }
 
   function parseFinancials(pages,tariff){
