@@ -61,10 +61,26 @@ test('Clientes shows the current retailer on every supply row',()=>{
   assert.match(clientUi,/\.supply-current-retailer-label\{/);
 });
 
-test('retailer is readable and directly editable in supply form',()=>{
+test('retailer is secondary metadata and remains directly editable',()=>{
   assert.match(html,/id="supplyRetailer"/);
   assert.match(masterUi,/\$\('#supplyRetailer'\)\.value = supply\.retailer/);
   assert.match(masterUi,/manualRetailerChanged/);
   assert.match(masterUi,/supply-retailer-manual-tag/);
-  assert.match(clientUi,/font-size:clamp\(\.83rem,1vw,\.96rem\)!important/);
+  assert.match(clientUi,/\.supply-current-retailer\{[\s\S]*background:transparent/);
+  assert.match(clientUi,/\.supply-current-retailer\{[\s\S]*font-size:\.62rem!important/);
+  assert.match(clientUi,/\.supply-retailer-manual-tag\{[\s\S]*background:#f1f4f6/);
+  assert.doesNotMatch(clientUi,/\.supply-current-retailer\{[\s\S]{0,500}background:#eafaf7/);
+});
+
+test('holder contact data has an explicit visual hierarchy',()=>{
+  assert.match(masterUi,/class="holder-title-main"/);
+  assert.match(masterUi,/class="holder-contact-line"/);
+  assert.match(masterUi,/class="holder-contact-item"/);
+  assert.match(masterUi,/class="holder-contact-label">Correo/);
+  assert.match(masterUi,/class="holder-contact-label">Tel\./);
+  assert.match(masterUi,/class="holder-contact-label">Cuenta/);
+  assert.match(clientUi,/\.holder-title-wrap\{[\s\S]*flex-direction:column/);
+  assert.match(clientUi,/\.holder-contact-line\{[\s\S]*display:flex/);
+  assert.match(clientUi,/\.holder-contact-label\{[\s\S]*text-transform:uppercase/);
+  assert.match(clientUi,/const titleMain = \$\('\.holder-title-main', summary\)/);
 });
