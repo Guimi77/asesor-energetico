@@ -40,6 +40,10 @@
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+  const maskedBankAccount = (value) => {
+    const compact = norm(value).replace(/\s+/g, '');
+    return compact ? `•••• ${compact.slice(-4)}` : '';
+  };
 
   function show(name) {
     document.querySelectorAll('.app-view').forEach((view) => view.classList.add('hidden'));
@@ -96,6 +100,9 @@
       type,
       clientTaxId: norm(raw.clientTaxId),
       clientAlias: norm(raw.clientAlias),
+      clientEmail: norm(raw.clientEmail),
+      clientPhone: norm(raw.clientPhone),
+      clientBankAccount: norm(raw.clientBankAccount),
       company,
       holder: norm(raw.holder) || company,
       status: norm(raw.status) || 'ACTIVO',
@@ -111,7 +118,7 @@
     const merged = { ...existing };
     const identityFields = new Set(['client', 'clientTaxId', 'type', 'company', 'holder']);
 
-    const clearableFields = new Set(['clientAlias', 'alias']);
+    const clearableFields = new Set(['clientAlias', 'clientEmail', 'clientPhone', 'clientBankAccount', 'alias']);
     for (const [field, value] of Object.entries(incoming)) {
       if (empty(value)) {
         if (!fillOnly && clearableFields.has(field)) merged[field] = '';
@@ -183,7 +190,7 @@
 
   function save() {
     try {
-      const safeSupplies = supplies.map(({ clientAlias, alias, ...supply }) => supply);
+      const safeSupplies = supplies.map(({ clientAlias, clientEmail, clientPhone, clientBankAccount, alias, ...supply }) => supply);
       localStorage.setItem(STORAGE, JSON.stringify(safeSupplies));
       return true;
     } catch (error) {
@@ -270,6 +277,9 @@
           name: supply.client || 'Cliente',
           taxId: supply.clientTaxId || '',
           type: supply.type || 'CLIENTE',
+          email: supply.clientEmail || '',
+          phone: supply.clientPhone || '',
+          bankAccount: supply.clientBankAccount || '',
         });
       }
     }
@@ -308,6 +318,17 @@
         const legalLine = internal && alias && !multiClient
           ? `<small class="client-legal-name">${esc(primaryClient)}</small>`
           : '';
+        const primaryMember = memberList[0] || {};
+        const contactBits = internal
+          ? [
+              primaryMember.email ? `✉ ${esc(primaryMember.email)}` : '',
+              primaryMember.phone ? `☎ ${esc(primaryMember.phone)}` : '',
+              primaryMember.bankAccount ? `Cuenta ${esc(maskedBankAccount(primaryMember.bankAccount))}` : '',
+            ].filter(Boolean)
+          : [];
+        const contactLine = !multiClient && contactBits.length
+          ? `<small class="client-contact-line">${contactBits.join(' · ')}</small>`
+          : '';
 
         const summary = multiClient
           ? `${memberList.length} clientes legales · ${holders.length} titular${holders.length === 1 ? '' : 'es'} · ${list.length} suministro${list.length === 1 ? '' : 's'}`
@@ -317,7 +338,7 @@
           ? ''
           : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}${contactLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
@@ -621,6 +642,9 @@
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
     const sameLegalIdentity = key(supply.client) === key(supply.holder || supply.company);
     $('#clientTaxId').value = supply.clientTaxId || (sameLegalIdentity ? (supply.holderTaxId || '') : '');
+    $('#clientEmail').value = supply.clientEmail || '';
+    $('#clientPhone').value = supply.clientPhone || '';
+    $('#clientBankAccount').value = supply.clientBankAccount || '';
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
     if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
@@ -651,6 +675,9 @@
       $('#clientType').value = existing.type || 'PENDIENTE';
       $('#clientTaxId').value = existing.clientTaxId || '';
       if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
+      $('#clientEmail').value = existing.clientEmail || '';
+      $('#clientPhone').value = existing.clientPhone || '';
+      $('#clientBankAccount').value = existing.clientBankAccount || '';
       $('#holderName').value = blankHolder ? '' : (holder || existing.holder || existing.company || client);
     } else {
       $('#clientName').value = client;
@@ -678,6 +705,27 @@
     $('#clientEditor').classList.add('hidden');
     $('#clientForm').reset();
     $('#clientFormMsg').textContent = '';
+  }
+
+  async function persistClientContacts(clientId, supply) {
+    const supabase = window.ibtSupabase;
+    const role = window.ibtCurrentProfile?.role;
+    if (!supabase || !['admin', 'staff'].includes(role)) return { ok: false, reason: 'not_authorized' };
+    if (!clientId) return { ok: false, reason: 'client_id_required' };
+    try {
+      const { data, error } = await supabase.rpc('set_internal_client_contacts', {
+        p_client_id: clientId,
+        p_email: norm(supply.clientEmail) || null,
+        p_phone: norm(supply.clientPhone) || null,
+        p_bank_account: norm(supply.clientBankAccount) || null,
+      });
+      if (error) throw error;
+      if (!data?.ok) return { ok: false, reason: data?.reason || 'client_contact_write_rejected' };
+      return { ok: true, data };
+    } catch (error) {
+      console.warn('No se pudieron guardar los datos de contacto del cliente', error);
+      return { ok: false, reason: 'client_contact_write_failed', error };
+    }
   }
 
   async function persistAliases({ cups, client, clientTaxId, clientAlias, supplyAlias }) {
@@ -796,6 +844,9 @@
         client,
         clientTaxId: $('#clientTaxId').value,
         clientAlias: $('#clientAlias')?.value || '',
+        clientEmail: $('#clientEmail').value,
+        clientPhone: $('#clientPhone').value,
+        clientBankAccount: $('#clientBankAccount').value,
         clientType: $('#clientType').value,
         company: $('#holderName').value || client,
         holder: $('#holderName').value || client,
@@ -823,6 +874,13 @@
 
       if (!centralSave.ok) {
         $('#clientFormMsg').textContent = centralWriteMessage(centralSave.reason);
+        return;
+      }
+
+      const contactSave = await persistClientContacts(centralSave.data?.client_id, data);
+      if (!contactSave.ok) {
+        $('#clientFormMsg').textContent = 'Los datos principales se han guardado, pero NO los datos de contacto del cliente. Revisa correo, teléfono o cuenta y repite la operación.';
+        await window.CentralSupabaseMaster?.reload?.();
         return;
       }
 
@@ -872,7 +930,12 @@
       const clientIdentity = key(data.clientTaxId) || key(data.client);
       supplies.forEach((item) => {
         const itemIdentity = key(item.clientTaxId) || key(item.client);
-        if (itemIdentity === clientIdentity) item.clientAlias = norm(data.clientAlias);
+        if (itemIdentity === clientIdentity) {
+          item.clientAlias = norm(data.clientAlias);
+          item.clientEmail = norm(data.clientEmail);
+          item.clientPhone = norm(data.clientPhone);
+          item.clientBankAccount = norm(data.clientBankAccount);
+        }
       });
 
       const aliasSave = await persistAliases({
