@@ -11,6 +11,7 @@ const pilot = fs.readFileSync(path.join(root, 'supabase-xtra-pilot.js'), 'utf8')
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'), 'utf8');
 const holderMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260929093000_safe_holder_reassignment.sql'), 'utf8');
 const holderLifecycleMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260929111500_safe_holder_admin_lifecycle.sql'), 'utf8');
+const billingProfileMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20261117121000_holder_billing_profiles_inheritance.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/admin-data-lifecycle/index.ts'), 'utf8');
 
 test('admin lifecycle browser scripts parse', () => {
@@ -96,6 +97,28 @@ test('holder administration exposes a separate searchable lifecycle panel', () =
   assert.match(adminUi, /Con suministros: no se puede borrar/);
 });
 
+test('editar titular abre una ficha completa con contacto y cobro', () => {
+  assert.match(adminUi, /holderProfileEditor/);
+  assert.match(adminUi, /holderProfileName/);
+  assert.match(adminUi, /holderProfileTaxId/);
+  assert.match(adminUi, /holderProfileEmail/);
+  assert.match(adminUi, /holderProfilePhone/);
+  assert.match(adminUi, /holderProfileBankAccount/);
+  assert.match(adminUi, /admin_update_holder_profile/);
+  assert.match(adminUi, /openHolderProfile\(id\)/);
+});
+
+test('perfil del titular y excepciones del suministro quedan aislados y auditados', () => {
+  assert.match(billingProfileMigration, /private\.holder_contact_details/);
+  assert.match(billingProfileMigration, /private\.supply_contact_overrides/);
+  assert.match(billingProfileMigration, /admin_update_holder_profile/);
+  assert.match(billingProfileMigration, /set_internal_supply_contact_overrides/);
+  assert.match(billingProfileMigration, /holder_contact_details_updated/);
+  assert.match(billingProfileMigration, /supply_contact_overrides_updated/);
+  assert.match(billingProfileMigration, /private\.is_internal_user\(\)/);
+  assert.match(billingProfileMigration, /role='admin'/);
+});
+
 test('holder lifecycle UI binds every rendered action button', () => {
   assert.match(adminUi, /\$\$\('\[data-db-action\]', root\)\.forEach/);
 });
@@ -138,7 +161,7 @@ test('edge holder lifecycle is routed through the audited SQL function', () => {
 });
 
 test('holder admin browser cache marker matches the new lifecycle UI', () => {
-  assert.match(auth, /admin-data-management\.js\?v=0e1c3e21ccd0/);
+  assert.match(auth, /admin-data-management\.js\?v=45177f2cde19/);
 });
 
 

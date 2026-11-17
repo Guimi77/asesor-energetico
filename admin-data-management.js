@@ -15,6 +15,7 @@
     invoiceCounts: new Map(),
     supplyDependencyCounts: new Map(),
     latestInvoiceBySupply: new Map(),
+    billingProfiles: { holders: {}, supplies: {}, legacy_clients: {} },
     showArchivedClients: false,
     showArchivedHolders: false,
     showArchivedSupplies: false,
@@ -26,7 +27,7 @@
     const style = document.createElement('style');
     style.id = 'adminDataManagementStyles';
     style.textContent = `
-      .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}.db-mismatch{display:block;margin-top:5px;color:#9a5b00;font-weight:800}.db-mismatch-ok{display:block;margin-top:5px;color:#237a45;font-weight:700}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}}
+      .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}.db-mismatch{display:block;margin-top:5px;color:#9a5b00;font-weight:800}.db-mismatch-ok{display:block;margin-top:5px;color:#237a45;font-weight:700}.holder-profile-line{display:block;margin-top:5px;color:#52657a;font-size:12px}.holder-editor-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(15,29,48,.5);display:flex;align-items:center;justify-content:center;padding:18px}.holder-editor-backdrop.hidden{display:none}.holder-editor-dialog{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:20px}.holder-editor-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.holder-editor-head h2{margin:2px 0 4px}.holder-editor-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.holder-editor-form label{display:grid;gap:6px;font-size:12px;font-weight:800;color:#3f5064}.holder-editor-form input{width:100%;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px}.holder-editor-form .full{grid-column:1/-1}.holder-editor-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;align-items:center;margin-top:6px}.holder-editor-msg{margin-right:auto;font-size:12px;font-weight:700}.holder-editor-msg.error{color:#b42318}.holder-editor-msg.ok{color:#237a45}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}.holder-editor-form{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -86,6 +87,107 @@
     $('#showArchivedClients')?.addEventListener('change', (e) => { state.showArchivedClients = e.target.checked; renderClients(); });
     $('#showArchivedHolders')?.addEventListener('change', (e) => { state.showArchivedHolders = e.target.checked; renderHolders(); });
     $('#showArchivedSupplies')?.addEventListener('change', (e) => { state.showArchivedSupplies = e.target.checked; renderSupplies(); });
+
+    if (!$('#holderProfileEditor')) {
+      const editor = document.createElement('div');
+      editor.id = 'holderProfileEditor';
+      editor.className = 'holder-editor-backdrop hidden';
+      editor.innerHTML = `
+        <section class="holder-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="holderProfileTitle">
+          <div class="holder-editor-head">
+            <div><p class="eyebrow">Titular</p><h2 id="holderProfileTitle">Editar titular</h2><p>Estos datos se aplican por defecto a todos sus suministros. Cada CUPS puede tener excepciones propias.</p></div>
+            <button id="closeHolderProfile" class="secondary" type="button">Cerrar</button>
+          </div>
+          <form id="holderProfileForm" class="holder-editor-form">
+            <input id="holderProfileId" type="hidden"/>
+            <label class="full">Nombre legal del titular<input id="holderProfileName" required/></label>
+            <label>NIF / CIF<input id="holderProfileTaxId" autocomplete="off"/></label>
+            <label>Correo electrónico<input id="holderProfileEmail" type="email" maxlength="320" autocomplete="email"/></label>
+            <label>Teléfono de contacto<input id="holderProfilePhone" type="tel" maxlength="64" autocomplete="tel"/></label>
+            <label>Cuenta / IBAN<input id="holderProfileBankAccount" maxlength="64" autocomplete="off" spellcheck="false"/></label>
+            <div class="holder-editor-actions">
+              <span id="holderProfileMsg" class="holder-editor-msg"></span>
+              <button class="secondary" id="cancelHolderProfile" type="button">Cancelar</button>
+              <button class="primary" type="submit">Guardar titular</button>
+            </div>
+          </form>
+        </section>`;
+      document.body.appendChild(editor);
+      $('#closeHolderProfile')?.addEventListener('click', closeHolderProfile);
+      $('#cancelHolderProfile')?.addEventListener('click', closeHolderProfile);
+      editor.addEventListener('click', (event) => {
+        if (event.target === editor) closeHolderProfile();
+      });
+      $('#holderProfileForm')?.addEventListener('submit', saveHolderProfile);
+    }
+  }
+
+  function closeHolderProfile() {
+    $('#holderProfileEditor')?.classList.add('hidden');
+    const form = $('#holderProfileForm');
+    if (form) form.reset();
+    const msg = $('#holderProfileMsg');
+    if (msg) { msg.textContent = ''; msg.className = 'holder-editor-msg'; }
+  }
+
+  function openHolderProfile(holderId) {
+    const holder = state.holders.find((item) => item.id === holderId);
+    if (!holder) return;
+    const profile = state.billingProfiles?.holders?.[holderId] || {};
+    $('#holderProfileId').value = holder.id;
+    $('#holderProfileName').value = holder.legal_name || '';
+    $('#holderProfileTaxId').value = holder.tax_id || '';
+    $('#holderProfileEmail').value = profile.email || '';
+    $('#holderProfilePhone').value = profile.phone || '';
+    $('#holderProfileBankAccount').value = profile.bank_account || '';
+    $('#holderProfileTitle').textContent = `Editar titular · ${holder.legal_name || 'Titular'}`;
+    $('#holderProfileEditor').classList.remove('hidden');
+    $('#holderProfileName').focus();
+  }
+
+  async function saveHolderProfile(event) {
+    event.preventDefault();
+    const id = $('#holderProfileId')?.value || '';
+    const button = $('#holderProfileForm button[type="submit"]');
+    const msg = $('#holderProfileMsg');
+    if (!id || !window.ibtSupabase) return;
+    if (button) button.disabled = true;
+    if (msg) { msg.textContent = 'Guardando titular…'; msg.className = 'holder-editor-msg'; }
+    try {
+      const { data, error } = await window.ibtSupabase.rpc('admin_update_holder_profile', {
+        p_holder_id: id,
+        p_legal_name: $('#holderProfileName').value,
+        p_tax_id: $('#holderProfileTaxId').value || null,
+        p_email: $('#holderProfileEmail').value || null,
+        p_phone: $('#holderProfilePhone').value || null,
+        p_bank_account: $('#holderProfileBankAccount').value || null,
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        const reason = data?.reason || 'holder_profile_rejected';
+        const labels = {
+          admin_required: 'Solo un administrador puede editar la ficha completa del titular.',
+          invalid_holder_identity: 'Indica un nombre legal válido.',
+          holder_not_found: 'El titular ya no existe en la base central.',
+          tax_identity_change_requires_reassignment: 'No se puede convertir un NIF/CIF existente en otra identidad fiscal. Para eso hay que cambiar el titular del suministro.',
+          holder_tax_conflict: 'Ese NIF/CIF ya pertenece a otro titular.',
+          holder_name_conflict: 'Ya existe otro titular con ese nombre dentro del mismo cliente.',
+          invalid_email: 'El correo electrónico no es válido.',
+          invalid_phone: 'El teléfono no es válido.',
+          invalid_bank_account: 'La cuenta bancaria no es válida.',
+        };
+        throw new Error(labels[reason] || 'No se ha podido guardar la ficha del titular.');
+      }
+      if (msg) { msg.textContent = 'Titular guardado. Sus suministros heredarán estos datos salvo excepción.'; msg.className = 'holder-editor-msg ok'; }
+      await window.CentralSupabaseMaster?.reload?.();
+      await loadState();
+      window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action: 'update_holder_profile', id } }));
+      setTimeout(closeHolderProfile, 250);
+    } catch (error) {
+      if (msg) { msg.textContent = error?.message || String(error); msg.className = 'holder-editor-msg error'; }
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function setMessage(target, text, type = '') {
@@ -162,7 +264,14 @@
       const actions = archived
         ? `${parentActive ? `<button class="secondary db-restore" data-db-action="restore_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Restaurar</button>` : '<span class="db-locked">Cliente archivado: no se puede restaurar</span>'}${counts.supplies === 0 ? `<button class="secondary db-danger" data-db-action="delete_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Eliminar definitivamente</button>` : '<span class="db-locked">Con suministros: no se puede borrar</span>'}`
         : `<button class="secondary" data-db-action="edit_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}" data-msg-target="#centralHoldersMsg">Editar</button>${counts.activeSupplies === 0 ? `<button class="secondary db-warning" data-db-action="archive_holder" data-id="${esc(holder.id)}" data-name="${esc(holder.legal_name)}">Archivar</button>` : '<span class="db-locked">Tiene CUPS activos</span>'}`;
-      return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(holder.legal_name)}</strong><small class="db-admin-meta">${esc(holder.tax_id || 'Sin NIF/CIF')} · ${esc(holder.client?.name || 'Cliente sin identificar')} · <span class="db-status ${archived ? 'archived' : ''}">${esc(holder.status)}</span></small></div><div>${counts.supplies} suministro${counts.supplies === 1 ? '' : 's'} · ${counts.activeSupplies} activo${counts.activeSupplies === 1 ? '' : 's'} · ${counts.invoices} factura${counts.invoices === 1 ? '' : 's'}</div><div class="db-admin-actions">${actions}</div></div>`;
+      const profile = state.billingProfiles?.holders?.[holder.id] || {};
+      const profileBits = [
+        profile.email ? `✉ ${esc(profile.email)}` : '',
+        profile.phone ? `☎ ${esc(profile.phone)}` : '',
+        profile.bank_account ? `Cuenta •••• ${esc(String(profile.bank_account).replace(/\s+/g,'').slice(-4))}` : '',
+      ].filter(Boolean);
+      const profileLine = profileBits.length ? `<small class="holder-profile-line">${profileBits.join(' · ')}</small>` : '';
+      return `<div class="db-admin-row ${archived ? 'archived' : ''}"><div><strong>${esc(holder.legal_name)}</strong><small class="db-admin-meta">${esc(holder.tax_id || 'Sin NIF/CIF')} · ${esc(holder.client?.name || 'Cliente sin identificar')} · <span class="db-status ${archived ? 'archived' : ''}">${esc(holder.status)}</span></small>${profileLine}</div><div>${counts.supplies} suministro${counts.supplies === 1 ? '' : 's'} · ${counts.activeSupplies} activo${counts.activeSupplies === 1 ? '' : 's'} · ${counts.invoices} factura${counts.invoices === 1 ? '' : 's'}</div><div class="db-admin-actions">${actions}</div></div>`;
     }).join('') : '<div class="db-empty">No hay titulares que coincidan con este filtro.</div>';
 
     bindLifecycleButtons(host);
@@ -248,12 +357,14 @@
         supabase.from('incidents').select('id,supply_id'),
         supabase.from('recommendations').select('id,supply_id'),
         supabase.from('supply_events').select('id,supply_id'),
+        supabase.rpc('get_internal_billing_profiles'),
       ]);
       const error = results.find((result) => result.error)?.error;
       if (error) throw error;
       state.clients = results[0].data || [];
       state.holders = results[1].data || [];
       state.supplies = results[2].data || [];
+      state.billingProfiles = results[7].data || { holders: {}, supplies: {}, legacy_clients: {} };
       state.invoiceCounts = new Map();
       state.supplyDependencyCounts = new Map();
       state.latestInvoiceBySupply = new Map();
@@ -355,28 +466,20 @@
     const name = button.dataset.name || '';
     if (!action || !id) return;
 
-    if (action === 'edit_holder' || action === 'sync_holder_name') {
+    if (action === 'edit_holder') {
+      openHolderProfile(id);
+      return;
+    }
+
+    if (action === 'sync_holder_name') {
       const holder = state.holders.find((item) => item.id === id);
       if (!holder) return;
       const supplyId = button.dataset.supplyId;
       const latest = state.latestInvoiceBySupply.get(supplyId);
-
-      let legalName = holder.legal_name || '';
-      let taxId = holder.tax_id || '';
-
-      if (action === 'sync_holder_name') {
-        if (!latest?.source_holder_name) return;
-        legalName = String(latest.source_holder_name).trim();
-        taxId = String(latest.source_holder_tax_id || holder.tax_id || '').trim();
-        if (!confirm(`¿Actualizar el nombre del titular de “${holder.legal_name}” a “${legalName}” según la última factura válida? El histórico de facturas no se modifica.`)) return;
-      } else {
-        const nextName = prompt('Nombre legal del titular:', legalName);
-        if (nextName == null || !String(nextName).trim()) return;
-        const nextTax = prompt('NIF/CIF del titular:', taxId);
-        if (nextTax == null) return;
-        legalName = String(nextName).trim();
-        taxId = String(nextTax).trim();
-      }
+      if (!latest?.source_holder_name) return;
+      const legalName = String(latest.source_holder_name).trim();
+      const taxId = String(latest.source_holder_tax_id || holder.tax_id || '').trim();
+      if (!confirm(`¿Actualizar el nombre del titular de “${holder.legal_name}” a “${legalName}” según la última factura válida? El histórico de facturas no se modifica.`)) return;
 
       const holderMsgTarget = button.dataset.msgTarget || '#centralSuppliesMsg';
       button.disabled = true;

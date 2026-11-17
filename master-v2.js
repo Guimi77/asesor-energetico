@@ -100,9 +100,19 @@
       type,
       clientTaxId: norm(raw.clientTaxId),
       clientAlias: norm(raw.clientAlias),
-      clientEmail: norm(raw.clientEmail),
-      clientPhone: norm(raw.clientPhone),
-      clientBankAccount: norm(raw.clientBankAccount),
+      clientId: norm(raw.clientId),
+      company,
+      holderId: norm(raw.holderId),
+      holderEmail: norm(raw.holderEmail),
+      holderPhone: norm(raw.holderPhone),
+      holderBankAccount: norm(raw.holderBankAccount),
+      supplyId: norm(raw.supplyId),
+      supplyEmailOverride: norm(raw.supplyEmailOverride ?? raw.clientEmail),
+      supplyPhoneOverride: norm(raw.supplyPhoneOverride ?? raw.clientPhone),
+      supplyBankAccountOverride: norm(raw.supplyBankAccountOverride ?? raw.clientBankAccount),
+      effectiveEmail: norm(raw.effectiveEmail),
+      effectivePhone: norm(raw.effectivePhone),
+      effectiveBankAccount: norm(raw.effectiveBankAccount),
       company,
       holder: norm(raw.holder) || company,
       status: norm(raw.status) || 'ACTIVO',
@@ -118,7 +128,19 @@
     const merged = { ...existing };
     const identityFields = new Set(['client', 'clientTaxId', 'type', 'company', 'holder']);
 
-    const clearableFields = new Set(['clientAlias', 'clientEmail', 'clientPhone', 'clientBankAccount', 'alias']);
+    const clearableFields = new Set([
+      'clientAlias',
+      'holderEmail',
+      'holderPhone',
+      'holderBankAccount',
+      'supplyEmailOverride',
+      'supplyPhoneOverride',
+      'supplyBankAccountOverride',
+      'effectiveEmail',
+      'effectivePhone',
+      'effectiveBankAccount',
+      'alias',
+    ]);
     for (const [field, value] of Object.entries(incoming)) {
       if (empty(value)) {
         if (!fillOnly && clearableFields.has(field)) merged[field] = '';
@@ -190,7 +212,20 @@
 
   function save() {
     try {
-      const safeSupplies = supplies.map(({ clientAlias, clientEmail, clientPhone, clientBankAccount, alias, ...supply }) => supply);
+      const safeSupplies = supplies.map(({
+        clientAlias,
+        holderEmail,
+        holderPhone,
+        holderBankAccount,
+        supplyEmailOverride,
+        supplyPhoneOverride,
+        supplyBankAccountOverride,
+        effectiveEmail,
+        effectivePhone,
+        effectiveBankAccount,
+        alias,
+        ...supply
+      }) => supply);
       localStorage.setItem(STORAGE, JSON.stringify(safeSupplies));
       return true;
     } catch (error) {
@@ -234,6 +269,11 @@
           name: holderName,
           client: supply.client || 'Cliente',
           clientTaxId: supply.clientTaxId || '',
+          holderId: supply.holderId || '',
+          holderTaxId: supply.holderTaxId || '',
+          email: supply.holderEmail || '',
+          phone: supply.holderPhone || '',
+          bankAccount: supply.holderBankAccount || '',
           list: [],
         });
       }
@@ -277,9 +317,6 @@
           name: supply.client || 'Cliente',
           taxId: supply.clientTaxId || '',
           type: supply.type || 'CLIENTE',
-          email: supply.clientEmail || '',
-          phone: supply.clientPhone || '',
-          bankAccount: supply.clientBankAccount || '',
         });
       }
     }
@@ -308,7 +345,15 @@
             return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><div class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora:</span><strong>${esc(retailer)}</strong>${manualTag}</div></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
           }).join('');
 
-          return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
+          const holderContactBits = internal ? [
+            holder.email ? `✉ ${esc(holder.email)}` : '',
+            holder.phone ? `☎ ${esc(holder.phone)}` : '',
+            holder.bankAccount ? `Cuenta ${esc(maskedBankAccount(holder.bankAccount))}` : '',
+          ].filter(Boolean) : [];
+          const holderContactLine = holderContactBits.length
+            ? `<small class="holder-contact-line">${holderContactBits.join(' · ')}</small>`
+            : '';
+          return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><strong>${esc(holder.name)}</strong>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
         }).join('');
 
         const memberRows = multiClient
@@ -317,17 +362,6 @@
 
         const legalLine = internal && alias && !multiClient
           ? `<small class="client-legal-name">${esc(primaryClient)}</small>`
-          : '';
-        const primaryMember = memberList[0] || {};
-        const contactBits = internal
-          ? [
-              primaryMember.email ? `✉ ${esc(primaryMember.email)}` : '',
-              primaryMember.phone ? `☎ ${esc(primaryMember.phone)}` : '',
-              primaryMember.bankAccount ? `Cuenta ${esc(maskedBankAccount(primaryMember.bankAccount))}` : '',
-            ].filter(Boolean)
-          : [];
-        const contactLine = !multiClient && contactBits.length
-          ? `<small class="client-contact-line">${contactBits.join(' · ')}</small>`
           : '';
 
         const summary = multiClient
@@ -338,7 +372,7 @@
           ? ''
           : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}${contactLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
       })
       .join('');
 
@@ -642,9 +676,19 @@
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
     const sameLegalIdentity = key(supply.client) === key(supply.holder || supply.company);
     $('#clientTaxId').value = supply.clientTaxId || (sameLegalIdentity ? (supply.holderTaxId || '') : '');
-    $('#clientEmail').value = supply.clientEmail || '';
-    $('#clientPhone').value = supply.clientPhone || '';
-    $('#clientBankAccount').value = supply.clientBankAccount || '';
+    $('#clientEmail').value = supply.supplyEmailOverride || '';
+    $('#clientPhone').value = supply.supplyPhoneOverride || '';
+    $('#clientBankAccount').value = supply.supplyBankAccountOverride || '';
+    const inherited = [
+      supply.holderEmail ? `correo ${supply.holderEmail}` : '',
+      supply.holderPhone ? `tel. ${supply.holderPhone}` : '',
+      supply.holderBankAccount ? `cuenta ${maskedBankAccount(supply.holderBankAccount)}` : '',
+    ].filter(Boolean);
+    if ($('#supplyContactInheritance')) {
+      $('#supplyContactInheritance').textContent = inherited.length
+        ? `Hereda del titular: ${inherited.join(' · ')}. Rellena solo lo distinto.`
+        : 'El titular todavía no tiene datos de contacto/cobro. Rellena aquí solo si este suministro debe usar datos propios.';
+    }
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
     if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
@@ -675,9 +719,10 @@
       $('#clientType').value = existing.type || 'PENDIENTE';
       $('#clientTaxId').value = existing.clientTaxId || '';
       if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
-      $('#clientEmail').value = existing.clientEmail || '';
-      $('#clientPhone').value = existing.clientPhone || '';
-      $('#clientBankAccount').value = existing.clientBankAccount || '';
+      $('#clientEmail').value = '';
+      $('#clientPhone').value = '';
+      $('#clientBankAccount').value = '';
+      if ($('#supplyContactInheritance')) $('#supplyContactInheritance').textContent = 'El suministro heredará los datos del titular salvo que indiques una excepción.';
       $('#holderName').value = blankHolder ? '' : (holder || existing.holder || existing.company || client);
     } else {
       $('#clientName').value = client;
@@ -707,24 +752,24 @@
     $('#clientFormMsg').textContent = '';
   }
 
-  async function persistClientContacts(clientId, supply) {
+  async function persistSupplyOverrides(supplyId, supply) {
     const supabase = window.ibtSupabase;
     const role = window.ibtCurrentProfile?.role;
     if (!supabase || !['admin', 'staff'].includes(role)) return { ok: false, reason: 'not_authorized' };
-    if (!clientId) return { ok: false, reason: 'client_id_required' };
+    if (!supplyId) return { ok: false, reason: 'supply_id_required' };
     try {
-      const { data, error } = await supabase.rpc('set_internal_client_contacts', {
-        p_client_id: clientId,
-        p_email: norm(supply.clientEmail) || null,
-        p_phone: norm(supply.clientPhone) || null,
-        p_bank_account: norm(supply.clientBankAccount) || null,
+      const { data, error } = await supabase.rpc('set_internal_supply_contact_overrides', {
+        p_supply_id: supplyId,
+        p_email: norm(supply.supplyEmailOverride) || null,
+        p_phone: norm(supply.supplyPhoneOverride) || null,
+        p_bank_account: norm(supply.supplyBankAccountOverride) || null,
       });
       if (error) throw error;
-      if (!data?.ok) return { ok: false, reason: data?.reason || 'client_contact_write_rejected' };
+      if (!data?.ok) return { ok: false, reason: data?.reason || 'supply_contact_write_rejected' };
       return { ok: true, data };
     } catch (error) {
-      console.warn('No se pudieron guardar los datos de contacto del cliente', error);
-      return { ok: false, reason: 'client_contact_write_failed', error };
+      console.warn('No se pudieron guardar las excepciones de contacto/cobro del suministro', error);
+      return { ok: false, reason: 'supply_contact_write_failed', error };
     }
   }
 
@@ -813,6 +858,12 @@
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
+    $('#clearSupplyContactOverrides').onclick = () => {
+      $('#clientEmail').value = '';
+      $('#clientPhone').value = '';
+      $('#clientBankAccount').value = '';
+      $('#clientFormMsg').textContent = 'Este suministro usará los datos del titular.';
+    };
 
     $('#clientForm').onsubmit = async (event) => {
       event.preventDefault();
@@ -832,13 +883,6 @@
       const existingBefore = editingCups
         ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
         : null;
-      const contactsLoaded = !existingBefore || ['clientEmail','clientPhone','clientBankAccount']
-        .every((field) => Object.prototype.hasOwnProperty.call(existingBefore, field));
-      if (existingBefore && !contactsLoaded) {
-        $('#clientFormMsg').textContent = 'Cargando los datos privados del cliente desde Supabase. Vuelve a abrir la ficha cuando termine la sincronización.';
-        await window.CentralSupabaseMaster?.reload?.();
-        return;
-      }
       const requestedRetailer = norm($('#supplyRetailer').value);
       const manualRetailerChanged = Boolean(requestedRetailer) &&
         (!existingBefore || requestedRetailer !== norm(existingBefore.retailer));
@@ -851,9 +895,9 @@
         client,
         clientTaxId: $('#clientTaxId').value,
         clientAlias: $('#clientAlias')?.value || '',
-        clientEmail: $('#clientEmail').value,
-        clientPhone: $('#clientPhone').value,
-        clientBankAccount: $('#clientBankAccount').value,
+        supplyEmailOverride: $('#clientEmail').value,
+        supplyPhoneOverride: $('#clientPhone').value,
+        supplyBankAccountOverride: $('#clientBankAccount').value,
         clientType: $('#clientType').value,
         company: $('#holderName').value || client,
         holder: $('#holderName').value || client,
@@ -884,9 +928,9 @@
         return;
       }
 
-      const contactSave = await persistClientContacts(centralSave.data?.client_id, data);
-      if (!contactSave.ok) {
-        $('#clientFormMsg').textContent = 'Los datos principales se han guardado, pero NO los datos de contacto del cliente. Revisa correo, teléfono o cuenta y repite la operación.';
+      const overrideSave = await persistSupplyOverrides(centralSave.data?.id, data);
+      if (!overrideSave.ok) {
+        $('#clientFormMsg').textContent = 'Los datos principales se han guardado, pero NO las excepciones de contacto/cobro del suministro.';
         await window.CentralSupabaseMaster?.reload?.();
         return;
       }
@@ -939,9 +983,6 @@
         const itemIdentity = key(item.clientTaxId) || key(item.client);
         if (itemIdentity === clientIdentity) {
           item.clientAlias = norm(data.clientAlias);
-          item.clientEmail = norm(data.clientEmail);
-          item.clientPhone = norm(data.clientPhone);
-          item.clientBankAccount = norm(data.clientBankAccount);
         }
       });
 
