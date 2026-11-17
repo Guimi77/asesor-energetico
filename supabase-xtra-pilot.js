@@ -293,11 +293,13 @@
 
       const { data: aliasPayload, error: aliasError } = await supabase.rpc('get_internal_aliases');
       if (aliasError) throw aliasError;
-      const { data: contactPayload, error: contactError } = await supabase.rpc('get_internal_client_contacts');
-      if (contactError) throw contactError;
+      const { data: billingPayload, error: billingError } = await supabase.rpc('get_internal_billing_profiles');
+      if (billingError) throw billingError;
       const clientAliases = aliasPayload?.clients || {};
       const supplyAliases = aliasPayload?.supplies || {};
-      const clientContacts = contactPayload || {};
+      const holderProfiles = billingPayload?.holders || {};
+      const supplyOverrides = billingPayload?.supplies || {};
+      const legacyClientProfiles = billingPayload?.legacy_clients || {};
 
       const legacy = await reconcileLegacyLocalSupplies({ supabase, master, activeClients, holders, supplies });
       if (legacy.attempted) {
@@ -323,19 +325,29 @@
         if (!holder || !client || !norm(supply.cups)) continue;
 
         const type = clientType(client);
-        const contact = clientContacts[client.id] || {};
+        const holderProfile = holderProfiles[holder.id] || legacyClientProfiles[client.id] || {};
+        const override = supplyOverrides[supply.id] || {};
         centralRows.push({
           client: client.name,
+          clientId: client.id,
           clientAlias: clientAliases[client.id] || '',
           clientTaxId: client.tax_id || '',
-          clientEmail: contact.email || '',
-          clientPhone: contact.phone || '',
-          clientBankAccount: contact.bank_account || '',
           clientType: type,
           type,
           company: holder.legal_name,
           holder: holder.legal_name,
+          holderId: holder.id,
           holderTaxId: holder.tax_id || '',
+          holderEmail: holderProfile.email || '',
+          holderPhone: holderProfile.phone || '',
+          holderBankAccount: holderProfile.bank_account || '',
+          supplyId: supply.id,
+          supplyEmailOverride: override.email || '',
+          supplyPhoneOverride: override.phone || '',
+          supplyBankAccountOverride: override.bank_account || '',
+          effectiveEmail: override.email || holderProfile.email || '',
+          effectivePhone: override.phone || holderProfile.phone || '',
+          effectiveBankAccount: override.bank_account || holderProfile.bank_account || '',
           cups: supply.cups,
           alias: supplyAliases[supply.id] || '',
           name: supply.supply_name || '',
