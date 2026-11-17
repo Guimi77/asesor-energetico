@@ -292,7 +292,8 @@
             const city = displaySupplyCity(supply) || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
-            return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
+            const retailer = supply.retailer || 'Comercializadora pendiente';
+            return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><small class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora actual:</span> ${esc(retailer)}</small></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
           }).join('');
 
           return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
