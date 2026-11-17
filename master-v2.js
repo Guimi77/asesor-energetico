@@ -102,6 +102,7 @@
       cups: norm(raw.cups).replace(/\s/g, ''),
       alias: norm(raw.alias || raw.supplyAlias),
       retailer: semanticText(raw.retailer || raw.commercializer),
+      manualRetailer: semanticText(raw.manualRetailer),
       distributor: semanticText(raw.distributor),
     };
   }
@@ -293,7 +294,8 @@
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
             const retailer = supply.retailer || 'Comercializadora pendiente';
-            return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><small class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora actual:</span> ${esc(retailer)}</small></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
+            const manualTag = supply.manualRetailer ? '<span class="supply-retailer-manual-tag">MANUAL</span>' : '';
+            return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><div class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora:</span><strong>${esc(retailer)}</strong>${manualTag}</div></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
           }).join('');
 
           return `<details class="holder-folder" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><strong>${esc(holder.name)}</strong>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
@@ -628,6 +630,10 @@
     $('#supplyProvince').value = supply.province || '';
     $('#supplyTariff').value = supply.tariff || '';
     $('#supplyContract').value = supply.contract || '';
+    $('#supplyRetailer').value = supply.retailer || '';
+    $('#supplyRetailerSource').textContent = supply.manualRetailer
+      ? 'Fijada manualmente. Las facturas no modificarán este valor.'
+      : 'Se actualizará desde facturas validadas hasta que la cambies manualmente.';
   }
 
   function openForm(client = '', holder = '', blankHolder = false) {
@@ -636,6 +642,7 @@
     const editor = $('#clientEditor');
     editor.classList.remove('hidden');
     $('#clientForm').reset();
+    $('#supplyRetailerSource').textContent = 'Si indicas una comercializadora, quedará fijada manualmente para este CUPS.';
     $('#clientEditorTitle').textContent = blankHolder ? 'Nuevo titular / suministro' : 'Cliente y punto de suministro';
 
     const existing = supplies.find((supply) => key(supply.client) === key(client));
@@ -774,6 +781,17 @@
         return;
       }
 
+      const existingBefore = editingCups
+        ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
+        : null;
+      const requestedRetailer = norm($('#supplyRetailer').value);
+      const manualRetailerChanged = Boolean(requestedRetailer) &&
+        (!existingBefore || requestedRetailer !== norm(existingBefore.retailer));
+      if (existingBefore?.manualRetailer && !requestedRetailer) {
+        $('#clientFormMsg').textContent = 'La comercializadora fijada manualmente no puede quedar vacía.';
+        return;
+      }
+
       const data = {
         client,
         clientTaxId: $('#clientTaxId').value,
@@ -789,13 +807,12 @@
         province: $('#supplyProvince').value,
         tariff: $('#supplyTariff').value,
         contract: $('#supplyContract').value,
+        retailer: existingBefore?.retailer || '',
+        manualRetailer: existingBefore?.manualRetailer || '',
         status: 'ACTIVO',
       };
 
       const wasEditing = Boolean(editingCups);
-      const existingBefore = editingCups
-        ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
-        : null;
       const candidate = normalizeSupply({ ...(existingBefore || {}), ...data });
 
       $('#clientFormMsg').textContent = 'Guardando en la base central…';
@@ -807,6 +824,27 @@
       if (!centralSave.ok) {
         $('#clientFormMsg').textContent = centralWriteMessage(centralSave.reason);
         return;
+      }
+
+      if (manualRetailerChanged) {
+        const supabase = window.ibtSupabase;
+        let manualResult;
+        let manualError;
+        try {
+          ({ data: manualResult, error: manualError } = await supabase.rpc('set_supply_retailer_manual', {
+            p_cups: cups,
+            p_retailer: requestedRetailer,
+          }));
+        } catch (error) {
+          manualError = error;
+        }
+        if (manualError || !manualResult?.ok) {
+          $('#clientFormMsg').textContent = 'Los demás datos se guardaron, pero NO se ha fijado la comercializadora manual. Revisa la conexión y repite la operación.';
+          await window.CentralSupabaseMaster?.reload?.();
+          return;
+        }
+        data.retailer = requestedRetailer;
+        data.manualRetailer = requestedRetailer;
       }
 
       let result;

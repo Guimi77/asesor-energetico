@@ -37,7 +37,7 @@ function buildHarness(role = 'admin', options = {}) {
       { id: 'holder-albert', client_id: 'client-albert', legal_name: 'CLIENTE PRUEBA TRES', tax_id: '00000002W', status: 'active' },
     ],
     supplies: [
-      { id: 's-xtra-1', holder_id: 'holder-xtra-1', cups: 'ES0000000000000001AA', supply_name: 'XTRA 1', address: 'A', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X1', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
+      { id: 's-xtra-1', holder_id: 'holder-xtra-1', cups: 'ES0000000000000001AA', supply_name: 'XTRA 1', address: 'A', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X1', current_retailer: 'FENIE', manual_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
       { id: 's-xtra-2', holder_id: 'holder-xtra-2', cups: 'ES0000000000000002AA', supply_name: 'XTRA 2', address: 'B', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '3.0TD', current_contract_number: 'X2', current_retailer: 'FENIE', current_distributor: 'D1', status: 'active' },
       { id: 's-guillem', holder_id: 'holder-guillem', cups: 'ES0000000000000003AA0F', supply_name: 'Guillem', address: 'C', city: 'Palma', province: 'Illes Balears', postal_code: '07000', current_tariff: '2.0TD', current_contract_number: 'G1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
       { id: 's-maria', holder_id: 'holder-maria', cups: 'ES0000000000000004AA', supply_name: 'Maria', address: 'D', city: 'Esporles', province: 'Illes Balears', postal_code: '07190', current_tariff: '2.0TD', current_contract_number: 'M1', current_retailer: 'ENDESA', current_distributor: 'D2', status: 'active' },
@@ -238,6 +238,11 @@ function buildHarness(role = 'admin', options = {}) {
   return { window, calls, added, replacements, status, datasets, dispatched };
 }
 
+test('retailer manual override is represented in central sync script',()=>{
+  assert.match(source,/manual_retailer/);
+  assert.match(source,/manualRetailer: supply\.manual_retailer \|\| ''/);
+});
+
 test('admin reconciles every eligible legacy CUPS across every active client without duplicating holders', async () => {
   const { window, calls, added, replacements, status, datasets, dispatched } = buildHarness('admin');
   await window.CentralSupabaseMaster.reload();
@@ -428,7 +433,7 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3e94478bdba9/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3741fea56ac5/);
   assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);

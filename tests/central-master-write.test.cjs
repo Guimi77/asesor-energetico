@@ -117,10 +117,10 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=e8191ca92edc/);
-  assert.match(index, /client-archive-integrated\.js\?v=8f77a98f4587/);
-  assert.match(index, /auth-bootstrap\.js\?v=815d5363e6c3/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3e94478bdba9/);
+  assert.match(index, /master-v2\.js\?v=8cb78edbde13/);
+  assert.match(index, /client-archive-integrated\.js\?v=d5b3810ac67e/);
+  assert.match(index, /auth-bootstrap\.js\?v=f23fdcdd68fa/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3741fea56ac5/);
 });
 
 
@@ -163,4 +163,17 @@ test('CUPS identity ignores the optional trailing extension everywhere', () => {
   assert.match(cupsIdentityMigration, /optional trailing CUPS extension characters such as 0F never differentiate supplies/i);
   assert.match(cupsIdentityMigration, /create unique index if not exists supplies_canonical_cups_identity_unique/i);
   assert.match(cupsIdentityMigration, /canonical_cups_identity_conflict/);
+});
+
+test('manual retailer is audited and cannot be overwritten by later invoices or imports', () => {
+  const sql = fs.readFileSync(path.join(root,'supabase','migrations','20261117110000_manual_supply_retailer.sql'),'utf8');
+  assert.match(sql,/add column if not exists manual_retailer text/);
+  assert.match(sql,/create trigger trg_supplies_manual_retailer/i);
+  assert.match(sql,/new\.current_retailer := new\.manual_retailer;/);
+  assert.match(sql,/private\.is_internal_user\(\)/);
+  assert.match(sql,/set_supply_retailer_manual\(p_cups text, p_retailer text\)/);
+  assert.match(sql,/supply_retailer_fixed_manually/);
+  assert.match(master,/supabase\.rpc\('set_supply_retailer_manual'/);
+  assert.match(master,/if \(manualError \|\| !manualResult\?\.ok\)/);
+  assert.match(pilot,/manualRetailer: supply\.manual_retailer \|\| ''/);
 });
