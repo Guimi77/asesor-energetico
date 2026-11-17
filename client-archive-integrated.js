@@ -101,8 +101,8 @@
           const tax = document.createElement('small');
           tax.className = 'integrated-holder-tax';
           tax.textContent = source.taxId;
-          const count = [...summary.children].find((node) => node.tagName === 'SPAN' && !node.classList.contains('holder-folder-icon'));
-          if (count) summary.insertBefore(tax, count);
+          const titleMain = $('.holder-title-main', summary);
+          if (titleMain) titleMain.appendChild(tax);
           else summary.appendChild(tax);
         }
 
@@ -392,14 +392,60 @@
       .holder-folder>summary{
         display:flex!important;
         align-items:center;
-        gap:7px;
-        min-height:34px;
+        gap:9px;
+        min-height:42px;
       }
-      .holder-folder>summary>strong{font-size:.78rem}
+      .holder-title-wrap{
+        display:flex;
+        flex:1 1 auto;
+        min-width:0;
+        flex-direction:column;
+        gap:4px;
+      }
+      .holder-title-main{
+        display:flex;
+        align-items:baseline;
+        flex-wrap:wrap;
+        gap:7px;
+        min-width:0;
+      }
+      .holder-title-main>strong{
+        color:#243442;
+        font-size:.8rem;
+        line-height:1.2;
+      }
       .integrated-holder-tax{
-        color:#718096;
+        color:#8a96a6;
+        font-size:.6rem;
+        font-weight:650;
+      }
+      .holder-contact-line{
+        display:flex;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:4px 14px;
+        min-width:0;
+        color:#5f6f80;
         font-size:.62rem;
+        line-height:1.25;
+      }
+      .holder-contact-item{
+        display:inline-flex;
+        align-items:baseline;
+        gap:4px;
+        min-width:0;
+      }
+      .holder-contact-label{
+        color:#8a96a6;
+        font-size:.56rem;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.025em;
+      }
+      .holder-contact-value{
+        color:#5f6f80;
         font-weight:600;
+        overflow-wrap:anywhere;
       }
       .integrated-holder-actions{
         display:flex;
@@ -425,37 +471,38 @@
         display:flex!important;
         flex-wrap:wrap;
         align-items:center;
-        gap:5px 9px;
+        gap:4px 6px;
         width:fit-content;
         max-width:100%;
-        margin-top:7px;
-        padding:7px 11px;
-        border:1px solid #99d9d0;
-        border-left:4px solid #008e80;
-        border-radius:6px;
-        background:#eafaf7;
-        color:#123a38!important;
-        font-size:clamp(.83rem,1vw,.96rem)!important;
-        line-height:1.35!important;
-        font-weight:700!important;
+        margin-top:4px;
+        padding:0;
+        border:0;
+        border-radius:0;
+        background:transparent;
+        color:#667587!important;
+        font-size:.62rem!important;
+        line-height:1.25!important;
+        font-weight:500!important;
       }
       .supply-current-retailer strong{
-        color:#063e37!important;
-        font-size:inherit!important;
-        font-weight:800!important;
+        color:#526273!important;
+        font-size:.64rem!important;
+        font-weight:750!important;
       }
       .supply-current-retailer-label{
-        color:#13574e!important;
-        font-size:inherit!important;
+        color:#8a96a6!important;
+        font-size:.58rem!important;
         font-weight:700!important;
       }
       .supply-retailer-manual-tag{
-        font-size:.68rem;
-        letter-spacing:.04em;
-        color:#fff;
-        background:#14645b;
-        padding:2px 6px;
-        border-radius:4px;
+        font-size:.52rem;
+        letter-spacing:.035em;
+        color:#5c6b78;
+        background:#f1f4f6;
+        border:1px solid #dce3e8;
+        padding:1px 5px;
+        border-radius:999px;
+        font-weight:800;
       }
       .integrated-holder-notice.warning{color:#9a5b00}
       .integrated-holder-notice.ok{color:#237a45}
@@ -521,6 +568,12 @@
         .holder-folder>summary{
           align-items:flex-start;
           flex-wrap:wrap;
+        }
+        .holder-title-wrap{
+          width:calc(100% - 28px);
+        }
+        .holder-contact-line{
+          gap:4px 10px;
         }
         .integrated-holder-actions{
           width:100%;

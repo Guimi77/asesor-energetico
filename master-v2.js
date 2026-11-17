@@ -346,14 +346,14 @@
           }).join('');
 
           const holderContactBits = internal ? [
-            holder.email ? `✉ ${esc(holder.email)}` : '',
-            holder.phone ? `☎ ${esc(holder.phone)}` : '',
-            holder.bankAccount ? `Cuenta ${esc(maskedBankAccount(holder.bankAccount))}` : '',
+            holder.email ? `<span class="holder-contact-item"><span class="holder-contact-label">Correo</span><span class="holder-contact-value">${esc(holder.email)}</span></span>` : '',
+            holder.phone ? `<span class="holder-contact-item"><span class="holder-contact-label">Tel.</span><span class="holder-contact-value">${esc(holder.phone)}</span></span>` : '',
+            holder.bankAccount ? `<span class="holder-contact-item"><span class="holder-contact-label">Cuenta</span><span class="holder-contact-value">${esc(maskedBankAccount(holder.bankAccount))}</span></span>` : '',
           ].filter(Boolean) : [];
           const holderContactLine = holderContactBits.length
-            ? `<small class="holder-contact-line">${holderContactBits.join(' · ')}</small>`
+            ? `<span class="holder-contact-line">${holderContactBits.join('')}</span>`
             : '';
-          return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><strong>${esc(holder.name)}</strong>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
+          return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><span class="holder-title-main"><strong>${esc(holder.name)}</strong></span>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
         }).join('');
 
         const memberRows = multiClient
