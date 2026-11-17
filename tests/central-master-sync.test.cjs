@@ -95,6 +95,7 @@ function buildHarness(role = 'admin', options = {}) {
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
         if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
+        if (name === 'get_internal_client_contacts') return { data: options.clientContacts || {}, error: null };
 
         if (name === 'ensure_supply_from_master') {
           if ((options.rpcFailCups || []).some((cups) => cupsKey(cups) === cupsKey(args.p_cups))) {
@@ -300,6 +301,31 @@ test('admin reconciles every eligible legacy CUPS across every active client wit
   assert.match(status.innerHTML, /caché alineada con Supabase/);
 });
 
+test('internal client contacts are merged into every supply row for that client', async () => {
+  const { window, replacements, calls } = buildHarness('admin', {
+    clientContacts: {
+      'client-maria': {
+        email: 'maria@example.test',
+        phone: '+34 600 000 001',
+        bank_account: 'ES0000000000000000000000',
+      },
+    },
+  });
+
+  await window.CentralSupabaseMaster.reload();
+
+  const contactCall = calls.find((call) => call.op === 'rpc' && call.name === 'get_internal_client_contacts');
+  assert.ok(contactCall, 'internal sync must load the private client contacts');
+  assert.equal(replacements.length, 1);
+  const mariaRows = replacements[0].filter((item) => item.client === 'CLIENTE PRUEBA DOS');
+  assert.ok(mariaRows.length >= 1);
+  for (const row of mariaRows) {
+    assert.equal(row.clientEmail, 'maria@example.test');
+    assert.equal(row.clientPhone, '+34 600 000 001');
+    assert.equal(row.clientBankAccount, 'ES0000000000000000000000');
+  }
+});
+
 test('CUPS extensions share the same canonical supply identity', async () => {
   const { window, calls, datasets, dispatched } = buildHarness('admin', {
     extraLocalRows: [{
@@ -433,7 +459,7 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=3741fea56ac5/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88aad1d2afa5/);
   assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
