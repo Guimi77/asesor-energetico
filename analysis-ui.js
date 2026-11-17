@@ -2,6 +2,7 @@
   'use strict';
 
   const INTERNAL_ROLES = new Set(['admin','staff']);
+  const ALL_CLIENTS = '__all__';
   const PHONE_DISPLAY = '661 728 397';
   const PHONE_LINK = '661728397';
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -84,15 +85,23 @@
 
   async function loadScope(clientId, token) {
     const supabase = window.ibtSupabase;
-    const {data: holders, error: holderError} = await supabase.from('holders').select('id,client_id,legal_name,status').eq('client_id', clientId).order('legal_name');
+    const allClients = clientId === ALL_CLIENTS && INTERNAL_ROLES.has(window.ibtCurrentProfile?.role);
+
+    let holderQuery = supabase.from('holders').select('id,client_id,legal_name,status').order('legal_name');
+    if (!allClients) holderQuery = holderQuery.eq('client_id', clientId);
+    const {data: holders, error: holderError} = await holderQuery;
     if (holderError) throw holderError;
     if (token !== state.loadToken) return;
+
     const holderIds = (holders || []).map(h => h.id);
     let supplies = [];
     if (holderIds.length) {
-      const {data, error} = await supabase.from('supplies').select('id,holder_id,cups,supply_name,address,city,province,current_tariff,status').in('holder_id', holderIds).order('cups');
+      let supplyQuery = supabase.from('supplies').select('id,holder_id,cups,supply_name,address,city,province,current_tariff,status').order('cups');
+      if (!allClients) supplyQuery = supplyQuery.in('holder_id', holderIds);
+      const {data, error} = await supplyQuery;
       if (error) throw error;
-      supplies = data || [];
+      const allowedHolders = new Set(holderIds);
+      supplies = (data || []).filter(s => allowedHolders.has(s.holder_id));
     }
     if (token !== state.loadToken) return;
 
@@ -100,7 +109,7 @@
     const supplyIds = activeSupplies.map(s => s.id);
     let records = [];
     if (supplyIds.length) {
-      const {data, error} = await supabase.from('invoices').select(`
+      const invoiceSelect = `
         id,supply_id,invoice_number,billing_start,billing_end,billing_days,tariff,
         consumption_kwh,energy_cost_eur,excess_cost_eur,reactive_cost_eur,total_eur,
         validation_status,reading_status,
@@ -108,9 +117,16 @@
         invoice_maximeters(period,maximeter_kw,reliable,source),
         invoice_excesses(period,excess_kw,amount_eur),
         invoice_reactive(period,reactive_kvarh,amount_eur)
-      `).in('supply_id', supplyIds).order('billing_start', {ascending:true});
-      if (error) throw error;
-      records = data || [];
+      `;
+      const batchSize = 120;
+      for (let offset = 0; offset < supplyIds.length; offset += batchSize) {
+        const batch = supplyIds.slice(offset, offset + batchSize);
+        const {data, error} = await supabase.from('invoices').select(invoiceSelect).in('supply_id', batch).order('billing_start', {ascending:true});
+        if (error) throw error;
+        records.push(...(data || []));
+        if (token !== state.loadToken) return;
+      }
+      records.sort((a,b) => String(a.billing_start || '').localeCompare(String(b.billing_start || '')));
     }
     if (token !== state.loadToken) return;
     state.holders = holders || [];
@@ -124,7 +140,11 @@
     const role = window.ibtCurrentProfile?.role;
     const current = state.clients.find(c => c.id === state.clientId) || state.clients[0];
     if (INTERNAL_ROLES.has(role)) {
-      host.innerHTML = `<div class="analysis-client-select"><label>Cliente<select id="analysisClient">${state.clients.map(c => `<option value="${esc(c.id)}" ${c.id===state.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label></div>`;
+      const options = [
+        `<option value="${ALL_CLIENTS}" ${state.clientId===ALL_CLIENTS?'selected':''}>Todos los clientes</option>`,
+        ...state.clients.map(c => `<option value="${esc(c.id)}" ${c.id===state.clientId?'selected':''}>${esc(c.name)}</option>`)
+      ].join('');
+      host.innerHTML = `<div class="analysis-client-select"><label>Cliente<select id="analysisClient">${options}</select></label></div>`;
       $('#analysisClient')?.addEventListener('change', event => {
         state.clientId = event.target.value;
         refresh();
@@ -148,13 +168,14 @@
     catch (_) { return fallbackPlain(item); }
   }
 
-  function card(item, priority, supplyMap, holderMap) {
+  function card(item, priority, supplyMap, holderMap, clientMap, showClient) {
     const supply = supplyMap.get(item.supplyId);
     const holder = holderMap.get(supply?.holder_id);
+    const client = clientMap.get(holder?.client_id);
     const copy = plain(item);
     const name = supply?.supply_name || supply?.address || 'Suministro';
-    const identity = [holder?.legal_name, supply?.cups].filter(Boolean).join(' · ');
-    return `<article class="analysis-item ${priority?'analysis-item-priority':''}"><div class="analysis-item-top"><div><h3>${esc(copy.title)}</h3><span class="analysis-identity">${esc(name)}${identity ? ` · ${esc(identity)}` : ''}</span><p class="analysis-summary">${esc(copy.summary)}</p><p class="analysis-check"><strong>Qué conviene revisar:</strong> ${esc(copy.recommendation)}</p></div><div class="analysis-badge">${esc(copy.badge || 'Revisar')}${copy.badgeDetail ? `<span>${esc(copy.badgeDetail)}</span>` : ''}</div></div></article>`;
+    const identity = [showClient ? client?.name : '', holder?.legal_name, supply?.cups].filter(Boolean).join(' · ');
+    return `<article class="analysis-item ${priority?'analysis-item-priority':''}" data-supply-id="${esc(item.supplyId || '')}"><div class="analysis-item-top"><div><h3>${esc(copy.title)}</h3><span class="analysis-identity">${esc(name)}${identity ? ` · ${esc(identity)}` : ''}</span><p class="analysis-summary">${esc(copy.summary)}</p><p class="analysis-check"><strong>Qué conviene revisar:</strong> ${esc(copy.recommendation)}</p></div><div class="analysis-badge">${esc(copy.badge || 'Revisar')}${copy.badgeDetail ? `<span>${esc(copy.badgeDetail)}</span>` : ''}</div></div></article>`;
   }
 
   function render() {
@@ -178,6 +199,8 @@
     });
     const supplyMap = new Map(activeSupplies.map(s => [s.id,s]));
     const holderMap = new Map(state.holders.map(h => [h.id,h]));
+    const clientMap = new Map(state.clients.map(c => [c.id,c]));
+    const allClients = state.clientId === ALL_CLIENTS && INTERNAL_ROLES.has(window.ibtCurrentProfile?.role);
     const inactive = state.supplies.length - activeSupplies.length;
 
     host.innerHTML = `
@@ -188,8 +211,8 @@
         <article class="card analysis-kpi"><small>Otros avisos</small><strong>${other.length}</strong><span>cambios o datos que conviene comprobar</span></article>
       </section>
       ${inactive ? `<p class="analysis-note"><strong>${inactive}</strong> suministro${inactive===1?'':'s'} inactivo${inactive===1?'':'s'} se mantiene${inactive===1?'':'n'} en el histórico, pero no genera${inactive===1?'':'n'} avisos actuales.</p>` : ''}
-      ${priority.length ? `<section class="card analysis-section"><div class="analysis-section-head"><div><h2>Revisar primero</h2><p>Son cargos que ya aparecen en las facturas. Aquí solo señalamos dónde merece la pena mirar.</p></div><span class="analysis-count">${priority.length} ${priority.length===1?'aviso':'avisos'}</span></div><div class="analysis-list">${priority.map(item => card(item,true,supplyMap,holderMap)).join('')}</div></section>` : ''}
-      <section class="card analysis-section"><div class="analysis-section-head"><div><h2>También conviene revisar</h2><p>Cambios, lecturas o patrones que merecen comprobación antes de sacar conclusiones.</p></div><span class="analysis-count">${other.length} ${other.length===1?'aviso':'avisos'}</span></div><div class="analysis-list">${other.length ? other.map(item => card(item,false,supplyMap,holderMap)).join('') : '<div class="analysis-empty">No hemos detectado otros avisos claros con los datos disponibles.</div>'}</div></section>
+      ${priority.length ? `<section class="card analysis-section"><div class="analysis-section-head"><div><h2>Revisar primero</h2><p>Son cargos que ya aparecen en las facturas. Aquí solo señalamos dónde merece la pena mirar.</p></div><span class="analysis-count">${priority.length} ${priority.length===1?'aviso':'avisos'}</span></div><div class="analysis-list">${priority.map(item => card(item,true,supplyMap,holderMap,clientMap,allClients)).join('')}</div></section>` : ''}
+      <section class="card analysis-section"><div class="analysis-section-head"><div><h2>También conviene revisar</h2><p>Cambios, lecturas o patrones que merecen comprobación antes de sacar conclusiones.</p></div><span class="analysis-count">${other.length} ${other.length===1?'aviso':'avisos'}</span></div><div class="analysis-list">${other.length ? other.map(item => card(item,false,supplyMap,holderMap,clientMap,allClients)).join('') : '<div class="analysis-empty">No hemos detectado otros avisos claros con los datos disponibles.</div>'}</div></section>
       <section class="card analysis-cta"><div><h2>¿Quieres que revisemos alguno de estos puntos?</h2><p>Llámanos y estudiaremos el caso contigo antes de plantear cualquier cambio.</p></div><a class="analysis-call" href="tel:${PHONE_LINK}">Llamar · ${PHONE_DISPLAY}</a></section>`;
   }
 
@@ -220,7 +243,12 @@
         $('#analysisContent').innerHTML = '<div class="analysis-empty">No hay ningún cliente asignado a esta cuenta.</div>';
         return;
       }
-      if (!state.clientId || !state.clients.some(c => c.id === state.clientId)) state.clientId = state.clients[0].id;
+      const internal = INTERNAL_ROLES.has(window.ibtCurrentProfile?.role);
+      if (internal) {
+        if (!state.clientId || (state.clientId !== ALL_CLIENTS && !state.clients.some(c => c.id === state.clientId))) state.clientId = ALL_CLIENTS;
+      } else if (!state.clientId || !state.clients.some(c => c.id === state.clientId)) {
+        state.clientId = state.clients[0].id;
+      }
       clientControl();
       await refresh();
     } catch (error) {
