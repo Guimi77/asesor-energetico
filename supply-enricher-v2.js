@@ -293,7 +293,11 @@ async function inspect(file) {
   if (!data.cups) return { read: false, changed: false, data, reason:format==='unknown'?'Formato no compatible todavía':'CUPS no identificado' };
   const master = await waitForMaster();
   const result = master.learnInvoice(data);
-  return { read: true, changed: Boolean(result?.enriched), result, data };
+  let powerProfile = { ok: true, skipped: true };
+  if (result?.ok !== false && typeof master.persistPowerProfile === 'function') {
+    powerProfile = await master.persistPowerProfile(data.cups, data, { mode: 'fill_only', source: 'invoice' });
+  }
+  return { read: true, changed: Boolean(result?.enriched), result, data, powerProfile };
 }
 
 async function inspectFiles(files) {
@@ -312,7 +316,7 @@ async function inspectFiles(files) {
       const result = await inspect(file);
       if (result.read) read += 1;
       if (result.changed) changed += 1;
-      if (!result.read || result.result?.ok === false) failed += 1;
+      if (!result.read || result.result?.ok === false || result.powerProfile?.ok === false) failed += 1;
     } catch (error) {
       failed += 1;
       console.warn('No se pudo enriquecer el maestro desde', file.name, error);
