@@ -305,9 +305,9 @@ test('internal client contacts are merged into every supply row for that client'
   const { window, replacements, calls } = buildHarness('admin', {
     clientContacts: {
       'client-maria': {
-        email: 'maria@example.test',
+        email: 'maria@example.com',
         phone: '+34 600 000 001',
-        bank_account: 'ES0000000000000000000000',
+        bank_account: 'CUENTA-PRUEBA-0001',
       },
     },
   });
@@ -320,9 +320,9 @@ test('internal client contacts are merged into every supply row for that client'
   const mariaRows = replacements[0].filter((item) => item.client === 'CLIENTE PRUEBA DOS');
   assert.ok(mariaRows.length >= 1);
   for (const row of mariaRows) {
-    assert.equal(row.clientEmail, 'maria@example.test');
+    assert.equal(row.clientEmail, 'maria@example.com');
     assert.equal(row.clientPhone, '+34 600 000 001');
-    assert.equal(row.clientBankAccount, 'ES0000000000000000000000');
+    assert.equal(row.clientBankAccount, 'CUENTA-PRUEBA-0001');
   }
 });
 
