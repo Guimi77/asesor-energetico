@@ -9,6 +9,7 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const dbUi=fs.readFileSync(path.join(root,'internal-db-usage.js'),'utf8');
 const dbCss=fs.readFileSync(path.join(root,'internal-db-usage.css'),'utf8');
 const clientUi=fs.readFileSync(path.join(root,'client-archive-integrated.js'),'utf8');
+const masterUi=fs.readFileSync(path.join(root,'master-v2.js'),'utf8');
 
 test('Clientes keeps its core layout contract',()=>{
   const start=html.indexOf('<div id="clientesView"');
@@ -49,4 +50,13 @@ test('Clientes uses only the integrated holder hierarchy, not duplicate admin pa
   assert.match(clientUi,/function prepareClientHierarchy/);
   assert.match(clientUi,/function integrateHolderActions/);
   assert.match(clientUi,/function integrateHolderChangeControls/);
+});
+
+
+test('Clientes shows the current retailer on every supply row',()=>{
+  assert.match(masterUi,/const retailer = supply\.retailer \|\| 'Comercializadora pendiente'/);
+  assert.match(masterUi,/class="supply-current-retailer"/);
+  assert.match(masterUi,/Comercializadora actual:/);
+  assert.match(clientUi,/\.supply-current-retailer\{/);
+  assert.match(clientUi,/\.supply-current-retailer-label\{/);
 });
