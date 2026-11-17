@@ -22,6 +22,8 @@
     status: 'active',
     loading: false,
     knownActive: new Set(),
+    knownDismissed: new Set(),
+    activeIncidentByKey: new Map(),
     supplyByCups: new Map(),
   };
 
@@ -33,7 +35,7 @@
     const style = document.createElement('style');
     style.id = 'alertsUiStyles';
     style.textContent = `
-      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px}.analysis-add-alert{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled]{opacity:.72;cursor:default}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
+      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.analysis-add-alert,.analysis-dismiss{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled],.analysis-dismiss[disabled]{opacity:.72;cursor:default}.analysis-dismiss:not([disabled]){color:#6f3b1f;border-color:#d8c3b4;background:#fffaf6}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -122,6 +124,8 @@
     state.incidents = incidents || [];
     state.supplyByCups = new Map(state.supplies.map(s => [cupsKey(s.cups_key || s.cups), s]));
     state.knownActive = new Set(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => `${i.supply_id}|${i.title}`));
+    state.knownDismissed = new Set(state.incidents.filter(i => i.status === 'dismissed').map(i => `${i.supply_id}|${i.title}`));
+    state.activeIncidentByKey = new Map(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => [`${i.supply_id}|${i.title}`, i]));
   }
 
   function renderControls() {
@@ -198,6 +202,8 @@
     const incident = state.incidents.find(i => i.id === id);
     if (incident) { incident.status = status; incident.resolved_at = resolvedAt; }
     state.knownActive = new Set(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => `${i.supply_id}|${i.title}`));
+    state.knownDismissed = new Set(state.incidents.filter(i => i.status === 'dismissed').map(i => `${i.supply_id}|${i.title}`));
+    state.activeIncidentByKey = new Map(state.incidents.filter(i => ACTIVE_STATUSES.has(i.status)).map(i => [`${i.supply_id}|${i.title}`, i]));
     render();
     decorateAnalysis();
     window.dispatchEvent(new CustomEvent('ibt-alerts-changed'));
@@ -216,41 +222,81 @@
     return {title,cups,summary,review,severity:priority?4:(readingRisk?3:2)};
   }
 
-  async function addAnalysisCard(card, button) {
-    if (!isInternal()) return;
+  async function saveAnalysisDecision(card, button, status) {
+    if (!isInternal() || !['open','dismissed'].includes(status)) return;
     const payload = extractCardPayload(card);
-    const supply = state.supplyByCups.get(cupsKey(payload.cups));
+    const supply = state.supplies.find(s => s.id === card.dataset.supplyId) || state.supplyByCups.get(cupsKey(payload.cups));
     if (!supply || !payload.title) {
       button.textContent = 'No se pudo identificar';
       return;
     }
+
     const key = `${supply.id}|${payload.title}`;
-    if (state.knownActive.has(key)) {
+    if (status === 'open' && state.knownActive.has(key)) {
       button.textContent = 'En Alertas ✓';
       button.disabled = true;
       return;
     }
-    button.disabled = true;
-    button.textContent = 'Añadiendo…';
-    const description = [payload.summary, payload.review ? `Qué revisar: ${payload.review}` : ''].filter(Boolean).join('\n');
-    const {data,error} = await window.ibtSupabase.from('incidents').insert({
-      supply_id:supply.id,
-      invoice_id:null,
-      title:payload.title,
-      description,
-      severity:payload.severity,
-      status:'open',
-      created_by:window.ibtCurrentProfile?.id || null,
-    }).select('id,supply_id,invoice_id,title,description,severity,status,detected_at,resolved_at,created_by').single();
-    if (error) {
-      button.disabled = false;
-      button.textContent = 'Añadir a Alertas';
-      alert('No se pudo guardar la alerta: ' + error.message);
+    if (status === 'dismissed' && state.knownDismissed.has(key) && !state.knownActive.has(key)) {
+      button.textContent = 'Descartado ✓';
+      button.disabled = true;
       return;
     }
-    state.incidents.unshift(data);
-    state.knownActive.add(key);
-    button.textContent = 'En Alertas ✓';
+
+    const resolvedAt = status === 'dismissed' ? new Date().toISOString() : null;
+    const description = [payload.summary, payload.review ? `Qué revisar: ${payload.review}` : ''].filter(Boolean).join('\n');
+    button.disabled = true;
+    button.textContent = status === 'dismissed' ? 'Descartando…' : 'Añadiendo…';
+
+    let data;
+    let error;
+    const activeIncident = status === 'dismissed' ? state.activeIncidentByKey.get(key) : null;
+    if (activeIncident) {
+      ({data,error} = await window.ibtSupabase.from('incidents')
+        .update({status:'dismissed',resolved_at:resolvedAt})
+        .eq('id',activeIncident.id)
+        .select('id,supply_id,invoice_id,title,description,severity,status,detected_at,resolved_at,created_by')
+        .single());
+    } else {
+      ({data,error} = await window.ibtSupabase.from('incidents').insert({
+        supply_id:supply.id,
+        invoice_id:null,
+        title:payload.title,
+        description,
+        severity:payload.severity,
+        status,
+        resolved_at:resolvedAt,
+        created_by:window.ibtCurrentProfile?.id || null,
+      }).select('id,supply_id,invoice_id,title,description,severity,status,detected_at,resolved_at,created_by').single());
+    }
+
+    if (error) {
+      button.disabled = false;
+      button.textContent = status === 'dismissed' ? 'Descartar' : 'Añadir a Alertas';
+      alert((status === 'dismissed' ? 'No se pudo descartar el aviso: ' : 'No se pudo guardar la alerta: ') + error.message);
+      return;
+    }
+
+    if (activeIncident) {
+      const index = state.incidents.findIndex(i => i.id === activeIncident.id);
+      if (index >= 0) state.incidents[index] = data;
+    } else {
+      state.incidents.unshift(data);
+    }
+
+    if (status === 'dismissed') {
+      state.knownActive.delete(key);
+      state.activeIncidentByKey.delete(key);
+      state.knownDismissed.add(key);
+      button.textContent = 'Descartado ✓';
+      const addButton = $('.analysis-add-alert', card);
+      if (addButton) addButton.disabled = true;
+    } else {
+      state.knownActive.add(key);
+      state.activeIncidentByKey.set(key, data);
+      state.knownDismissed.delete(key);
+      button.textContent = 'En Alertas ✓';
+    }
     button.disabled = true;
     window.dispatchEvent(new CustomEvent('ibt-alerts-changed'));
   }
@@ -264,19 +310,34 @@
       if (!actions) {
         actions = document.createElement('div');
         actions.className = 'analysis-alert-actions';
-        actions.innerHTML = '<button type="button" class="secondary analysis-add-alert">Añadir a Alertas</button>';
+        actions.innerHTML = '<button type="button" class="secondary analysis-add-alert">Añadir a Alertas</button><button type="button" class="secondary analysis-dismiss">Descartar</button>';
         card.appendChild(actions);
       }
-      const button = $('.analysis-add-alert', actions);
-      if (!button || button.dataset.bound === '1') return;
-      button.dataset.bound = '1';
+      const addButton = $('.analysis-add-alert', actions);
+      const dismissButton = $('.analysis-dismiss', actions);
       const payload = extractCardPayload(card);
-      const supply = state.supplyByCups.get(cupsKey(payload.cups));
-      if (supply && state.knownActive.has(`${supply.id}|${payload.title}`)) {
-        button.textContent = 'En Alertas ✓';
-        button.disabled = true;
+      const supply = state.supplies.find(s => s.id === card.dataset.supplyId) || state.supplyByCups.get(cupsKey(payload.cups));
+      const key = supply ? `${supply.id}|${payload.title}` : '';
+
+      if (addButton && addButton.dataset.bound !== '1') {
+        addButton.dataset.bound = '1';
+        if (key && state.knownActive.has(key)) {
+          addButton.textContent = 'En Alertas ✓';
+          addButton.disabled = true;
+        } else if (key && state.knownDismissed.has(key)) {
+          addButton.disabled = true;
+        }
+        addButton.addEventListener('click', () => saveAnalysisDecision(card, addButton, 'open'));
       }
-      button.addEventListener('click', () => addAnalysisCard(card, button));
+
+      if (dismissButton && dismissButton.dataset.bound !== '1') {
+        dismissButton.dataset.bound = '1';
+        if (key && state.knownDismissed.has(key) && !state.knownActive.has(key)) {
+          dismissButton.textContent = 'Descartado ✓';
+          dismissButton.disabled = true;
+        }
+        dismissButton.addEventListener('click', () => saveAnalysisDecision(card, dismissButton, 'dismissed'));
+      }
     });
   }
 
