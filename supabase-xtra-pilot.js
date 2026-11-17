@@ -56,7 +56,7 @@
     if (!holderIds.length) return [];
     const { data, error } = await supabase
       .from('supplies')
-      .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,current_distributor,status')
+      .select('id,holder_id,cups,supply_name,address,city,province,postal_code,current_tariff,current_contract_number,current_retailer,manual_retailer,current_distributor,status')
       .in('holder_id', holderIds)
       .eq('status', 'active')
       .order('cups');
@@ -339,6 +339,7 @@
           tariff: supply.current_tariff || '',
           contract: supply.current_contract_number || '',
           retailer: supply.current_retailer || '',
+          manualRetailer: supply.manual_retailer || '',
           distributor: supply.current_distributor || '',
           status: 'ACTIVO',
           source: 'Supabase · Base central',
