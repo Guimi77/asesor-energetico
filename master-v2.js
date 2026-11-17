@@ -746,7 +746,9 @@
       $('#clientTaxId').value = existing.clientTaxId || '';
       if ($('#clientAlias')) $('#clientAlias').value = existing.clientAlias || '';
       const targetHolder = blankHolder ? '' : (holder || existing.holder || existing.company || client);
-      const holderSupply = supplies.find((supply) => key(supply.client) === key(client) && key(supply.holder || supply.company) === key(targetHolder)) || existing;
+      const holderSupply = blankHolder
+        ? {}
+        : (supplies.find((supply) => key(supply.client) === key(client) && key(supply.holder || supply.company) === key(targetHolder)) || existing);
       const holderDefaults = holderDefaultsFor(holderSupply);
       $('#clientEmail').value = holderDefaults.email;
       $('#clientPhone').value = holderDefaults.phone;
@@ -757,6 +759,7 @@
       $('#holderName').value = holder;
     }
 
+    updatePowerPeriodVisibility();
     editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('#clientName').focus();
   }
