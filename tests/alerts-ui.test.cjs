@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const alerts = fs.readFileSync('alerts-ui.js', 'utf8');
 const analysis = fs.readFileSync('analysis-ui.js', 'utf8');
+const history = fs.readFileSync('history-ui.js', 'utf8');
 const bootstrap = fs.readFileSync('auth-bootstrap.js', 'utf8');
 
 test('alerts use incidents as an internal tracking inbox', () => {
@@ -64,4 +65,19 @@ test('global analysis groups findings by client while keeping per-supply actions
   assert.match(analysis, /group\.other\.map\(item => card\(item,false/);
   assert.match(analysis, /renderAllClients\(priority, other, supplyMap, holderMap, clientMap\)/);
   assert.match(analysis, /group\.supplyIds\.size/);
+});
+
+
+test('analysis findings can open the exact supply history', () => {
+  assert.match(alerts, /analysis-history-link/);
+  assert.match(alerts, /Ver histórico/);
+  assert.match(alerts, /openAnalysisHistory/);
+  assert.match(alerts, /data-view="historico"/);
+  assert.match(alerts, /IBTHistoryUI\?\.focusSupply/);
+  assert.match(alerts, /clientId, supply\.id/);
+  assert.match(history, /async function focusSupply\(clientId, supplyId\)/);
+  assert.match(history, /state\.currentClient = clientId/);
+  assert.match(history, /state\.selectedSupplies = \[supplyId\]/);
+  assert.match(history, /window\.IBTHistoryUI = \{ reload: refreshRecords, focusSupply \}/);
+  assert.match(history, /ibt-history-focus/);
 });
