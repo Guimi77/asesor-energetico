@@ -8,7 +8,8 @@ const bootstrap = fs.readFileSync('auth-bootstrap.js', 'utf8');
 
 test('alerts use incidents as an internal tracking inbox', () => {
   assert.match(alerts, /from\('incidents'\)/);
-  assert.match(alerts, /\['open','dismissed'\]/);\n  assert.match(alerts, /status,/);
+  assert.match(alerts, /\['open','dismissed'\]/);
+  assert.match(alerts, /status,/);
   assert.match(alerts, /reviewing/);
   assert.match(alerts, /resolved/);
   assert.match(alerts, /dismissed/);
