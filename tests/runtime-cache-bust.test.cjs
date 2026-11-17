@@ -44,5 +44,5 @@ test('los assets críticos no pueden desplegar código nuevo con una URL cachead
   assertCacheToken('ui-compact.js');
   assertCacheToken('client-archive-integrated.js');
   assertSourceCacheToken(authBootstrap,'xtra-history.js');
-  assertSourceCacheToken(authBootstrap,'bulk-performance.js');
+  assertSourceCacheToken(authBootstrap,'bulk-performance.js');\n  assertSourceCacheToken(authBootstrap,'analysis-ui.js');\n  assertSourceCacheToken(authBootstrap,'alerts-ui.js');
 });
