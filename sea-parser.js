@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='sea-2026.11.17.1';
+  const REVISION='sea-2026.11.17.2';
   const RETAILER='Servicios Energ\u00e9ticos Avanzados, S.L.';
   const BRAND='Energia BT';
 
@@ -37,19 +37,23 @@
   const expectedPowerPeriods=tariff=>/^2\.0TD$/i.test(tariff)?2:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0;
   const expectedEnergyPeriods=tariff=>/^2\.0TD$/i.test(tariff)?3:/^(?:3\.0TD|6\.[1-4]TD)$/i.test(tariff)?6:0;
 
+  function languageOf(value){
+    const text=textOf(value);
+    return /\b(?:Dades|Desglossament|Per(?:i|\u00ed)ode|Pot(?:e|\u00e8)ncia|Lloguer|Finan(?:c|\u00e7)ament)\b/i.test(text)?'ca':'es';
+  }
+
   function detect(value){
     const text=textOf(value);
     const legalIssuer=/Servicios\s+Energ(?:e|\u00e9)ticos\s+Avanzados\s*,?\s*S\.?\s*L\.?/i.test(text)&&/\bB13900816\b/i.test(text);
     const horizontalIssuer=/(?:seravanzados\.com|info@seravanzados\.com)/i.test(text);
-    const layout=/Datos\s+de\s+la\s+factura/i.test(text)
-      && /Desglose\s+de\s+la\s+factura/i.test(text)
-      && /Tarifa\s+de\s+acceso\s+mercado\s+libre/i.test(text)
-      && /Segmento\s+de\s+cargos/i.test(text)
-      && /Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema\s*\(REE\)/i.test(text);
-    // En las facturas reales el nombre legal y el CIF van rotados 90 grados en el margen.
-    // PDF.js no garantiza reconstruir ese texto vertical como una linea continua, por eso
-    // el detector acepta el dominio horizontal oficial como ancla de emisor equivalente.
-    return layout&&(horizontalIssuer||legalIssuer);
+    const invoiceHeader=/(?:Datos|Dades)\s+de\s+la\s+factura/i.test(text);
+    const breakdown=/(?:Desglose|Desglossament)\s+de\s+la\s+factura/i.test(text);
+    const tariff=/(?:Tarifa\s+de\s+acceso|Tarifa\s+d['\u2019]acc(?:e|\u00e9)s)\s+mercado?\s*libre|Tarifa\s+d['\u2019]acc(?:e|\u00e9)s\s+mercat\s+lliure/i.test(text);
+    const segment=/(?:Segmento\s+de\s+cargos|Segment\s+de\s+c(?:a|\u00e0)rrecs)/i.test(text);
+    const adjustment=/(?:Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema|Cost\s+serveis\s+d['\u2019]ajust\s+del\s+sistema)\s*\(REE\)/i.test(text);
+    // El emisor y el layout son comunes a las variantes ES/CA. El nombre legal/CIF puede
+    // ir rotado en el margen y PDF.js no siempre lo reconstruye como una linea continua.
+    return invoiceHeader&&breakdown&&tariff&&segment&&adjustment&&(horizontalIssuer||legalIssuer);
   }
 
   function capture(text,re){const m=String(text||'').match(re);return clean(m?.[1]||'');}
@@ -69,9 +73,9 @@
   }
 
   function parsePeriod(text){
-    const m=String(text||'').match(/Periodo\s+consumo\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const m=String(text||'').match(/(?:Periodo|Per(?:i|\u00ed)ode)\s+consum(?:o)?\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
     if(!m)return{label:'Por identificar',start:'',end:'',days:null};
-    const explicit=String(text||'').match(/\bP1\s+[\d.,]+\s*kW\s+[\d.,]+\s*\u20ac\s*\/?\s*kW\s*\*\s*(\d{1,3})\s*d(?:i|\u00ed)as?/i);
+    const explicit=String(text||'').match(/\bP1\s+[\d.,]+\s*kW\s+[\d.,]+\s*\u20ac\s*\/?\s*kW\s*\*\s*(\d{1,3})\s*(?:d(?:i|\u00ed)as?|dies)\b/i);
     let days=explicit?Number(explicit[1]):null;
     if(days==null){
       const a=new Date(toIso(m[1])+'T00:00:00Z'),b=new Date(toIso(m[2])+'T00:00:00Z');
@@ -89,31 +93,31 @@
 
   function parseIdentity(pages){
     const all=pages.flat(),text=all.join('\n'),p1=pages[0]||[],p1text=p1.join('\n');
-    const invoiceNumber=capture(text,/N[\u00ba\u00b0o.]?\s*Factura\s*:\s*([A-Z0-9._\/-]+)/i)||'Por identificar';
-    const issue=normalizeDate(capture(text,/Emitida\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i));
-    const holder=valueAfter(p1,/\bTitular\s*:/i,[/\bForma\s+de\s+pago\s*:/i,/\bNIF\s*:/i]);
+    const invoiceNumber=capture(text,/(?:N[\u00ba\u00b0o.]?|N(?:u|\u00fa)m\.?)\s*Factura\s*:\s*([A-Z0-9._\/-]+)/i)||'Por identificar';
+    const issue=normalizeDate(capture(text,/(?:Emitida|Emesa)\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i));
+    const holder=valueAfter(p1,/\bTitular\s*:/i,[/\b(?:Forma\s+de\s+pago|M(?:e|\u00e8)tode\s+de\s+pagament)\s*:/i,/\bNIF\s*:/i]);
     const taxId=capture(p1text,/\bNIF\s*:\s*([A-Z0-9-]+)/i).toUpperCase();
     const cups=normalizeCups(capture(text,/\bCUPS\s*:\s*(ES[A-Z0-9]{18,22})\b/i));
-    const supplyAddress=valueAfter(p1,/Direcci(?:o|\u00f3)n\s+del\s+suministro\s*:/i,[/Tarifa\s+de\s+acceso/i,/Contrato\s+de\s+Acceso/i,/Contador\s*:/i]);
+    const supplyAddress=valueAfter(p1,/(?:Direcci(?:o|\u00f3)n\s+del\s+suministro|Direcci(?:o|\u00f3)\s+del\s+subministrament)\s*:/i,[/(?:Tarifa\s+de\s+acceso|Tarifa\s+d['\u2019]acc(?:e|\u00e9)s)/i,/(?:Contrato\s+de\s+Acceso|Contracte\s+d['\u2019]Acc(?:e|\u00e9)s)/i,/(?:Contador|Comptador)\s*:/i]);
     const place=parsePlace(supplyAddress);
     return{invoiceNumber,issueDate:issue?toIso(issue):'',holder,taxId,cups,supplyAddress,supplyCity:place.city,supplyProvince:place.province};
   }
 
   function parseContract(pages){
     const p1=pages[0]||[],text=pages.flat().join('\n'),p1text=p1.join('\n');
-    const tariff=tariffOf(capture(text,/Tarifa\s+de\s+acceso\s+mercado\s+libre\s*:\s*([^\n]+)/i)||text);
-    const contract=capture(p1text,/N[\u00ba\u00b0o.]?\s*Contrato\s*:\s*([A-Z0-9._\/-]+)/i);
-    const accessContract=capture(text,/Contrato\s+de\s+Acceso\s*:\s*([A-Z0-9._\/-]+)/i);
-    const meterNumber=capture(text,/\bContador\s*:\s*([A-Z0-9._\/-]+)/i);
-    const distributor=valueAfter(p1,/\bDistribuidora\s*:/i,[/\bSegmento\s+de\s+cargos\s*:/i,/\bTipo\s+de\s+contrato\s*:/i]);
-    const renewal=normalizeDate(capture(text,/Fecha\s+Fin\s+contrato\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i));
-    const contractDurationType=valueAfter(p1,/Tipo\s+de\s+contrato\s*:/i,[]);
+    const tariff=tariffOf(capture(text,/(?:Tarifa\s+de\s+acceso\s+mercado\s+libre|Tarifa\s+d['\u2019]acc(?:e|\u00e9)s\s+mercat\s+lliure)\s*:\s*([^\n]+)/i)||text);
+    const contract=capture(p1text,/(?:N[\u00ba\u00b0o.]?\s*Contrato|N(?:u|\u00fa)m\.\s*Contracte)\s*:\s*([A-Z0-9._\/-]+)/i);
+    const accessContract=capture(text,/(?:Contrato\s+de\s+Acceso|Contracte\s+d['\u2019]Acc(?:e|\u00e9)s)\s*:\s*([A-Z0-9._\/-]+)/i);
+    const meterNumber=capture(text,/\b(?:Contador|Comptador)\s*:\s*([A-Z0-9._\/-]+)/i);
+    const distributor=valueAfter(p1,/\b(?:Distribuidora|Distribu(?:i|\u00ef)dora)\s*:/i,[/\b(?:Segmento\s+de\s+cargos|Segment\s+de\s+c(?:a|\u00e0)rrecs)\s*:/i,/\b(?:Tipo\s+de\s+contrato|Tipus\s+de\s+contracte)\s*:/i]);
+    const renewal=normalizeDate(capture(text,/(?:Fecha\s+Fin\s+contrato|Data\s+fi\s+contracte)\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i));
+    const contractDurationType=valueAfter(p1,/(?:Tipo\s+de\s+contrato|Tipus\s+de\s+contracte)\s*:/i,[]);
     return{tariff,contract,accessContract,meterNumber,distributor,renewalDate:renewal,contractType:'Mercado libre',contractDurationType,productName:''};
   }
 
   function parsePower(text,printedTotal,tariff){
     const entries=[],contracted={};
-    const re=/^P([1-6])\s+([\d.]+,\d{3})\s*kW\s+([\d.]+,\d{6})\s*\u20ac\s*\/?\s*kW\s*\*\s*(\d{1,3})\s*d(?:i|\u00ed)as?\b.*?(-?[\d.]+,\d{2})\s*\u20ac\s*$/i;
+    const re=/^P([1-6])\s+([\d.]+,\d{3})\s*kW\s+([\d.]+,\d{6})\s*\u20ac\s*\/?\s*kW\s*\*\s*(\d{1,3})\s*(?:d(?:i|\u00ed)as?|dies)\b.*?(-?[\d.]+,\d{2})\s*\u20ac\s*$/i;
     for(const line of linesOf(text)){
       const m=line.match(re);if(!m)continue;
       const e={period:Number(m[1]),contractedKw:num(m[2]),price:num(m[3]),days:Number(m[4]),amount:num(m[5])};
@@ -140,7 +144,7 @@
   }
 
   function parseReportedMaxDemand(text,tariff){
-    const m=String(text||'').match(/Las\s+potencias\s+m(?:a|\u00e1)ximas[^\n]*han\s+sido\s*:\s*([\s\S]{0,100})/i);
+    const m=String(text||'').match(/(?:Las\s+potencias\s+m(?:a|\u00e1)ximas[^\n]*han\s+sido|Les\s+pot(?:e|\u00e8)ncies\s+m(?:a|\u00e0)ximes[^\n]*han\s+estat)\s*:\s*([\s\S]{0,100})/i);
     const raw={};
     if(m)for(const p of m[1].matchAll(/\bP([1-6])\s+([\d.]+,\d{3})/gi))raw[`P${p[1]}`]=num(p[2]);
     if(!Object.keys(raw).length)return{};
@@ -158,16 +162,16 @@
 
   function parseFinancials(pages,tariff){
     const text=pages.flat().join('\n');
-    const printedPower=lineAmount(text,/^T(?:e|\u00e9)rmino\s+de\s+Potencia\s+Contratada\b/i);
-    const printedEnergy=lineAmount(text,/^T(?:e|\u00e9)rmino\s+de\s+Energ(?:i|\u00ed)a\s+Activa\b/i);
-    const statedKwh=num(capture(text,/consumo\s+en\s+el\s+periodo\s+facturado\s+ha\s+sido\s+([\d.]+,\d{3})\s*kWh/i));
+    const printedPower=lineAmount(text,/^(?:T(?:e|\u00e9)rmino\s+de\s+Potencia\s+Contratada|Terme\s+de\s+Pot(?:e|\u00e8)ncia\s+Contractada)\b/i);
+    const printedEnergy=lineAmount(text,/^(?:T(?:e|\u00e9)rmino\s+de\s+Energ(?:i|\u00ed)a|Terme\s+d['\u2019]Energia)\s+Activa\b/i);
+    const statedKwh=num(capture(text,/(?:Tu\s+consumo\s+en\s+el\s+periodo\s+facturado\s+ha\s+sido|El\s+teu\s+consum\s+en\s+el\s+per(?:i|\u00ed)ode\s+facturat\s+ha\s+estat)\s+([\d.]+,\d{3})\s*kWh/i));
     const powerDetail=parsePower(text,printedPower,tariff),energyDetail=parseEnergy(text,printedEnergy,tariff,statedKwh);
-    const social=lineAmount(text,/^Financiaci(?:o|\u00f3)n\s+Bono\s+Social\s*:/i)??0;
-    const systemAdjustment=lineAmountNear(text,/^Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema\s*\(REE\)\s*:/i,1)??0;
-    const tax=lineAmount(text,/^Impuesto\s+de\s+Electricidad\b/i)??0;
-    const rental=lineAmountNear(text,/^Alquiler\s+de\s+contador\b/i,1)??0;
+    const social=lineAmount(text,/^(?:Financiaci(?:o|\u00f3)n\s+Bono\s+Social|Finan(?:c|\u00e7)ament\s+del\s+Bo\s+Social)\s*:/i)??0;
+    const systemAdjustment=lineAmountNear(text,/^(?:Coste\s+servicios\s+de\s+ajuste\s+del\s+sistema|Cost\s+serveis\s+d['\u2019]ajust\s+del\s+sistema)\s*\(REE\)\s*:/i,1)??0;
+    const tax=lineAmount(text,/^(?:Impuesto\s+de\s+Electricidad|Impost\s+d['\u2019]Electricitat)\b/i)??0;
+    const rental=lineAmountNear(text,/^(?:Alquiler\s+de\s+contador|Lloguer\s+de\s+comptador)\b/i,1)??0;
     const vat=lineAmount(text,/^IVA\s*:/i)??0;
-    const total=lineAmount(text,/^TOTAL\s+IMPORTE\s+FACTURA\s*:/i);
+    const total=lineAmount(text,/^TOTAL\s+IMPORT(?:E)?\s+FACTURA\s*:/i);
     const other=round2(social+systemAdjustment+rental);
     const accounted=round2((powerDetail.value||0)+(energyDetail.value||0)+other+tax+vat);
     const diff=total==null?null:round2(total-accounted),balanced=total!=null&&Math.abs(diff)<=.05;
@@ -191,7 +195,7 @@
     if(!fin.balanced)missing.push('cuadre economico');
     const readOk=!missing.length;
     const annualIssue=maximeters?._reason||'';
-    const reading=/Consumo\s+activo[\s\S]{0,900}\bREAL\b/i.test(text)?{status:'actual',sourceLabel:'Lecturas de consumo activo marcadas como REAL'}:(options.readingClassifier?.(text)||{status:'unknown',sourceLabel:''});
+    const reading=/(?:Consumo\s+activo|Consum\s+actiu)[\s\S]{0,900}\bREAL\b/i.test(text)?{status:'actual',sourceLabel:'Lecturas de consumo activo marcadas como REAL'}:(options.readingClassifier?.(text)||{status:'unknown',sourceLabel:''});
     const adjustments=[
       {concept:'Financiaci\u00f3n Bono Social',amount_eur:fin.social,category:'regulated'},
       {concept:'Coste servicios de ajuste del sistema (REE)',amount_eur:fin.systemAdjustment,category:'system_adjustment'},
@@ -207,7 +211,7 @@
       readMessage:readOk?'Lectura correcta':`Falta o revisar: ${missing.join(', ')}`,readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',
       avg:fin.energyDetail.kwh&&fin.total?fin.total/fin.energyDetail.kwh:0,opportunity:annualIssue||'Sin alertas',periods:fin.energyDetail.periods,contracted:fin.powerDetail.contracted,
       maximeters,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail:fin.powerDetail,energyDetail:fin.energyDetail,energyPricingMode:'period_rates',
-      sourceFormat:'sea',sourceVariant:'standard_2026',supplier:RETAILER,retailer:RETAILER,commercializer:RETAILER,brand:BRAND,
+      sourceFormat:'sea',sourceVariant:languageOf(text)==='ca'?'standard_2026_ca':'standard_2026_es',supplier:RETAILER,retailer:RETAILER,commercializer:RETAILER,brand:BRAND,
       supplyAddress:identity.supplyAddress,supplyCity:identity.supplyCity,supplyProvince:identity.supplyProvince,
       contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.contractType,contractDurationType:meta.contractDurationType,
       productName:meta.productName,renewalDate:meta.renewalDate,meterNumber:meta.meterNumber,issueDate:identity.issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,
@@ -216,5 +220,5 @@
     };
   }
 
-  return Object.freeze({detect,parse,revision:REVISION,_test:{parsePeriod,parsePower,parseEnergy,parseReportedMaxDemand}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{languageOf,parsePeriod,parsePower,parseEnergy,parseReportedMaxDemand}});
 });
