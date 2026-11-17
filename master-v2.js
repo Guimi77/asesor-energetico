@@ -832,6 +832,13 @@
       const existingBefore = editingCups
         ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
         : null;
+      const contactsLoaded = !existingBefore || ['clientEmail','clientPhone','clientBankAccount']
+        .every((field) => Object.prototype.hasOwnProperty.call(existingBefore, field));
+      if (existingBefore && !contactsLoaded) {
+        $('#clientFormMsg').textContent = 'Cargando los datos privados del cliente desde Supabase. Vuelve a abrir la ficha cuando termine la sincronización.';
+        await window.CentralSupabaseMaster?.reload?.();
+        return;
+      }
       const requestedRetailer = norm($('#supplyRetailer').value);
       const manualRetailerChanged = Boolean(requestedRetailer) &&
         (!existingBefore || requestedRetailer !== norm(existingBefore.retailer));
