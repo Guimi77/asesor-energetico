@@ -422,16 +422,40 @@
         font-weight:700;
       }
       .supply-current-retailer{
-        display:block;
-        margin-top:3px;
-        color:#334155;
-        font-size:.66rem;
-        line-height:1.25;
-        font-weight:600;
+        display:flex!important;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:5px 9px;
+        width:fit-content;
+        max-width:100%;
+        margin-top:7px;
+        padding:7px 11px;
+        border:1px solid #99d9d0;
+        border-left:4px solid #008e80;
+        border-radius:6px;
+        background:#eafaf7;
+        color:#123a38!important;
+        font-size:clamp(.83rem,1vw,.96rem)!important;
+        line-height:1.35!important;
+        font-weight:700!important;
+      }
+      .supply-current-retailer strong{
+        color:#063e37!important;
+        font-size:inherit!important;
+        font-weight:800!important;
       }
       .supply-current-retailer-label{
-        color:#718096;
-        font-weight:700;
+        color:#13574e!important;
+        font-size:inherit!important;
+        font-weight:700!important;
+      }
+      .supply-retailer-manual-tag{
+        font-size:.68rem;
+        letter-spacing:.04em;
+        color:#fff;
+        background:#14645b;
+        padding:2px 6px;
+        border-radius:4px;
       }
       .integrated-holder-notice.warning{color:#9a5b00}
       .integrated-holder-notice.ok{color:#237a45}
