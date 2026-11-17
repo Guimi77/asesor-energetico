@@ -60,3 +60,11 @@ test('Clientes shows the current retailer on every supply row',()=>{
   assert.match(clientUi,/\.supply-current-retailer\{/);
   assert.match(clientUi,/\.supply-current-retailer-label\{/);
 });
+
+test('retailer is readable and directly editable in supply form',()=>{
+  assert.match(html,/id="supplyRetailer"/);
+  assert.match(masterUi,/\$\('#supplyRetailer'\)\.value = supply\.retailer/);
+  assert.match(masterUi,/manualRetailerChanged/);
+  assert.match(masterUi,/supply-retailer-manual-tag/);
+  assert.match(clientUi,/font-size:clamp\(\.83rem,1vw,\.96rem\)!important/);
+});
