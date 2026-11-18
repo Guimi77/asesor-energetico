@@ -372,7 +372,7 @@
         const groupIdentity = portfolioId ? 'PORTFOLIO|' + portfolioId : 'CLIENT|' + (key(list[0]?.clientTaxId) || key(list[0]?.client));
         const collapsed = collapsible && collapsedClientGroups.has(groupIdentity);
         const toggle = collapsible
-          ? `<button type="button" class="client-group-toggle" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Desplegar' : 'Replegar'} grupo ${esc(name)}" title="${collapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo'}" data-group-key="${esc(groupIdentity)}"><span class="client-group-toggle-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span><span class="client-group-toggle-label">${collapsed ? 'Desplegar' : 'Replegar'}</span></button>`
+          ? `<button type="button" class="client-group-toggle" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Desplegar' : 'Replegar'} grupo ${esc(name)}" title="${collapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo'}" data-group-key="${esc(groupIdentity)}"><span class="client-group-toggle-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span></button>`
           : '';
 
         const folders = holders.map((holder) => {
@@ -420,7 +420,7 @@
           ? ''
           : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${toggle}${addTop}</div><div class="client-group-contents" ${collapsed ? 'hidden' : ''}>${memberRows}<div class="holder-tree">${folders}</div></div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><div class="client-group-heading">${toggle}<h3>${esc(name)}</h3></div>${legalLine}<small>${summary}</small></div>${addTop}</div><div class="client-group-contents" ${collapsed ? 'hidden' : ''}>${memberRows}<div class="holder-tree">${folders}</div></div></article>`;
       })
       .join('');
 
@@ -439,7 +439,6 @@
           (button.closest('.company-card-tree')?.querySelector('.client-tree-title h3')?.textContent || ''));
         button.title = nextCollapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo';
         button.querySelector('.client-group-toggle-chevron').textContent = nextCollapsed ? '▸' : '▾';
-        button.querySelector('.client-group-toggle-label').textContent = nextCollapsed ? 'Desplegar' : 'Replegar';
       });
     });
     grid.querySelectorAll('.edit-supply-tree').forEach((button) => {

@@ -147,3 +147,20 @@ body .ibt-toast button {
   border: 1px solid var(--bt-action-border) !important;
   color: #064e47 !important;
 }
+
+/* Group chevrons are disclosure controls, not action buttons. Preserve clear keyboard focus. */
+body button.client-group-toggle,
+body button.client-group-toggle:hover:not(:disabled) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #008b83 !important;
+  border-radius: 2px;
+}
+body button.client-group-toggle:hover:not(:disabled) {
+  color: #006b66 !important;
+}
+body button.client-group-toggle:focus-visible {
+  outline: 2px solid #008b83 !important;
+  outline-offset: 2px;
+}

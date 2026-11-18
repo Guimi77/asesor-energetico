@@ -156,3 +156,13 @@ test('BT interactive theme removes white actions across all menus without recolo
   assert.match(actionCss,/body button:disabled/);
   assert.doesNotMatch(actionCss,/\b(?:select|input\[type="text"\])\s*\{/);
 });
+
+test('group collapse styling has no large boxed toggle',()=>{
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  const theme=fs.readFileSync(path.join(root,'bt-action-theme.css'),'utf8');
+  assert.match(masterUi,/class="client-group-heading"/);
+  assert.match(css,/width:16px;height:22px/);
+  assert.match(theme,/body button\.client-group-toggle/);
+  assert.match(theme,/border: 0 !important/);
+  assert.doesNotMatch(masterUi,/client-group-toggle-label/);
+});

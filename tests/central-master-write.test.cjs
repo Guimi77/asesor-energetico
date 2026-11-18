@@ -117,7 +117,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=598740f20fbf/);
+  assert.match(index, /master-v2\.js\?v=1503ddbd6777/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   // Validate current Git blob, not an obsolete hardcoded cache token.
   const crypto = require('node:crypto');
@@ -248,4 +248,18 @@ test('complete business groups can be expanded or collapsed without changing sup
   assert.match(master,/collapsedClientGroups\.delete\(groupKey\)/);
   assert.match(theme,/\.client-group-contents\[hidden\]\{display:none!important\}/);
   assert.doesNotMatch(master,/localStorage\.setItem\([^)]*collapsedClientGroups/);
+});
+
+test('group disclosure is a tiny triangle beside the title, not a separate action button',()=>{
+  assert.match(master,/class="client-group-heading"/);
+  assert.match(master,/\$\{toggle\}<h3>\$\{esc\(name\)\}<\/h3>/);
+  assert.match(master,/class="client-group-toggle-chevron"/);
+  assert.doesNotMatch(master,/client-group-toggle-label/);
+  assert.match(master,/content\.hidden = nextCollapsed/);
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  const theme=fs.readFileSync(path.join(root,'bt-action-theme.css'),'utf8');
+  assert.match(css,/\.client-group-heading\{display:flex;align-items:center/);
+  assert.match(theme,/body button\.client-group-toggle/);
+  assert.match(theme,/background: transparent !important/);
+  assert.match(theme,/body button\.client-group-toggle:focus-visible/);
 });
