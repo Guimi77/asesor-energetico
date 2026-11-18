@@ -30,6 +30,29 @@ test('Portfolio charts retain old low-coverage months with their stored totals',
 test('A low-coverage month inside a range remains a real plotted point',()=>{const p=[{key:'2026-01',kwh:100,eur:20,supplies:42,records:42,supplySet:'a',missingKwh:0,missingEur:0},{key:'2026-02',kwh:5,eur:2,supplies:10,records:10,supplySet:'b',missingKwh:0,missingEur:0},{key:'2026-03',kwh:120,eur:24,supplies:44,records:44,supplySet:'c',missingKwh:0,missingEur:0}];const v=ctx.view(p,52);assert.equal(v.points.length,3);assert.equal(v.points[1].chartExcluded,false);assert.equal(v.points[1].kwh,5);const h=ctx.plot(v.points,'kwh',String);assert.equal((h.match(/<circle /g)||[]).length,3);});
 test('Latest partial portfolio month gets one plain-language note and no technical table',()=>{const p=[{key:'2026-07',kwh:200624.72,eur:55499.71,supplies:49,records:51,supplySet:'a',missingKwh:0,missingEur:0},{key:'2026-08',kwh:174077.40,eur:43720.70,supplies:28,records:28,supplySet:'b',missingKwh:0,missingEur:0}];const v=ctx.view(p,52),h=ctx.coverage(p,52,v);assert(h.includes('2026-08: datos parciales.'));assert(h.includes('28 de 52 suministros'));assert(h.includes('todavía no se compara'));assert(!h.includes('174077'));assert(!h.includes('<table'));assert(!h.includes('<details'));});
 test('Variable coverage is explained briefly instead of as a long technical warning',()=>{const p=ctx.monthly([row('a','2026-01'),row('b','2026-02')]),v=ctx.view(p,2),h=ctx.coverage(p,2,v);assert(h.includes('2026-02: datos parciales.'));assert(h.includes('1 de 2 suministros'));assert(!h.includes('Una subida o bajada del total no demuestra'));assert(!h.includes('<table'));});
+test('A last month with 1 of 68 supplies is not drawn as a portfolio collapse',()=>{
+ const p=[
+  {key:'2026-07',kwh:200000,eur:45000,supplies:64,records:64},
+  {key:'2026-08',kwh:185000,eur:41000,supplies:61,records:61},
+  {key:'2026-09',kwh:1200,eur:420,supplies:1,records:1}
+ ];
+ const v=ctx.view(p,68);
+ assert.equal(v.points[2].chartPartial,true);
+ assert.equal(v.points[2].kwh,1200);
+ const k=ctx.plot(v.points,'kwh',String),g=ctx.plot(v.points,'eur',String),c=ctx.cost(v.points);
+ for(const html of [k,g,c]){
+   assert.equal((html.match(/<circle /g)||[]).length,2);
+   assert.equal((html.match(/L /g)||[]).length,1);
+   assert(html.includes('datos parciales, no comparables'));
+ }
+ assert(ctx.coverage(p,68,v).includes('Se omite de las líneas de evolución'));
+});
+test('A single supply or steadily changing portfolio is not hidden',()=>{
+ const single=ctx.view([{key:'2026-01',kwh:10,eur:5,supplies:1},{key:'2026-02',kwh:20,eur:8,supplies:1}],1);
+ assert.equal(single.points[1].chartPartial,false);
+ const stable=ctx.view([{key:'2026-01',kwh:100,eur:20,supplies:4},{key:'2026-02',kwh:90,eur:18,supplies:4}],68);
+ assert.equal(stable.points[1].chartPartial,false);
+});
 test('Complete single-CUPS coverage needs no warning card',()=>{const p=ctx.monthly([row('a','2026-01'),row('a','2026-02')]);assert.equal(ctx.coverage(p,1,ctx.view(p,1)),'');});
 test('Explicit filter bounds include missing months without losing overlapping bills',()=>{const p=ctx.monthly([row('a','2026-02')],'2026-01-12','2026-03-05');assert.deepEqual(plain(p.map(x=>x.key)),['2026-01','2026-02','2026-03']);assert.equal(p[0].records,0);assert.deepEqual(plain(ctx.monthly([])),[]);assert.equal(ctx.coverage([],2),'');});
 test('Cross-year months remain distinct and ordered',()=>{assert.deepEqual(plain(ctx.monthly([row('a','2025-12'),row('a','2026-02')]).map(p=>p.key)),['2025-12','2026-01','2026-02']);});
