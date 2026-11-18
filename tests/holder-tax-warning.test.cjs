@@ -9,15 +9,18 @@ const root = path.join(__dirname,'..');
 const src = fs.readFileSync(path.join(root,'admin-data-management.js'),'utf8');
 const auth = fs.readFileSync(path.join(root,'auth.js'),'utf8');
 const index = fs.readFileSync(path.join(root,'index.html'),'utf8');
+const normalizerStart = src.indexOf('  function holderNameComparisonKey(value) {');
 const marker = '  function holderInvoiceRelation(holder, invoice) {';
 const start = src.indexOf(marker);
 const end = src.indexOf('\n  function invoiceEffectiveDate(',start);
+assert.ok(normalizerStart !== -1 && start > normalizerStart,'must use original canonical comparison function');
 assert.ok(start !== -1 && end > start,'must be able to isolate original production relation function');
 const functionSource = src.slice(start,end);
 const ctx = vm.createContext({
   taxKey: value => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g,''),
   norm: value => String(value || '').trim().toUpperCase(),
 });
+vm.runInContext(src.slice(normalizerStart,start),ctx);
 const classify = vm.runInContext('('+functionSource.trim()+')',ctx);
 const holder = {tax_id:'ABC123',legal_name:'TITULAR DE PRUEBA'};
 
@@ -41,6 +44,21 @@ test('sin factura se conserva estado desconocido',()=>{
   assert.equal(classify(holder,null).kind,'unknown');
 });
 test('administración e inicio de sesión cargan scripts sin caché antigua',()=>{
-  assert.match(auth,/admin-data-management\.js\?v=1ef88b414ac3/);
-  assert.match(index,/auth\.js\?v=d1759727dc03/);
+  assert.match(auth,/admin-data-management\.js\?v=29ea04e8a775/);
+  assert.match(index,/auth\.js\?v=8fce342eeeda/);
+});
+
+test('same fiscal ID with uppercase, accents and company abbreviation punctuation is coherent',()=>{
+  const legal={tax_id:'ABC123',legal_name:'ELÈCTRICA BT MALLORCA S.L.'};
+  const invoice={source_holder_tax_id:'ABC123',source_holder_name:'Electrica Bt Mallorca SL'};
+  assert.equal(classify(legal,invoice).kind,'coherent');
+  // Comparison must be non-mutating; the chosen legal spelling survives.
+  assert.equal(legal.legal_name,'ELÈCTRICA BT MALLORCA S.L.');
+});
+test('actual name difference with same fiscal ID remains reviewable',()=>{
+  assert.equal(classify(holder,{source_holder_tax_id:'ABC123',source_holder_name:'EMPRESA DIFERENTE'}).kind,'rename');
+});
+test('same normalized company name with a different fiscal ID remains a holder change',()=>{
+  const legal={tax_id:'ABC123',legal_name:'ELÈCTRICA BT MALLORCA S.L.'};
+  assert.equal(classify(legal,{source_holder_tax_id:'XYZ456',source_holder_name:'Electrica Bt Mallorca SL'}).kind,'holder_change');
 });
