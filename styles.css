@@ -109,3 +109,8 @@ body.client-editor-modal-open #clientEditor .section-head{
   }
   body.client-editor-modal-open #clientEditor .section-head{padding:12px}
 }
+
+/* Keep the contracted power periods and their technical maximum in reading order.
+   The technical maximum belongs directly beneath P1-P6, not in a side column. */
+.client-form-grid .power-profile-full-row{grid-column:1/-1}
+.client-form-grid .max-contractable-power-field{grid-column:1/-1;max-width:290px}
