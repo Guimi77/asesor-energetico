@@ -602,8 +602,7 @@
   function svgChart(points, field, formatter, { valueTransform = v => v } = {}) {
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
     const vals = points.map(p => Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
-    const comparableVals = vals.filter((v,i) => v !== null && !points[i].chartPartial);
-    const scale = adaptiveChartScale(comparableVals.length ? comparableVals : vals.filter(v => v !== null));
+    const scale = adaptiveChartScale(vals.filter(v => v !== null));
     const span = scale.max - scale.min || 1;
     const tickFractions = [0,.25,.5,.75,1];
     const ticks = tickFractions.map(f => scale.inverse(scale.min + span * f));
@@ -640,8 +639,7 @@
     const pointContext=p=>p?.chartMode==='period'&&p?.billingDays?' · '+p.billingDays+' días':'';
     const W=680,H=192,padL=106,padR=40,padT=12,padB=40;
     const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
-    const comparable=values.filter((v,i)=>v!==null&&Number.isFinite(v)&&!points[i].chartPartial);
-    const valid=comparable.length?comparable:values.filter(v=>v!==null&&Number.isFinite(v));
+    const valid=values.filter(v=>v!==null&&Number.isFinite(v));
     const max=Math.max(...valid,0.01),min=Math.min(...valid,0),span=Math.max(max-min,0.01);
     const innerW=W-padL-padR,innerH=H-padT-padB;
     const step=points.length>1?innerW/(points.length-1):innerW;
