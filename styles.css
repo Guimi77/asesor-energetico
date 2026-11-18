@@ -79,7 +79,8 @@ body{background:var(--bt-bg)}
 
 /* Full group collapse keeps the group's identity/summary/actions visible. */
 .client-group-contents[hidden]{display:none!important}
-.client-group-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:28px;padding:5px 9px;margin-left:auto;font-size:.72rem;line-height:1.2;white-space:nowrap}
-.client-group-toggle-chevron{font-size:1rem;line-height:1}
-.client-tree-title .client-group-toggle + .add-supply{margin-left:6px}
-@media(max-width:640px){.client-group-toggle{margin-left:0}}
+.client-group-heading{display:flex;align-items:center;gap:6px;min-width:0}
+.client-group-heading h3{margin:0}
+.client-group-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 16px;width:16px;height:22px;min-width:16px;min-height:22px;padding:0;margin:0;line-height:1;vertical-align:middle}
+.client-group-toggle-chevron{font-size:.86rem;line-height:1}
+.client-group-heading .client-group-toggle{margin-left:0}
