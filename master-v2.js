@@ -699,6 +699,34 @@
     return [...deduped.values()];
   }
 
+  function configureClientGroupField(supply = null) {
+    const input = $('#clientName');
+    const select = $('#clientGroupSelect');
+    const help = $('#clientGroupHelp');
+    if (!input || !select || !help) return;
+    const editing = Boolean(supply?.holderId && supply?.clientId);
+    input.classList.toggle('hidden', editing);
+    input.disabled = editing;
+    input.required = !editing;
+    select.classList.toggle('hidden', !editing);
+    select.disabled = !editing;
+    help.classList.toggle('hidden', !editing);
+    select.replaceChildren();
+    select.add(new Option('Selecciona un cliente existente', ''));
+    if (!editing) return;
+
+    const clients = new Map();
+    clients.set(supply.clientId, { name: supply.client, type: supply.type });
+    for (const item of supplies) {
+      if (!item.clientId || (item.type !== 'GRUPO' && item.clientId !== supply.clientId)) continue;
+      if (!clients.has(item.clientId)) clients.set(item.clientId, { name: item.client, type: item.type });
+    }
+    for (const [id, client] of [...clients].sort((a,b) => a[1].name.localeCompare(b[1].name,'es'))) {
+      select.add(new Option(client.name + (id === supply.clientId ? ' (actual)' : ''), id));
+    }
+    select.value = supply.clientId;
+  }
+
   function setupGroupLinkControls(supply = null) {
     const panel = $('#holderGroupLink');
     const select = $('#holderTargetGroup');
@@ -716,7 +744,7 @@
       select.add(new Option(name, id));
     }
     const available = Boolean(supply?.holderId && supply?.clientId && groups.size);
-    panel.classList.toggle('hidden', !available);
+    panel.classList.add('hidden'); // Selection lives in the Cliente / grupo field.
     action.disabled = !available;
     select.value = '';
     $('#holderGroupLinkStatus').textContent = '';
@@ -724,8 +752,8 @@
 
   async function linkCurrentHolderToGroup() {
     const supply = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
-    const groupId = $('#holderTargetGroup')?.value || '';
-    const message = $('#holderGroupLinkStatus');
+    const groupId = $('#clientGroupSelect')?.value || '';
+    const message = $('#clientFormMsg');
     if (!supply?.holderId || !supply?.clientId || !groupId) {
       message.textContent = 'Selecciona un grupo existente para vincular este titular.';
       return;
@@ -772,6 +800,7 @@
 
   function fillForm(supply) {
     setupGroupLinkControls(supply);
+    configureClientGroupField(supply);
     $('#clientType').value = supply.type || 'PENDIENTE';
     $('#clientName').value = supply.client || '';
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
@@ -809,6 +838,7 @@
     editor.classList.remove('hidden');
     $('#clientForm').reset();
     setupGroupLinkControls();
+    configureClientGroupField();
     $('#supplyRetailerSource').textContent = 'Si indicas una comercializadora, quedará fijada manualmente para este CUPS.';
     $('#clientEditorTitle').textContent = blankHolder ? 'Nuevo titular / suministro' : 'Cliente y punto de suministro';
 
@@ -854,6 +884,8 @@
     $('#clientEditor').classList.add('hidden');
     $('#clientForm').reset();
     $('#clientFormMsg').textContent = '';
+    const submit = $('#clientForm button[type="submit"]');
+    if (submit) submit.textContent = 'Guardar sin duplicar';
   }
 
   function updatePowerPeriodVisibility() {
@@ -998,6 +1030,15 @@
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
     $('#holderLinkToGroup').onclick = linkCurrentHolderToGroup;
+    $('#clientGroupSelect').addEventListener('change', () => {
+      const original = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
+      const changed = Boolean(original?.clientId && $('#clientGroupSelect').value !== original.clientId);
+      const submit = $('#clientForm button[type="submit"]');
+      if (submit) submit.textContent = changed ? 'Vincular titular al grupo' : 'Guardar sin duplicar';
+      $('#clientGroupHelp').textContent = changed
+        ? 'Al guardar se vinculará el titular completo al grupo seleccionado. Los demás cambios de esta ficha no se guardarán.'
+        : 'Selecciona un grupo existente para vincular este titular.';
+    });
     $('#supplyTariff').addEventListener('input', updatePowerPeriodVisibility);
     $('#supplyTariff').addEventListener('change', updatePowerPeriodVisibility);
     $('#clearSupplyContactOverrides').onclick = () => {
@@ -1013,7 +1054,21 @@
 
     $('#clientForm').onsubmit = async (event) => {
       event.preventDefault();
-      const client = norm($('#clientName').value);
+      const existingSupply = editingCups
+        ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
+        : null;
+      const selectedClientId = $('#clientGroupSelect')?.value || '';
+      if (existingSupply?.holderId && existingSupply?.clientId) {
+        if (!selectedClientId) {
+          $('#clientFormMsg').textContent = 'Selecciona un cliente o grupo existente.';
+          return;
+        }
+        if (selectedClientId !== existingSupply.clientId) {
+          await linkCurrentHolderToGroup();
+          return;
+        }
+      }
+      const client = existingSupply ? existingSupply.client : norm($('#clientName').value);
       const cups = norm($('#clientCups').value).replace(/\s/g, '');
 
       if (!client || !/^ES[A-Z0-9]{15,}$/i.test(cups)) {
