@@ -220,3 +220,6 @@ test('integrated client hierarchy is mutation-idempotent after admin login', () 
   assert.match(integratedUi, /observer\?\.disconnect\(\)/);
   assert.match(integratedUi, /finally \{\s*if \(observer && document\.body\) \{\s*observer\.observe\(document\.body, \{ childList: true, subtree: true \}\)/s);
 });
+
+// Keep fiscal-identity warnings covered by the admin lifecycle CI.
+require('./holder-tax-warning.test.cjs');
