@@ -360,7 +360,7 @@
         const memberList = [...members.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
         const multiClient = internal && memberList.length > 1;
         const holders = holderTree(list);
-        const type = multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
+        const type = portfolioId || multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
         const primaryClient = memberList[0]?.name || list[0]?.client || name;
         const isBusinessGroup = Boolean(portfolioId) || type === 'GRUPO';
 
