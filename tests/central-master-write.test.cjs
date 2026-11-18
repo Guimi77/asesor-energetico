@@ -122,8 +122,8 @@ test('browser cache markers force the central-authoritative code', () => {
   // Cache tokens must follow the actual Git blob; a fixed token goes stale after safe UI changes.
   const crypto = require('node:crypto');
   const bytes = fs.readFileSync(path.join(root, 'auth-bootstrap.js'));
-  const expected = crypto.createHash('sha1').update('blob ' + bytes.length + '\\0').update(bytes).digest('hex').slice(0, 12);
-  assert.match(index, new RegExp('auth-bootstrap\\\\.js\\\\?v=' + expected));
+  const expected = crypto.createHash('sha1').update('blob ' + bytes.length).update(Buffer.from([0])).update(bytes).digest('hex').slice(0, 12);
+  assert.ok(index.includes('auth-bootstrap.js?v=' + expected));
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
 });
 
