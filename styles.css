@@ -68,3 +68,11 @@ body{background:var(--bt-bg)}
 .group-link-controls button{white-space:nowrap}
 #holderGroupLinkStatus{grid-column:1/-1;color:#8b342c;font-weight:650;min-height:0}
 @media(max-width:800px){.group-link-row{grid-template-columns:1fr}.group-link-controls{flex-wrap:wrap}.group-link-controls button{flex:1}}
+
+/* Supply portfolio picker is separate from fiscal identity and history. */
+.portfolio-form-inline{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.portfolio-form-inline.hidden{display:none!important}
+.portfolio-form-inline input{flex:1 1 180px;min-width:0;margin-top:0}
+.portfolio-form-inline button{flex:1 0 auto;font-size:.71rem}
+#clientGroupHelp{display:block;margin-top:6px;font-size:.7rem;line-height:1.4;color:#38596b}
+#clientGroupHelp.hidden{display:none!important}
