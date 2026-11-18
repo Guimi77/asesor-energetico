@@ -298,6 +298,7 @@
         groups.set(compositeKey, {
           name: holderName,
           client: supply.client || 'Cliente',
+          clientAlias: supply.clientAlias || '',
           clientTaxId: supply.clientTaxId || '',
           holderId: supply.holderId || '',
           holderTaxId: supply.holderTaxId || '',
@@ -348,6 +349,7 @@
       if (!group.members.has(legalKey)) {
         group.members.set(legalKey, {
           name: supply.client || 'Cliente',
+          alias: supply.clientAlias || '',
           taxId: supply.clientTaxId || '',
           type: supply.type || 'CLIENTE',
         });
@@ -386,14 +388,16 @@
           const holderContactLine = holderContactBits.length
             ? `<span class="holder-contact-line">${holderContactBits.join('')}</span>`
             : '';
-          const holderLabel = internal && alias && !portfolioId
-            ? '(' + alias + ') ' + holder.name
-            : holder.name;
+          const holderLabel = internal && portfolioId && holder.clientAlias
+            ? holder.name + ' (' + holder.clientAlias + ')'
+            : (internal && alias && !portfolioId
+              ? '(' + alias + ') ' + holder.name
+              : holder.name);
           return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><span class="holder-title-main"><strong>${esc(holderLabel)}</strong></span>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
         }).join('');
 
         const memberRows = multiClient
-          ? `<div class="client-group-members">${memberList.map((member) => `<div class="client-group-member" data-client-name="${esc(member.name)}"><div><strong>${esc(member.name)}</strong><small>${esc(member.taxId || 'Sin NIF/CIF')}</small></div><div class="client-group-member-actions"></div></div>`).join('')}</div>`
+          ? `<div class="client-group-members">${memberList.map((member) => `<div class="client-group-member" data-client-name="${esc(member.name)}"><div><strong>${esc(member.name + (internal && member.alias ? ' (' + member.alias + ')' : ''))}</strong><small>${esc(member.taxId || 'Sin NIF/CIF')}</small></div><div class="client-group-member-actions"></div></div>`).join('')}</div>`
           : '';
 
         const legalLine = internal && portfolioId && alias && !multiClient
