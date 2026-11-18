@@ -137,3 +137,22 @@ test('commercial portfolio field groups CUPS across legal clients without changi
   assert.match(masterUi,/set_internal_supply_portfolio'/);
   assert.match(masterUi,/set_internal_supply_portfolio_alias'/);
 });
+
+
+test('BT interactive theme removes white actions across all menus without recoloring destructive buttons',()=>{
+  const actionCss=fs.readFileSync(path.join(root,'bt-action-theme.css'),'utf8');
+  const themeLink=html.match(/<link rel="stylesheet" href="bt-action-theme\.css\?v=[a-f0-9]{12}"\/>/);
+  assert.ok(themeLink,'BT action theme must have a content-hash cache marker');
+  const links=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)"\/>/g)].map(match=>match[1]);
+  assert.ok(links.at(-1).startsWith('bt-action-theme.css?'),'Theme must come after legacy CSS');
+  assert.match(actionCss,/body button,/);
+  assert.match(actionCss,/body button\.primary/);
+  assert.match(actionCss,/body button\.company-link/);
+  assert.match(actionCss,/body #exportExcel/);
+  assert.match(actionCss,/body #auditParser/);
+  assert.match(actionCss,/body button\.integrated-supply-archive/);
+  assert.match(actionCss,/body button\.integrated-client-archive/);
+  assert.match(actionCss,/body button:focus-visible/);
+  assert.match(actionCss,/body button:disabled/);
+  assert.doesNotMatch(actionCss,/\b(?:select|input\[type="text"\])\s*\{/);
+});
