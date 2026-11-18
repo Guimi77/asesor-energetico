@@ -1,0 +1,149 @@
+/* ELECTRICA BT: one accessible visual language for actions across every view.
+   Presentation only. Do not style inputs, selects, links or passive status badges as buttons. */
+:root {
+  --bt-action: #008b83;
+  --bt-action-hover: #006b66;
+  --bt-action-light: #d4f3ed;
+  --bt-action-light-hover: #b3e9df;
+  --bt-action-border: #007b73;
+  --bt-action-focus: rgba(0,139,131,.30);
+}
+
+/* Primary actions stay solid, while secondary and small actions are visibly tinted.
+   Explicit !important is needed because older page modules inject CSS at runtime. */
+body button,
+body input[type="button"],
+body input[type="submit"],
+body input[type="reset"],
+body [role="button"].btn {
+  background: var(--bt-action-light) !important;
+  border: 1px solid var(--bt-action-border) !important;
+  color: #064e47 !important;
+  border-radius: 7px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+body button.primary,
+body input[type="submit"].primary,
+body input[type="button"].primary,
+body .auth-form button.primary {
+  background: var(--bt-action) !important;
+  border-color: var(--bt-action-border) !important;
+  color: #fff !important;
+}
+
+body button:hover:not(:disabled),
+body input[type="button"]:hover:not(:disabled),
+body input[type="submit"]:hover:not(:disabled),
+body input[type="reset"]:hover:not(:disabled),
+body [role="button"].btn:hover:not([aria-disabled="true"]) {
+  background: var(--bt-action-light-hover) !important;
+  border-color: var(--bt-action-hover) !important;
+  color: #053e3a !important;
+}
+
+body button.primary:hover:not(:disabled),
+body input[type="submit"].primary:hover:not(:disabled),
+body input[type="button"].primary:hover:not(:disabled) {
+  background: var(--bt-action-hover) !important;
+  color: #fff !important;
+}
+
+body button:focus-visible,
+body input[type="button"]:focus-visible,
+body input[type="submit"]:focus-visible,
+body input[type="reset"]:focus-visible,
+body [role="button"].btn:focus-visible,
+body .company-link:focus-visible {
+  outline: 3px solid var(--bt-action-focus) !important;
+  outline-offset: 2px;
+}
+
+body button:disabled,
+body input[type="button"]:disabled,
+body input[type="submit"]:disabled,
+body input[type="reset"]:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* Older action links were transparent and hard to find against white cards. */
+body button.company-link,
+body .company-link.add-supply-holder,
+body .company-link.add-supply {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 26px;
+  margin-top: 5px;
+  padding: 4px 9px !important;
+  background: var(--bt-action-light) !important;
+  border: 1px solid var(--bt-action-border) !important;
+  border-radius: 6px;
+  color: #064e47 !important;
+  text-decoration: none;
+}
+body button.company-link:hover,
+body .company-link.add-supply-holder:hover,
+body .company-link.add-supply:hover {
+  background: var(--bt-action-light-hover) !important;
+}
+
+/* A genuinely destructive or archival action must not look like a safe edit. */
+body button.integrated-supply-archive,
+body button.integrated-client-archive,
+body button[data-db-action="archive_client"],
+body button[data-db-action="archive_supply"],
+body button.archive,
+body button.delete,
+body button.danger,
+body button.db-danger,
+body #clearData {
+  background: #fff0d6 !important;
+  border-color: #b87814 !important;
+  color: #744607 !important;
+}
+body button.integrated-supply-archive:hover:not(:disabled),
+body button.integrated-client-archive:hover:not(:disabled),
+body button[data-db-action="archive_client"]:hover:not(:disabled),
+body button[data-db-action="archive_supply"]:hover:not(:disabled),
+body button.archive:hover:not(:disabled),
+body button.delete:hover:not(:disabled),
+body button.danger:hover:not(:disabled),
+body button.db-danger:hover:not(:disabled),
+body #clearData:hover:not(:disabled) {
+  background: #f7dca9 !important;
+  border-color: #925b08 !important;
+  color: #593400 !important;
+}
+
+/* Export, audit, login, session and compact row actions remain visible. */
+body #exportExcel,
+body #exportClientExcel,
+body #auditParser,
+body .session-box button.secondary,
+body .holder-supply-actions button.secondary,
+body .integrated-holder-actions button.secondary,
+body .auth-signup-cta,
+body .auth-link {
+  background: var(--bt-action-light) !important;
+  border-color: var(--bt-action-border) !important;
+  color: #064e47 !important;
+}
+body #exportExcel:hover:not(:disabled),
+body #exportClientExcel:hover:not(:disabled),
+body #auditParser:hover:not(:disabled),
+body .auth-signup-cta:hover:not(:disabled),
+body .auth-link:hover:not(:disabled) {
+  background: var(--bt-action-light-hover) !important;
+}
+
+/* Icon-only controls remain recognisable rather than disappearing into white. */
+body .ibt-toast button {
+  background: var(--bt-action-light) !important;
+  border: 1px solid var(--bt-action-border) !important;
+  color: #064e47 !important;
+}
