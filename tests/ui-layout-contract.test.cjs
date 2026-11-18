@@ -113,3 +113,13 @@ test('supply editor exposes periodized contracted power and max contractable pow
   assert.match(masterUi,/set_internal_supply_power_profile/);
   assert.match(masterUi,/contracted_exceeds_max_contractable/);
 });
+
+test('existing holder can be explicitly assigned to a group without editing its identity',()=>{
+  assert.match(html,/id="holderGroupLink"/);
+  assert.match(html,/id="holderTargetGroup"/);
+  assert.match(html,/id="holderLinkToGroup"[^>]+type="button"|type="button" id="holderLinkToGroup"/);
+  assert.match(masterUi,/function setupGroupLinkControls\(supply = null\)/);
+  assert.match(masterUi,/function linkCurrentHolderToGroup\(/);
+  assert.match(masterUi,/holderLinkToGroup'\)\.onclick = linkCurrentHolderToGroup/);
+  assert.match(masterUi,/setupGroupLinkControls\(supply\)/);
+});
