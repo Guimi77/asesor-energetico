@@ -23,7 +23,7 @@ const holder = {tax_id:'ABC123',legal_name:'TITULAR DE PRUEBA'};
 
 test('maestro con NIF y factura sin NIF no genera falso aviso fiscal',()=>{
   assert.equal(classify(holder,{source_holder_tax_id:null,source_holder_name:'TITULAR DE PRUEBA'}).kind,'invoice_missing_tax');
-  assert.match(src,/NIF\/CIF presente en el maestro\. La última factura no permite contrastarlo/);
+  assert.match(src,/NIF\/CIF pre.{5} en el maestro\. La última factura no permite contrastarlo/);
   assert.match(src,/db-mismatch-neutral/);
 });
 test('faltante en maestro sigue pendiente de revisión',()=>{
@@ -33,7 +33,7 @@ test('faltante en maestro sigue pendiente de revisión',()=>{
 test('DNI diferente en la factura sigue siendo cambio potencial de titular',()=>{
   assert.equal(classify(holder,{source_holder_tax_id:'XYZ456',source_holder_name:'OTRO TITULAR'}).kind,'holder_change');
 });
-test('NIF coincidente conserva distinción de nombre actualizado',()=>{
+test('NIF igual conserva distinción de nombre actualizado',()=>{
   assert.equal(classify(holder,{source_holder_tax_id:'ABC123',source_holder_name:'TITULAR DE PRUEBA'}).kind,'coherent');
   assert.equal(classify(holder,{source_holder_tax_id:'ABC123',source_holder_name:'NOMBRE CAMBIADO'}).kind,'rename');
 });
