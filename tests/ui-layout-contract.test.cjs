@@ -124,14 +124,16 @@ test('existing holder can be explicitly assigned to a group without editing its 
   assert.match(masterUi,/setupGroupLinkControls\(supply\)/);
 });
 
-test('existing holder client field is a picker, not arbitrary free-text group creation',()=>{
+
+test('commercial portfolio field groups CUPS across legal clients without changing holder identities',()=>{
   assert.match(html,/id="clientGroupSelect"/);
-  assert.match(html,/id="clientGroupHelp"/);
-  assert.match(masterUi,/input\.disabled = editing/);
-  assert.match(masterUi,/select\.disabled = !editing/);
-  assert.match(masterUi,/select\.value = supply\.clientId/);
-  assert.match(masterUi,/item\.type !== 'GRUPO'/);
-  assert.match(masterUi,/Vincular titular al grupo/);
-  assert.match(masterUi,/setupGroupLinkControls\(supply\)/);
-  assert.match(masterUi,/panel\.classList\.add\('hidden'\)/);
+  assert.match(html,/id="clientPortfolioNewName"/);
+  assert.match(html,/id="clientPortfolioNewAlias"/);
+  assert.match(html,/id="clientPortfolioSaveAlias"/);
+  assert.match(masterUi,/function configureClientGroupField\(supply = null\)/);
+  assert.match(masterUi,/portfolioId: norm\(raw\.portfolioId\)/);
+  assert.match(masterUi,/PORTFOLIO\|/);
+  assert.match(masterUi,/saveCommercialPortfolio\(\)/);
+  assert.match(masterUi,/set_internal_supply_portfolio'/);
+  assert.match(masterUi,/set_internal_supply_portfolio_alias'/);
 });
