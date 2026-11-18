@@ -329,11 +329,12 @@
       const legalKey = key(supply.clientTaxId) || key(supply.client);
       const portfolioId = internal ? norm(supply.portfolioId) : '';
       const alias = portfolioId ? norm(supply.portfolioAlias) : (internal ? norm(supply.clientAlias) : '');
-      const groupKey = portfolioId ? 'PORTFOLIO|' + portfolioId : (alias ? 'ALIAS|' + key(alias) : 'CLIENT|' + legalKey);
+      // A client alias is a display label, never a commercial grouping key.
+      const groupKey = portfolioId ? 'PORTFOLIO|' + portfolioId : 'CLIENT|' + legalKey;
 
       if (!groups.has(groupKey)) {
         groups.set(groupKey, {
-          name: alias || (portfolioId ? supply.portfolioName : '') || supply.client,
+          name: portfolioId ? (alias || supply.portfolioName || supply.client) : supply.client,
           alias,
           portfolioId,
           list: [],
@@ -385,14 +386,17 @@
           const holderContactLine = holderContactBits.length
             ? `<span class="holder-contact-line">${holderContactBits.join('')}</span>`
             : '';
-          return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><span class="holder-title-main"><strong>${esc(holder.name)}</strong></span>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
+          const holderLabel = internal && alias && !portfolioId
+            ? '(' + alias + ') ' + holder.name
+            : holder.name;
+          return `<details class="holder-folder" data-holder-id="${esc(holder.holderId)}" ${holders.length === 1 ? 'open' : ''}><summary><span class="holder-folder-icon">▸</span><span class="holder-title-wrap"><span class="holder-title-main"><strong>${esc(holderLabel)}</strong></span>${holderContactLine}</span>${multiClient && key(holder.name) !== key(holder.client) ? `<span class="holder-client-name">${esc(holder.client)}</span>` : ''}<span>${holder.list.length} CUPS</span></summary><div class="holder-supplies">${rows}<button class="company-link add-supply-holder" data-client="${esc(holder.client)}" data-holder="${esc(holder.name)}">+ Nuevo suministro para ${esc(holder.client)}</button></div></details>`;
         }).join('');
 
         const memberRows = multiClient
           ? `<div class="client-group-members">${memberList.map((member) => `<div class="client-group-member" data-client-name="${esc(member.name)}"><div><strong>${esc(member.name)}</strong><small>${esc(member.taxId || 'Sin NIF/CIF')}</small></div><div class="client-group-member-actions"></div></div>`).join('')}</div>`
           : '';
 
-        const legalLine = internal && alias && !multiClient
+        const legalLine = internal && portfolioId && alias && !multiClient
           ? `<small class="client-legal-name">${esc(primaryClient)}</small>`
           : '';
 

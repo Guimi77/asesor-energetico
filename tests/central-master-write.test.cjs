@@ -117,7 +117,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=9e8526ebd806/);
+  assert.match(index, /master-v2\.js\?v=c3295d0f0aa9/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   assert.match(index, /auth-bootstrap\.js\?v=2fb6c4e4409e/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
@@ -210,4 +210,13 @@ test('commercial supply grouping never moves a legal holder or rewrites a histor
   assert.match(master,/await saveCommercialPortfolio\(\)/);
   assert.match(master,/const client = existingSupply \? existingSupply\.client/);
   assert.match(pilot,/portfolioId: portfolioMemberships\[supply\.id\] \|\| ''/);
+});
+
+test('client alias is an inline label, never a supply portfolio or grouping identity',()=>{
+  assert.match(master,/const groupKey = portfolioId \? 'PORTFOLIO\|' \+ portfolioId : 'CLIENT\|' \+ legalKey/);
+  assert.match(master,/const holderLabel = internal && alias && !portfolioId/);
+  assert.match(master,/\('\s*\+ alias \+ '\) '/);
+  assert.match(master,/name: portfolioId \? \(alias \|\| supply\.portfolioName \|\| supply\.client\) : supply\.client/);
+  assert.match(master,/internal && portfolioId && alias && !multiClient/);
+  assert.doesNotMatch(master,/ALIAS\|/);
 });
