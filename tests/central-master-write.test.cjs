@@ -117,7 +117,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=aa24a4855301/);
+  assert.match(index, /master-v2\.js\?v=00cace4d50db/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   assert.match(index, /auth-bootstrap\.js\?v=7cce257b33b3/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=d026c9b20528/);
@@ -191,4 +191,13 @@ test('linking an existing holder to a group is guarded, audited and keeps supply
   assert.match(master,/rpc\('link_existing_holder_to_group'/);
   assert.match(master,/p_expected_client_id: supply\.clientId/);
   assert.match(master,/await window\.CentralSupabaseMaster\?\.reload\?\.\(\)/);
+});
+
+test('editing a pre-existing holder routes selected group through guarded linkage before master save',()=>{
+  assert.match(master,/function configureClientGroupField\(supply = null\)/);
+  assert.match(master,/const selectedClientId = \$\('#clientGroupSelect'\)\?\.value \|\| ''/);
+  assert.match(master,/selectedClientId !== existingSupply\.clientId/);
+  assert.match(master,/await linkCurrentHolderToGroup\(\)/);
+  assert.match(master,/const client = existingSupply \? existingSupply\.client/);
+  assert.match(master,/const groupId = \$\('#clientGroupSelect'\)\?\.value \|\| ''/);
 });
