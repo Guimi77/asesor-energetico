@@ -339,6 +339,17 @@
         console.error('Hay suministros heredados que siguen fuera del maestro central', legacyPendingKeys);
       }
 
+      // Internal portfolio overlay is independent of fiscal ownership.
+      const {data: portfolioPayload, error: portfolioError} = await supabase.rpc('get_internal_supply_portfolios');
+      if (portfolioError) throw portfolioError;
+      if (!portfolioPayload?.ok || !Array.isArray(portfolioPayload.groups)) {
+        throw new Error('No se han podido validar las agrupaciones comerciales del maestro');
+      }
+      const portfolioGroups = portfolioPayload.groups;
+      const portfolioById = new Map(portfolioGroups.map((group) => [group.id,group]));
+      const portfolioMemberships = portfolioPayload.members || {};
+      window.IBTSupplyPortfolios = portfolioGroups;
+
       const clientById = new Map(activeClients.map((client) => [client.id, client]));
       const holderById = new Map(holders.map((holder) => [holder.id, holder]));
       const centralRows = [];
@@ -365,6 +376,9 @@
           holderPhone: holderProfile.phone || '',
           holderBankAccount: holderProfile.bank_account || '',
           supplyId: supply.id,
+          portfolioId: portfolioMemberships[supply.id] || '',
+          portfolioName: portfolioById.get(portfolioMemberships[supply.id])?.name || '',
+          portfolioAlias: portfolioById.get(portfolioMemberships[supply.id])?.alias || '',
           supplyEmailOverride: override.email || '',
           supplyPhoneOverride: override.phone || '',
           supplyBankAccountOverride: override.bank_account || '',

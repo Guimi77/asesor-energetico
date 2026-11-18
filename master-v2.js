@@ -120,6 +120,9 @@
       clientTaxId: norm(raw.clientTaxId),
       clientAlias: norm(raw.clientAlias),
       clientId: norm(raw.clientId),
+      portfolioId: norm(raw.portfolioId),
+      portfolioName: norm(raw.portfolioName),
+      portfolioAlias: norm(raw.portfolioAlias),
       company,
       holderId: norm(raw.holderId),
       holderEmail: norm(raw.holderEmail),
@@ -324,13 +327,15 @@
 
     for (const supply of supplies) {
       const legalKey = key(supply.clientTaxId) || key(supply.client);
-      const alias = internal ? norm(supply.clientAlias) : '';
-      const groupKey = alias ? 'ALIAS|' + key(alias) : 'CLIENT|' + legalKey;
+      const portfolioId = internal ? norm(supply.portfolioId) : '';
+      const alias = portfolioId ? norm(supply.portfolioAlias) : (internal ? norm(supply.clientAlias) : '');
+      const groupKey = portfolioId ? 'PORTFOLIO|' + portfolioId : (alias ? 'ALIAS|' + key(alias) : 'CLIENT|' + legalKey);
 
       if (!groups.has(groupKey)) {
         groups.set(groupKey, {
-          name: alias || supply.client,
+          name: alias || (portfolioId ? supply.portfolioName : '') || supply.client,
           alias,
+          portfolioId,
           list: [],
           members: new Map(),
         });
@@ -351,13 +356,13 @@
     grid.innerHTML = [...groups.values()]
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
       .map((group) => {
-        const { name, alias, list, members } = group;
+        const { name, alias, list, members, portfolioId } = group;
         const memberList = [...members.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
         const multiClient = internal && memberList.length > 1;
         const holders = holderTree(list);
-        const type = multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
+        const type = portfolioId || multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
         const primaryClient = memberList[0]?.name || list[0]?.client || name;
-        const isBusinessGroup = type === 'GRUPO';
+        const isBusinessGroup = Boolean(portfolioId) || type === 'GRUPO';
 
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
@@ -700,31 +705,100 @@
   }
 
   function configureClientGroupField(supply = null) {
-    const input = $('#clientName');
-    const select = $('#clientGroupSelect');
-    const help = $('#clientGroupHelp');
+    const input = $('#clientName'), select = $('#clientGroupSelect'), help = $('#clientGroupHelp');
     if (!input || !select || !help) return;
-    const editing = Boolean(supply?.holderId && supply?.clientId);
-    input.classList.toggle('hidden', editing);
+    const editing = Boolean(supply?.supplyId);
+    input.classList.toggle('hidden',editing);
     input.disabled = editing;
     input.required = !editing;
-    select.classList.toggle('hidden', !editing);
+    select.classList.toggle('hidden',!editing);
     select.disabled = !editing;
-    help.classList.toggle('hidden', !editing);
+    help.classList.toggle('hidden',!editing);
     select.replaceChildren();
-    select.add(new Option('Selecciona un cliente existente', ''));
-    if (!editing) return;
+    select.add(new Option('Sin grupo comercial (cliente legal)', ''));
+    for (const group of [...(window.IBTSupplyPortfolios || [])].sort((a,b) => (a.alias || a.name).localeCompare(b.alias || b.name,'es'))) {
+      select.add(new Option(group.alias ? group.alias + ' (' + group.name + ')' : group.name,group.id));
+    }
+    select.add(new Option('+ Crear un nuevo grupo…','__new__'));
+    select.value = editing ? (supply.portfolioId || '') : '';
+    $('#clientPortfolioNew').classList.add('hidden');
+    $('#clientPortfolioAliasEditor').classList.add('hidden');
+    $('#clientPortfolioNewName').value = '';
+    $('#clientPortfolioNewAlias').value = '';
+    if(editing) updatePortfolioGroupChoice();
+  }
 
-    const clients = new Map();
-    clients.set(supply.clientId, { name: supply.client, type: supply.type });
-    for (const item of supplies) {
-      if (!item.clientId || (item.type !== 'GRUPO' && item.clientId !== supply.clientId)) continue;
-      if (!clients.has(item.clientId)) clients.set(item.clientId, { name: item.client, type: item.type });
+  function updatePortfolioGroupChoice() {
+    const chosen = $('#clientGroupSelect').value;
+    const group = (window.IBTSupplyPortfolios || []).find((item) => item.id === chosen);
+    $('#clientPortfolioNew').classList.toggle('hidden',chosen !== '__new__');
+    $('#clientPortfolioAliasEditor').classList.toggle('hidden',!group);
+    if(group) $('#clientPortfolioExistingAlias').value = group.alias || '';
+    const current = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
+    const changed = Boolean(current && (chosen === '__new__' || chosen !== norm(current.portfolioId)));
+    $('#clientForm button[type="submit"]').textContent = changed ? 'Guardar agrupación' : 'Guardar sin duplicar';
+    $('#clientGroupHelp').textContent = changed
+      ? 'Solo se cambiará la agrupación de este CUPS. Titular legal, contrato e histórico permanecerán intactos.'
+      : 'Agrupación comercial independiente del titular y del cliente fiscal.';
+  }
+
+  async function saveCommercialPortfolio() {
+    const supply = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
+    const chosen = $('#clientGroupSelect').value;
+    const newName = chosen === '__new__' ? norm($('#clientPortfolioNewName').value) : '';
+    const newAlias = chosen === '__new__' ? norm($('#clientPortfolioNewAlias').value) : '';
+    const message = $('#clientFormMsg');
+    if(!supply?.supplyId || !window.ibtSupabase) {
+      message.textContent = 'No se ha podido identificar este suministro en Supabase.';
+      return;
     }
-    for (const [id, client] of [...clients].sort((a,b) => a[1].name.localeCompare(b[1].name,'es'))) {
-      select.add(new Option(client.name + (id === supply.clientId ? ' (actual)' : ''), id));
+    if(chosen === '__new__' && !newName) {
+      message.textContent = 'Escribe el nombre del nuevo grupo.';
+      return;
     }
-    select.value = supply.clientId;
+    const target = (window.IBTSupplyPortfolios || []).find((g) => g.id === chosen);
+    const label = newName || target?.alias || target?.name || 'sin grupo';
+    if(!window.confirm('¿Agrupar únicamente el CUPS ' + supply.cups + ' en «' + label + '»? No cambiará el titular legal ni las facturas. Los demás campos sin guardar no se aplicarán.')) return;
+    const button = $('#clientForm button[type="submit"]');
+    button.disabled = true;
+    message.textContent = 'Guardando grupo comercial…';
+    try {
+      const {data,error} = await window.ibtSupabase.rpc('set_internal_supply_portfolio',{
+        p_supply_id:supply.supplyId,
+        p_group_id:chosen && chosen !== '__new__' ? chosen : null,
+        p_new_name:newName || null,p_new_alias:newAlias || null,
+      });
+      if(error) throw error;
+      if(!data?.ok) {
+        const errors={group_name_exists:'Ya existe un grupo con ese nombre. Selecciónalo.',not_authorized:'Sin permiso interno.',group_not_found:'Grupo no encontrado.'};
+        message.textContent=errors[data?.reason] || 'No se ha guardado: '+(data?.reason || 'error');
+        return;
+      }
+      closeForm();
+      await window.CentralSupabaseMaster?.reload?.();
+      status('','<strong>Grupo comercial guardado.</strong> Sin modificar titulares ni facturas.');
+    } catch(error) {
+      console.error('Error guardando grupo comercial',error);
+      message.textContent='No se ha podido confirmar el cambio. La caché local sigue intacta.';
+    } finally { button.disabled=false; }
+  }
+
+  async function saveCommercialPortfolioAlias() {
+    const chosen=$('#clientGroupSelect').value;
+    const group=(window.IBTSupplyPortfolios || []).find((item)=>item.id===chosen);
+    if(!group) return;
+    try {
+      const {data,error}=await window.ibtSupabase.rpc('set_internal_supply_portfolio_alias',{
+        p_group_id:group.id,p_alias:norm($('#clientPortfolioExistingAlias').value)||null,
+      });
+      if(error) throw error;
+      if(!data?.ok) throw Error(data?.reason || 'error');
+      await window.CentralSupabaseMaster?.reload?.();
+      $('#clientFormMsg').textContent='Alias del grupo actualizado.';
+    } catch(error) {
+      console.warn(error);
+      $('#clientFormMsg').textContent='No se ha podido actualizar el alias del grupo.';
+    }
   }
 
   function setupGroupLinkControls(supply = null) {
@@ -1030,15 +1104,8 @@
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
     $('#holderLinkToGroup').onclick = linkCurrentHolderToGroup;
-    $('#clientGroupSelect').addEventListener('change', () => {
-      const original = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
-      const changed = Boolean(original?.clientId && $('#clientGroupSelect').value !== original.clientId);
-      const submit = $('#clientForm button[type="submit"]');
-      if (submit) submit.textContent = changed ? 'Vincular titular al grupo' : 'Guardar sin duplicar';
-      $('#clientGroupHelp').textContent = changed
-        ? 'Al guardar se vinculará el titular completo al grupo seleccionado. Los demás cambios de esta ficha no se guardarán.'
-        : 'Selecciona un grupo existente para vincular este titular.';
-    });
+    $('#clientGroupSelect').addEventListener('change', updatePortfolioGroupChoice);
+    $('#clientPortfolioSaveAlias').addEventListener('click', saveCommercialPortfolioAlias);;
     $('#supplyTariff').addEventListener('input', updatePowerPeriodVisibility);
     $('#supplyTariff').addEventListener('change', updatePowerPeriodVisibility);
     $('#clearSupplyContactOverrides').onclick = () => {
@@ -1057,16 +1124,10 @@
       const existingSupply = editingCups
         ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
         : null;
-      const selectedClientId = $('#clientGroupSelect')?.value || '';
-      if (existingSupply?.holderId && existingSupply?.clientId) {
-        if (!selectedClientId) {
-          $('#clientFormMsg').textContent = 'Selecciona un cliente o grupo existente.';
-          return;
-        }
-        if (selectedClientId !== existingSupply.clientId) {
-          await linkCurrentHolderToGroup();
-          return;
-        }
+      const selectedGroupId = $('#clientGroupSelect')?.value || '';
+      if (existingSupply?.supplyId && (selectedGroupId === '__new__' || selectedGroupId !== norm(existingSupply.portfolioId))) {
+        await saveCommercialPortfolio();
+        return;
       }
       const client = existingSupply ? existingSupply.client : norm($('#clientName').value);
       const cups = norm($('#clientCups').value).replace(/\s/g, '');

@@ -117,10 +117,10 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=00cace4d50db/);
+  assert.match(index, /master-v2\.js\?v=9e8526ebd806/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
-  assert.match(index, /auth-bootstrap\.js\?v=7cce257b33b3/);
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=d026c9b20528/);
+  assert.match(index, /auth-bootstrap\.js\?v=2fb6c4e4409e/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
 });
 
 
@@ -193,11 +193,21 @@ test('linking an existing holder to a group is guarded, audited and keeps supply
   assert.match(master,/await window\.CentralSupabaseMaster\?\.reload\?\.\(\)/);
 });
 
-test('editing a pre-existing holder routes selected group through guarded linkage before master save',()=>{
-  assert.match(master,/function configureClientGroupField\(supply = null\)/);
-  assert.match(master,/const selectedClientId = \$\('#clientGroupSelect'\)\?\.value \|\| ''/);
-  assert.match(master,/selectedClientId !== existingSupply\.clientId/);
-  assert.match(master,/await linkCurrentHolderToGroup\(\)/);
+
+test('commercial supply grouping never moves a legal holder or rewrites a historical invoice',()=>{
+  const sql=fs.readFileSync(path.join(root,'supabase','migrations','20261118113000_supply_portfolios.sql'),'utf8');
+  assert.match(sql,/create table if not exists private\.supply_portfolios/);
+  assert.match(sql,/create table if not exists private\.supply_portfolio_members/);
+  assert.match(sql,/count\(distinct h\.id\)>1/);
+  assert.match(sql,/insert into private\.supply_portfolio_members/);
+  assert.match(sql,/private\.is_internal_user\(\)/);
+  assert.match(sql,/get_internal_supply_portfolios/);
+  assert.match(sql,/set_internal_supply_portfolio\(/);
+  assert.match(sql,/supply_portfolio_assigned/);
+  assert.doesNotMatch(sql,/update public\.(holders|clients|invoices|supplies)/);
+  assert.match(master,/async function saveCommercialPortfolio\(\)/);
+  assert.match(master,/p_supply_id:supply\.supplyId/);
+  assert.match(master,/await saveCommercialPortfolio\(\)/);
   assert.match(master,/const client = existingSupply \? existingSupply\.client/);
-  assert.match(master,/const groupId = \$\('#clientGroupSelect'\)\?\.value \|\| ''/);
+  assert.match(pilot,/portfolioId: portfolioMemberships\[supply\.id\] \|\| ''/);
 });
