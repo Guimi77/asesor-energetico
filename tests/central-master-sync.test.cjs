@@ -95,6 +95,7 @@ function buildHarness(role = 'admin', options = {}) {
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
         if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
+        if (name === 'get_internal_supply_portfolios') return { data: options.portfolios || { ok: true, groups: [], members: {} }, error: null };
         if (name === 'get_internal_billing_profiles') return {
           data: options.billingProfiles || { holders: {}, supplies: {}, legacy_clients: {} },
           error: null,
@@ -484,7 +485,7 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=d026c9b20528/);
+  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
   assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
@@ -494,4 +495,16 @@ test('bootstrap forces browsers to fetch the global reconciliation audit version
   assert.match(source, /select\('id,name,tax_id,status,client_type'\)/);
   assert.match(source, /const explicit = norm\(client\?\.client_type\)\.toUpperCase\(\)/);
   assert.doesNotMatch(source, /holderCount > 1/);
+});
+
+test('central portfolios are loaded independently from client and holder identity',async()=>{
+  const {window,replacements,calls}=buildHarness('admin',{
+    portfolios:{ok:true,groups:[{id:'group-a',name:'Pepito de los Palotes',alias:'Pepe vecino'}],
+    members:{'s-xtra-1':'group-a'}}
+  });
+  await window.CentralSupabaseMaster.reload();
+  assert.ok(calls.some(x=>x.name==='get_internal_supply_portfolios'));
+  const last=replacements[replacements.length-1];
+  const rows=last?.rows || last?.supplies || last;
+  assert.ok(JSON.stringify(rows).includes('Pepe vecino'));
 });
