@@ -123,3 +123,15 @@ test('existing holder can be explicitly assigned to a group without editing its 
   assert.match(masterUi,/holderLinkToGroup'\)\.onclick = linkCurrentHolderToGroup/);
   assert.match(masterUi,/setupGroupLinkControls\(supply\)/);
 });
+
+test('existing holder client field is a picker, not arbitrary free-text group creation',()=>{
+  assert.match(html,/id="clientGroupSelect"/);
+  assert.match(html,/id="clientGroupHelp"/);
+  assert.match(masterUi,/input\.disabled = editing/);
+  assert.match(masterUi,/select\.disabled = !editing/);
+  assert.match(masterUi,/select\.value = supply\.clientId/);
+  assert.match(masterUi,/item\.type !== 'GRUPO'/);
+  assert.match(masterUi,/Vincular titular al grupo/);
+  assert.match(masterUi,/setupGroupLinkControls\(supply\)/);
+  assert.match(masterUi,/panel\.classList\.add\('hidden'\)/);
+});
