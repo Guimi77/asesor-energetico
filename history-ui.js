@@ -547,7 +547,16 @@
     const total = Math.max(0, Number(expected) || 0);
     // Coverage is context, not a filter: every stored month with real data must remain visible.
     // A portfolio can gain/lose supplies over time, so low coverage must never erase historical periods.
-    const prepared = points.map(p => ({...p, chartExcluded:false}));
+    const prepared = points.map(p => ({...p, chartExcluded:false, chartPartial:false}));
+    // Compare recent recorded coverage, as portfolio membership can change.
+    const latest = prepared.at(-1);
+    const previous = prepared.slice(Math.max(0, prepared.length - 4), -1);
+    const reference = Math.max(0, ...previous.map(p => Number(p.supplies) || 0));
+    if (total > 1 && latest && reference > 1 &&
+        latest.supplies < reference * CHART_MIN_COVERAGE_RATIO &&
+        latest.supplies < total * CHART_MIN_COVERAGE_RATIO) {
+      latest.chartPartial = true;
+    }
     return { points:prepared, threshold:total, expected:total, excluded:0, excludedPoints:[] };
   }
 
@@ -556,7 +565,7 @@
     const latest = points.at(-1);
     const latestPartial = expected > 1 && latest.supplies < view.threshold;
     if (latestPartial) {
-      return `<div class="history-data-note" role="status"><strong>${esc(monthLabel(latest.key))}: datos parciales.</strong>${latest.supplies} de ${expected} suministros tienen datos registrados. Este mes todavía no se compara con los anteriores.</div>`;
+      return `<div class="history-data-note" role="status"><strong>${esc(monthLabel(latest.key))}: datos parciales.</strong>${latest.supplies} de ${expected} suministros tienen datos registrados. Este mes todavía no se compara con los anteriores.${view.points.at(-1)?.chartPartial ? ' Se omite de las líneas de evolución para evitar una caída aparente; los registros siguen disponibles en la tabla.' : ''}</div>`;
     }
 
     const comparableKeys = new Set(view.points.map(p => p.key));
@@ -592,7 +601,7 @@
 
   function svgChart(points, field, formatter, { valueTransform = v => v } = {}) {
     if (!points.length) return '<div class="history-empty">No hay meses con cobertura suficiente para comparar.</div>';
-    const vals = points.map(p => Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
+    const vals = points.map(p => !p.chartPartial && Number.isFinite(p[field]) ? valueTransform(p[field]) : null);
     const scale = adaptiveChartScale(vals.filter(v => v !== null));
     const span = scale.max - scale.min || 1;
     const tickFractions = [0,.25,.5,.75,1];
@@ -608,7 +617,7 @@
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
-      const label = esc(chartPointLabel(c.p) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
+      const label = esc(chartPointLabel(c.p) + ': ' + (c.p.chartPartial ? 'datos parciales, no comparables' : c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
       return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
     }).join('');
     const scaleNote = '';
@@ -623,7 +632,7 @@
     const pointLabel=p=>p?.label||monthLabel(p?.key);
     const pointContext=p=>p?.chartMode==='period'&&p?.billingDays?' · '+p.billingDays+' días':'';
     const W=680,H=192,padL=106,padR=40,padT=12,padB=40;
-    const values=points.map(p=>Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
+    const values=points.map(p=>!p.chartPartial&&Number.isFinite(p.kwh)&&p.kwh>0&&Number.isFinite(p.eur)?p.eur/p.kwh:null);
     const valid=values.filter(v=>v!==null&&Number.isFinite(v));
     const max=Math.max(...valid,0.01),min=Math.min(...valid,0),span=Math.max(max-min,0.01);
     const innerW=W-padL-padR,innerH=H-padT-padB;
@@ -646,7 +655,7 @@
     const dots=coords.map(c=>{
       if(c.p.chartExcluded)return'';
       return c.y===null?
-        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(pointLabel(c.p))+': sin dato calculable de €/kWh</title></text>':
+        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(pointLabel(c.p))+': '+(c.p.chartPartial?'datos parciales, no comparables':'sin dato calculable de €/kWh')+'</title></text>':
         '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(pointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+pointContext(c.p)+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
     }).join('');
     return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
