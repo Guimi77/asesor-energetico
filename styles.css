@@ -76,3 +76,10 @@ body{background:var(--bt-bg)}
 .portfolio-form-inline button{flex:1 0 auto;font-size:.71rem}
 #clientGroupHelp{display:block;margin-top:6px;font-size:.7rem;line-height:1.4;color:#38596b}
 #clientGroupHelp.hidden{display:none!important}
+
+/* Full group collapse keeps the group's identity/summary/actions visible. */
+.client-group-contents[hidden]{display:none!important}
+.client-group-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:28px;padding:5px 9px;margin-left:auto;font-size:.72rem;line-height:1.2;white-space:nowrap}
+.client-group-toggle-chevron{font-size:1rem;line-height:1}
+.client-tree-title .client-group-toggle + .add-supply{margin-left:6px}
+@media(max-width:640px){.client-group-toggle{margin-left:0}}
