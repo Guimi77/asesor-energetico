@@ -20,7 +20,7 @@ test('Monthly cost uses total euros divided by total consumption',()=>{
 test('Zero consumption produces a gap, not a false zero price',()=>{
  const html=ctx.chart([{key:'2026-01',kwh:100,eur:20},{key:'2026-02',kwh:0,eur:40},{key:'2026-03',kwh:100,eur:10}]);
  assert.equal((html.match(/<circle /g)||[]).length,2);assert.equal((html.match(/history-cost-missing/g)||[]).length,1);
- const path=html.match(/<path d="([^"]*)"/)[1];assert.equal((path.match(/M /g)||[]).length,2);assert(!path.includes('L '));
+ assert.equal((html.match(/<path d=/g)||[]).length,0,'missing-cost month must break the chart line');
 });
 test('Empty and all-zero selections still have a useful empty or missing state',()=>{
  assert(ctx.chart([]).includes('cobertura suficiente'));const html=ctx.chart([{key:'2026-01',kwh:0,eur:20}]);assert(!html.includes('<circle'));assert(!html.includes('<path'));assert(html.includes('sin dato'));
