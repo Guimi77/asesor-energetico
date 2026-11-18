@@ -117,7 +117,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=7edc938f1f3f/);
+  assert.match(index, /master-v2\.js\?v=aa24a4855301/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   assert.match(index, /auth-bootstrap\.js\?v=7cce257b33b3/);
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=d026c9b20528/);
@@ -176,4 +176,19 @@ test('manual retailer is audited and cannot be overwritten by later invoices or 
   assert.match(master,/supabase\.rpc\('set_supply_retailer_manual'/);
   assert.match(master,/if \(manualError \|\| !manualResult\?\.ok\)/);
   assert.match(pilot,/manualRetailer: supply\.manual_retailer \|\| ''/);
+});
+
+test('linking an existing holder to a group is guarded, audited and keeps supply identity', () => {
+  const sql = fs.readFileSync(path.join(root,'supabase','migrations','20261118104500_link_existing_holder_to_group.sql'),'utf8');
+  assert.match(sql,/function public\.link_existing_holder_to_group/i);
+  assert.match(sql,/private\.is_internal_user\(\)/);
+  assert.match(sql,/v_holder\.client_id is distinct from p_expected_client_id/);
+  assert.match(sql,/client_type = 'GRUPO'/);
+  assert.match(sql,/holder_already_exists_in_group/);
+  assert.match(sql,/update public\.holders[\s\S]+set client_id = v_target\.id/);
+  assert.doesNotMatch(sql,/update public\.(supplies|invoices)/);
+  assert.match(sql,/holder_linked_to_group/);
+  assert.match(master,/rpc\('link_existing_holder_to_group'/);
+  assert.match(master,/p_expected_client_id: supply\.clientId/);
+  assert.match(master,/await window\.CentralSupabaseMaster\?\.reload\?\.\(\)/);
 });

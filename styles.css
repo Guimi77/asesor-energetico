@@ -56,3 +56,15 @@ body{background:var(--bt-bg)}
   .client-form-section-head{align-items:flex-start;flex-direction:column}
   .power-period-grid{grid-template-columns:repeat(2,minmax(70px,1fr))}
 }
+
+/* Explicit group relationship for an existing holder. This never edits a CUPS or invoice. */
+.group-link-row{grid-column:1/-1;display:grid;grid-template-columns:minmax(180px,1fr) minmax(280px,1fr);gap:8px 16px;align-items:center;padding:12px 14px;border:1px solid #b9d8d4;border-radius:8px;background:#f0faf8}
+.group-link-row.hidden{display:none!important}
+.group-link-title{display:flex;flex-direction:column;gap:4px}
+.group-link-title strong{font-size:.85rem;color:#164c46}
+.group-link-title small{font-size:.72rem;line-height:1.4;color:#3b625c}
+.group-link-controls{display:flex;align-items:center;gap:8px}
+.group-link-controls select{margin:0;min-width:0;flex:1}
+.group-link-controls button{white-space:nowrap}
+#holderGroupLinkStatus{grid-column:1/-1;color:#8b342c;font-weight:650;min-height:0}
+@media(max-width:800px){.group-link-row{grid-template-columns:1fr}.group-link-controls{flex-wrap:wrap}.group-link-controls button{flex:1}}
