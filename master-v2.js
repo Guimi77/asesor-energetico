@@ -7,6 +7,8 @@
 
   let supplies = [];
   let editingCups = '';
+  // UI-only state: group open/closed state must survive normal central refreshes.
+  const collapsedClientGroups = new Set();
 
   const views = {
     facturas: ['Facturas procesadas', 'Carga, valida y analiza las facturas eléctricas de tus clientes.', 'Panel de análisis energético'],
@@ -366,6 +368,12 @@
         const type = portfolioId || multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
         const primaryClient = memberList[0]?.name || list[0]?.client || name;
         const isBusinessGroup = Boolean(portfolioId) || type === 'GRUPO';
+        const collapsible = isBusinessGroup || multiClient;
+        const groupIdentity = portfolioId ? 'PORTFOLIO|' + portfolioId : 'CLIENT|' + (key(list[0]?.clientTaxId) || key(list[0]?.client));
+        const collapsed = collapsible && collapsedClientGroups.has(groupIdentity);
+        const toggle = collapsible
+          ? `<button type="button" class="client-group-toggle" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Desplegar' : 'Replegar'} grupo ${esc(name)}" title="${collapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo'}" data-group-key="${esc(groupIdentity)}"><span class="client-group-toggle-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span><span class="client-group-toggle-label">${collapsed ? 'Desplegar' : 'Replegar'}</span></button>`
+          : '';
 
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
@@ -412,10 +420,28 @@
           ? ''
           : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${addTop}</div>${memberRows}<div class="holder-tree">${folders}</div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><h3>${esc(name)}</h3>${legalLine}<small>${summary}</small></div>${toggle}${addTop}</div><div class="client-group-contents" ${collapsed ? 'hidden' : ''}>${memberRows}<div class="holder-tree">${folders}</div></div></article>`;
       })
       .join('');
 
+    grid.querySelectorAll('.client-group-toggle').forEach((button) => {
+      button.addEventListener('click', () => {
+        const groupKey = button.dataset.groupKey;
+        if (!groupKey) return;
+        const content = button.closest('.company-card-tree')?.querySelector('.client-group-contents');
+        if (!content) return;
+        const nextCollapsed = !content.hidden;
+        content.hidden = nextCollapsed;
+        if (nextCollapsed) collapsedClientGroups.add(groupKey);
+        else collapsedClientGroups.delete(groupKey);
+        button.setAttribute('aria-expanded', String(!nextCollapsed));
+        button.setAttribute('aria-label', (nextCollapsed ? 'Desplegar' : 'Replegar') + ' grupo ' +
+          (button.closest('.company-card-tree')?.querySelector('.client-tree-title h3')?.textContent || ''));
+        button.title = nextCollapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo';
+        button.querySelector('.client-group-toggle-chevron').textContent = nextCollapsed ? '▸' : '▾';
+        button.querySelector('.client-group-toggle-label').textContent = nextCollapsed ? 'Desplegar' : 'Replegar';
+      });
+    });
     grid.querySelectorAll('.edit-supply-tree').forEach((button) => {
       button.onclick = () => editSupply(button.dataset.cups);
     });
