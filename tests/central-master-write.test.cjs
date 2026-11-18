@@ -119,7 +119,11 @@ test('central cache alignment preserves a local archive before pruning', () => {
 test('browser cache markers force the central-authoritative code', () => {
   assert.match(index, /master-v2\.js\?v=ba401f5d51b0/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
-  assert.match(index, /auth-bootstrap\.js\?v=2fb6c4e4409e/);
+  // Validate current Git blob, not an obsolete hardcoded cache token.
+  const crypto = require('node:crypto');
+  const bytes = fs.readFileSync(path.join(root, 'auth-bootstrap.js'));
+  const expected = crypto.createHash('sha1').update('blob ' + bytes.length).update(Buffer.from([0])).update(bytes).digest('hex').slice(0, 12);
+  assert.ok(index.includes('auth-bootstrap.js?v=' + expected));
   assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
 });
 

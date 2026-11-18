@@ -32,7 +32,10 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('svg[data-field="kwh"] .history-chart-missing[data-month="2026-02"]').count(),1);
   assert.match(await page.locator('svg[data-field="eur"] circle[data-month="2026-03"] title').textContent(),/3 CUPS con registros/);
   assert.equal(await page.locator('#historyCostChart circle').count(),2);assert.equal(await page.locator('#historyCostChart circle[data-month="2026-01"]').count(),0);
-  const path=await page.locator('svg[data-field="kwh"] path').getAttribute('d');assert.equal((path.match(/M /g)||[]).length,2);
+  // A genuinely absent month must stay a gap, not a misleading connecting line.
+  const segments=await page.locator('svg[data-field="kwh"] path').count();
+  assert.equal(segments,1,'only March-to-April may be connected; February has no data');
+  assert.equal(await page.locator('svg[data-field="kwh"] path[data-partial-segment]').count(),0);
   for (const width of [1720,1440,1100,700,390]) {
    await page.setViewportSize({width,height:1100});
    const clipped=await page.locator('.history-grid svg').evaluateAll(svgs=>svgs.flatMap(svg=>{const v=svg.viewBox.baseVal;return [...svg.querySelectorAll('text')].filter(el=>{const b=el.getBBox();return b.x < -.5 || b.x+b.width>v.width+.5 || b.y<-.5 || b.y+b.height>v.height+.5;}).map(el=>el.textContent);}));

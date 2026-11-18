@@ -547,7 +547,16 @@
     const total = Math.max(0, Number(expected) || 0);
     // Coverage is context, not a filter: every stored month with real data must remain visible.
     // A portfolio can gain/lose supplies over time, so low coverage must never erase historical periods.
-    const prepared = points.map(p => ({...p, chartExcluded:false}));
+    const prepared = points.map(p => ({...p, chartExcluded:false, chartPartial:false}));
+    // Compare recent recorded coverage, as portfolio membership can change.
+    const latest = prepared.at(-1);
+    const previous = prepared.slice(Math.max(0, prepared.length - 4), -1);
+    const reference = Math.max(0, ...previous.map(p => Number(p.supplies) || 0));
+    if (total > 1 && latest && reference > 1 &&
+        latest.supplies < reference * CHART_MIN_COVERAGE_RATIO &&
+        latest.supplies < total * CHART_MIN_COVERAGE_RATIO) {
+      latest.chartPartial = true;
+    }
     return { points:prepared, threshold:total, expected:total, excluded:0, excludedPoints:[] };
   }
 
@@ -556,7 +565,7 @@
     const latest = points.at(-1);
     const latestPartial = expected > 1 && latest.supplies < view.threshold;
     if (latestPartial) {
-      return `<div class="history-data-note" role="status"><strong>${esc(monthLabel(latest.key))}: datos parciales.</strong>${latest.supplies} de ${expected} suministros tienen datos registrados. Este mes todavía no se compara con los anteriores.</div>`;
+      return `<div class="history-data-note" role="status"><strong>${esc(monthLabel(latest.key))}: datos parciales.</strong>${latest.supplies} de ${expected} suministros tienen datos registrados. Este mes todavía no se compara con los anteriores.${view.points.at(-1)?.chartPartial ? ' El tramo rojo discontinuo señala una comparación no fiable; los registros siguen disponibles en la tabla.' : ''}</div>`;
     }
 
     const comparableKeys = new Set(view.points.map(p => p.key));
@@ -602,18 +611,24 @@
     const innerW = W - padL - padR, innerH = H - padT - padB;
     const coords = points.map((p,i) => ({ p, value: vals[i], x: padL + (points.length === 1 ? innerW / 2 : i * innerW / (points.length - 1)), y: vals[i] === null ? null : padT + innerH - (scale.forward(vals[i]) - scale.min) / span * innerH }));
     let connected = false;
-    const path = coords.map(c => { if (c.y === null) { connected = false; return ''; } const cmd = connected ? 'L' : 'M'; connected = true; return `${cmd} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`; }).filter(Boolean).join(' ');
+    // Blue segments are comparable; a transition touching a partial point is red and dashed.
+    const segments = coords.slice(1).map((c,i) => {
+      const previous = coords[i];
+      if (previous.y === null || c.y === null) return '';
+      const partial = !!(previous.p.chartPartial || c.p.chartPartial);
+      return `<path d="M ${previous.x.toFixed(1)} ${previous.y.toFixed(1)} L ${c.x.toFixed(1)} ${c.y.toFixed(1)}" fill="none" stroke="${partial ? '#c62828' : '#1834b8'}" stroke-width="2.5"${partial ? ' stroke-dasharray="6 4" data-partial-segment="true"' : ''}/>`;
+    }).join('');
     const guides = ticks.map((v,i) => { const y = padT + innerH - innerH * i / (ticks.length - 1); return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4eaf1"/><text class="history-axis-value" x="${padL-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#65758a">${esc(formatter(v))}</text>`; }).join('');
     const labels = chartAxisLabels(coords, H);
     const dots = coords.map(c => {
       if (c.p.chartExcluded) return '';
       const coverage = Number.isInteger(c.p.supplies) ? ` · ${c.p.supplies} CUPS con registros · ${c.p.records} periodo(s)` : '';
-      const label = esc(chartPointLabel(c.p) + ': ' + (c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
-      return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}" cx="${c.x}" cy="${c.y}" r="3.5" fill="#1834b8"><title>${label}</title></circle>`;
+      const label = esc(chartPointLabel(c.p) + ': ' + (c.p.chartPartial ? 'datos parciales, no comparables' : c.value === null ? 'sin datos completos' : formatter(c.value)) + chartPointContext(c.p,field) + coverage);
+      return c.y === null ? `<text class="history-chart-missing" data-month="${esc(c.p.key)}" x="${c.x}" y="${padT+innerH-7}" text-anchor="middle" font-size="12" fill="#65758a">—<title>${label}</title></text>` : `<circle data-month="${esc(c.p.key)}" data-value="${c.value}" data-supplies="${c.p.supplies ?? ''}"${c.p.chartPartial ? ' data-partial="true"' : ''} cx="${c.x}" cy="${c.y}" r="${c.p.chartPartial ? '5' : '3.5'}" fill="${c.p.chartPartial ? '#c62828' : '#1834b8'}"><title>${label}</title></circle>`;
     }).join('');
     const scaleNote = '';
     const ariaLabel = ({kwh:'Consumo registrado por mes',eur:'Gasto registrado por mes',exportedKwh:'Excedentes compensados por mes',compensationEur:'Compensación económica por mes'})[field] || 'Evolución mensual';
-    return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${ariaLabel}">${guides}${path ? `<path d="${path}" fill="none" stroke="#1834b8" stroke-width="2.5"/>` : ''}${dots}${labels}${scaleNote}</svg>`;
+    return `<svg class="history-svg" data-field="${esc(field)}" data-scale="${scale.mode}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${ariaLabel}">${guides}${segments}${dots}${labels}${scaleNote}</svg>`;
   }
 
   // Rendered with the other charts, from the same filtered numeric records.
@@ -633,11 +648,12 @@
       return {p,value,x:padL+(points.length===1?innerW/2:i*step),y:value!==null&&Number.isFinite(value)?padT+innerH-(value-min)/span*innerH:null};
     });
     let connected=false;
-    const path=coords.map(c=>{
-      if(c.y===null){connected=false;return '';}
-      const command=connected?'L':'M';connected=true;
-      return command+' '+c.x.toFixed(1)+' '+c.y.toFixed(1);
-    }).filter(Boolean).join(' ');
+    const segments=coords.slice(1).map((c,i)=>{
+      const previous=coords[i];
+      if(previous.y===null||c.y===null)return'';
+      const partial=!!(previous.p.chartPartial||c.p.chartPartial);
+      return '<path d="M '+previous.x.toFixed(1)+' '+previous.y.toFixed(1)+' L '+c.x.toFixed(1)+' '+c.y.toFixed(1)+'" fill="none" stroke="'+(partial?'#c62828':'#1834b8')+'" stroke-width="2.5"'+(partial?' stroke-dasharray="6 4" data-partial-segment="true"':'')+'/>';
+    }).join('');
     const guides=[0,.5,1].map(f=>{
       const value=min+span*f,y=padT+innerH-innerH*f;
       return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e4eaf1"/><text x="'+(padL-7)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#65758a">'+esc(qty(value,4))+'</text>';
@@ -646,10 +662,10 @@
     const dots=coords.map(c=>{
       if(c.p.chartExcluded)return'';
       return c.y===null?
-        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(pointLabel(c.p))+': sin dato calculable de €/kWh</title></text>':
-        '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'" cx="'+c.x+'" cy="'+c.y+'" r="3.5" fill="#1834b8"><title>'+esc(pointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+pointContext(c.p)+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
+        '<text class="history-cost-missing" data-month="'+esc(c.p.key)+'" x="'+c.x+'" y="'+(padT+innerH-7)+'" text-anchor="middle" font-size="12" fill="#65758a">—<title>'+esc(pointLabel(c.p))+': '+(c.p.chartPartial?'datos parciales, no comparables':'sin dato calculable de €/kWh')+'</title></text>':
+        '<circle data-month="'+esc(c.p.key)+'" data-cost="'+c.value+'"'+(c.p.chartPartial?' data-partial="true"':'')+' cx="'+c.x+'" cy="'+c.y+'" r="'+(c.p.chartPartial?'5':'3.5')+'" fill="'+(c.p.chartPartial?'#c62828':'#1834b8')+'"><title>'+esc(pointLabel(c.p))+': '+esc(qty(c.value,4))+' €/kWh'+(c.p.chartPartial?' · dato parcial, no comparable':'')+pointContext(c.p)+(Number.isInteger(c.p.supplies)?' · '+c.p.supplies+' CUPS con registros · '+c.p.records+' periodo(s)':'')+'</title></circle>';
     }).join('');
-    return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+(path?'<path d="'+path+'" fill="none" stroke="#1834b8" stroke-width="2.5"/>':'')+dots+labels+'</svg>';
+    return '<svg class="history-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del coste medio en euros por kilovatio hora">'+guides+segments+dots+labels+'</svg>';
   }
 
   function chartAxisLabels(coords, height) {
