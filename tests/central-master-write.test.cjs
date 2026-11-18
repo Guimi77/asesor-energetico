@@ -198,6 +198,8 @@ test('commercial supply grouping never moves a legal holder or rewrites a histor
   const sql=fs.readFileSync(path.join(root,'supabase','migrations','20261118113000_supply_portfolios.sql'),'utf8');
   assert.match(sql,/create table if not exists private\.supply_portfolios/);
   assert.match(sql,/create table if not exists private\.supply_portfolio_members/);
+  assert.match(sql,/count\(distinct h\.id\)>1/);
+  assert.match(sql,/insert into private\.supply_portfolio_members/);
   assert.match(sql,/private\.is_internal_user\(\)/);
   assert.match(sql,/get_internal_supply_portfolios/);
   assert.match(sql,/set_internal_supply_portfolio\(/);
