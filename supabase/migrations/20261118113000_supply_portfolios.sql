@@ -21,6 +21,29 @@ create table if not exists private.supply_portfolio_members (
 create index if not exists supply_portfolio_members_portfolio_idx
   on private.supply_portfolio_members(portfolio_id);
 
+-- Adaptar las agrupaciones empresariales ya existentes sin cambiar identidades.
+-- Solo agrupar automaticamente clientes de tipo GRUPO con varios titulares;
+-- los clientes de un solo titular siguen sin agrupacion comercial nueva.
+insert into private.supply_portfolios(name)
+select c.name
+from public.clients c
+join public.holders h on h.client_id=c.id and h.status='active'
+where c.status='active' and c.client_type='GRUPO'
+group by c.id,c.name
+having count(distinct h.id)>1
+on conflict do nothing;
+
+insert into private.supply_portfolio_members(supply_id,portfolio_id)
+select s.id,p.id
+from public.clients c
+join public.holders h on h.client_id=c.id and h.status='active'
+join public.supplies s on s.holder_id=h.id and s.status='active'
+join private.supply_portfolios p on lower(btrim(p.name))=lower(btrim(c.name))
+where c.status='active' and c.client_type='GRUPO'
+  and (select count(distinct hh.id) from public.holders hh
+       where hh.client_id=c.id and hh.status='active')>1
+on conflict do nothing;
+
 revoke all on private.supply_portfolios from public, anon, authenticated;
 revoke all on private.supply_portfolio_members from public, anon, authenticated;
 
