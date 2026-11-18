@@ -166,3 +166,21 @@ test('group collapse styling has no large boxed toggle',()=>{
   assert.match(theme,/border: 0 !important/);
   assert.doesNotMatch(masterUi,/client-group-toggle-label/);
 });
+
+test('client supply editor opens as an accessible modal without jumping to the page top',()=>{
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  assert.match(html,/id="clientEditorBackdrop"/);
+  assert.match(html,/id="clientEditor"[^>]+role="dialog"/);
+  assert.match(html,/aria-labelledby="clientEditorTitle"/);
+  assert.match(masterUi,/function showEditorModal\(\)/);
+  assert.match(masterUi,/document\.body\.classList\.add\('client-editor-modal-open'\)/);
+  assert.match(masterUi,/document\.body\.classList\.remove\('client-editor-modal-open'\)/);
+  assert.match(masterUi,/lastEditorTrigger\.focus\(\{preventScroll:true\}\)/);
+  assert.match(masterUi,/event\.key === 'Escape'/);
+  assert.match(masterUi,/event\.key === 'Tab'/);
+  assert.match(css,/#clientEditorBackdrop\{position:fixed/);
+  assert.match(css,/body\.client-editor-modal-open #clientEditor\{/);
+  assert.match(css,/@media\(max-width:650px\)/);
+  assert.doesNotMatch(masterUi, /editor\.scrollIntoView\(/);
+  assert.doesNotMatch(masterUi, /\$\('#clientEditor'\)\.scrollIntoView\(/);
+});

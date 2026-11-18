@@ -84,3 +84,28 @@ body{background:var(--bt-bg)}
 .client-group-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 16px;width:16px;height:22px;min-width:16px;min-height:22px;padding:0;margin:0;line-height:1;vertical-align:middle}
 .client-group-toggle-chevron{font-size:.86rem;line-height:1}
 .client-group-heading .client-group-toggle{margin-left:0}
+
+/* Edit the existing master form as an overlay instead of jumping to the list's top.
+   Modal is mounted in Clientes and never duplicates save or validation logic. */
+#clientEditorBackdrop{position:fixed;inset:0;z-index:1998;background:rgba(15,29,38,.63)}
+#clientEditorBackdrop.hidden{display:none!important}
+body.client-editor-modal-open{overflow:hidden}
+body.client-editor-modal-open #clientEditor{
+  position:fixed!important;inset:4vh auto auto 50%;transform:translateX(-50%);
+  z-index:1999;width:min(1100px,calc(100vw - 32px));max-width:1100px;
+  max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;
+  box-shadow:0 24px 70px rgba(0,0,0,.3);background:#fff;
+  border:2px solid #008b83;border-radius:12px;margin:0;padding:0;
+}
+body.client-editor-modal-open #clientEditor .section-head{
+  position:sticky;top:0;z-index:2;background:#fff;
+  border-bottom:1px solid #c9e9e4;padding:12px 20px;
+}
+@media(max-width:650px){
+  body.client-editor-modal-open #clientEditor{
+    width:100vw;max-width:none;left:0;right:0;top:0;bottom:0;
+    inset:0;transform:none;max-height:100dvh;border-radius:0;
+    border:0;
+  }
+  body.client-editor-modal-open #clientEditor .section-head{padding:12px}
+}

@@ -7,6 +7,21 @@
 
   let supplies = [];
   let editingCups = '';
+  let lastEditorTrigger = null;
+
+  function showEditorModal() {
+    const editor = $('#clientEditor');
+    const backdrop = $('#clientEditorBackdrop');
+    if (!editor || !backdrop) return;
+    lastEditorTrigger = document.activeElement;
+    if ($('#clientesView')?.classList.contains('hidden')) show('clientes');
+    editor.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    document.body.classList.add('client-editor-modal-open');
+    editor.setAttribute('aria-modal','true');
+    editor.scrollTop = 0;
+    $('#cancelClient')?.focus({ preventScroll:true });
+  }
   // UI-only state: group open/closed state must survive normal central refreshes.
   const collapsedClientGroups = new Set();
 
@@ -941,8 +956,7 @@
   function openForm(client = '', holder = '', blankHolder = false) {
     editingCups = '';
     show('clientes');
-    const editor = $('#clientEditor');
-    editor.classList.remove('hidden');
+    showEditorModal();
     $('#clientForm').reset();
     setupGroupLinkControls();
     configureClientGroupField();
@@ -970,29 +984,32 @@
     }
 
     updatePowerPeriodVisibility();
-    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    $('#clientName').focus();
+    $('#clientName').focus({ preventScroll:true });
   }
 
   function editSupply(cups) {
     const supply = supplies.find((item) => cupsKey(item.cups) === cupsKey(cups));
     if (!supply) return;
     editingCups = supply.cups;
-    show('clientes');
-    $('#clientEditor').classList.remove('hidden');
+    showEditorModal();
     $('#clientForm').reset();
     $('#clientEditorTitle').textContent = `Editar suministro · ${supply.cups}`;
     fillForm(supply);
-    $('#clientEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('#cancelClient')?.focus({ preventScroll:true });
   }
 
   function closeForm() {
     editingCups = '';
     $('#clientEditor').classList.add('hidden');
+    $('#clientEditor').removeAttribute('aria-modal');
+    $('#clientEditorBackdrop').classList.add('hidden');
+    document.body.classList.remove('client-editor-modal-open');
     $('#clientForm').reset();
     $('#clientFormMsg').textContent = '';
     const submit = $('#clientForm button[type="submit"]');
     if (submit) submit.textContent = 'Guardar sin duplicar';
+    if (lastEditorTrigger?.isConnected) lastEditorTrigger.focus({preventScroll:true});
+    lastEditorTrigger = null;
   }
 
   function updatePowerPeriodVisibility() {
@@ -1136,6 +1153,26 @@
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
+    $('#clientEditorBackdrop').addEventListener('click', closeForm);
+    document.addEventListener('keydown', (event) => {
+      if ($('#clientEditor')?.classList.contains('hidden')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeForm();
+      }
+      // Keep keyboard focus within the modal, including on mobile keyboard navigation.
+      if (event.key === 'Tab') {
+        const controls = [...$('#clientEditor').querySelectorAll('button, input, select, textarea, [tabindex]')]
+          .filter((item) => !item.disabled && !item.closest('[hidden], .hidden') && item.getClientRects().length);
+        if (!controls.length) return;
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault(); first.focus();
+        }
+      }
+    });
     $('#holderLinkToGroup').onclick = linkCurrentHolderToGroup;
     $('#clientGroupSelect').addEventListener('change', updatePortfolioGroupChoice);
     $('#clientPortfolioSaveAlias').addEventListener('click', saveCommercialPortfolioAlias);;
