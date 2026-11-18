@@ -184,3 +184,16 @@ test('client supply editor opens as an accessible modal without jumping to the p
   assert.doesNotMatch(masterUi, /editor\.scrollIntoView\(/);
   assert.doesNotMatch(masterUi, /\$\('#clientEditor'\)\.scrollIntoView\(/);
 });
+
+test('maximum contractable power is immediately below the whole P1-P6 contracted power block',()=>{
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  const powerStart=html.indexOf('class="power-profile-field power-profile-full-row"');
+  const hint=html.indexOf('id="contractedPowerHint"',powerStart);
+  const powerMax=html.indexOf('class="max-contractable-power-field"',hint);
+  const sectionEnd=html.indexOf('</section>',hint);
+  assert.ok(powerStart>=0 && hint>powerStart && powerMax>hint && powerMax<sectionEnd);
+  assert.match(html.slice(powerStart,powerMax),/id="supplyPowerP6"/);
+  assert.match(html.slice(powerMax,sectionEnd),/id="supplyMaxContractablePower"/);
+  assert.match(css,/\.client-form-grid \.power-profile-full-row\{grid-column:1\/-1\}/);
+  assert.match(css,/\.client-form-grid \.max-contractable-power-field\{grid-column:1\/-1;max-width:290px\}/);
+});
