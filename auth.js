@@ -9,7 +9,7 @@ const SIGNUP_CONFIRM_URL=new URL('registro-completado.html',APP_ROOT).href;
 
 if(!document.querySelector('script[data-admin-data-management]')){
   const script=document.createElement('script');
-  script.src='admin-data-management.js?v=1ef88b414ac3';
+  script.src='admin-data-management.js?v=29ea04e8a775';
   script.dataset.adminDataManagement='1';
   document.head.appendChild(script);
 }
