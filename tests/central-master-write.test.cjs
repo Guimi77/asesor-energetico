@@ -214,7 +214,8 @@ test('commercial supply grouping never moves a legal holder or rewrites a histor
 
 test('client alias is an inline label, never a supply portfolio or grouping identity',()=>{
   assert.match(master,/const groupKey = portfolioId \? 'PORTFOLIO\|' \+ portfolioId : 'CLIENT\|' \+ legalKey/);
-  assert.match(master,/const holderLabel = internal && alias && !portfolioId/);
+  assert.match(master,/const holderLabel = internal && portfolioId && holder\.clientAlias/);
+  assert.match(master,/internal && alias && !portfolioId/);
   assert.match(master,/\('\s*\+ alias \+ '\) '/);
   assert.match(master,/name: portfolioId \? \(alias \|\| supply\.portfolioName \|\| supply\.client\) : supply\.client/);
   assert.match(master,/internal && portfolioId && alias && !multiClient/);
