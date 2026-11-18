@@ -117,7 +117,7 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=ba401f5d51b0/);
+  assert.match(index, /master-v2\.js\?v=598740f20fbf/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   // Validate current Git blob, not an obsolete hardcoded cache token.
   const crypto = require('node:crypto');
@@ -233,4 +233,19 @@ test('legal client alias appears next to its holder inside a commercial portfoli
   assert.match(master,/alias: supply\.clientAlias \|\| ''/);
   assert.match(master,/member\.name \+ \(internal && member\.alias/);
   assert.match(master,/internal && alias && !portfolioId/);
+});
+
+test('complete business groups can be expanded or collapsed without changing supply data',()=>{
+  const theme = fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  assert.match(master,/const collapsedClientGroups = new Set\(\)/);
+  assert.match(master,/const collapsible = isBusinessGroup \|\| multiClient/);
+  assert.match(master,/const groupIdentity = portfolioId/);
+  assert.match(master,/class="client-group-toggle"/);
+  assert.match(master,/aria-expanded="/);
+  assert.match(master,/class="client-group-contents"/);
+  assert.match(master,/content\.hidden = nextCollapsed/);
+  assert.match(master,/collapsedClientGroups\.add\(groupKey\)/);
+  assert.match(master,/collapsedClientGroups\.delete\(groupKey\)/);
+  assert.match(theme,/\.client-group-contents\[hidden\]\{display:none!important\}/);
+  assert.doesNotMatch(master,/localStorage\.setItem\([^)]*collapsedClientGroups/);
 });
