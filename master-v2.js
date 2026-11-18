@@ -699,7 +699,79 @@
     return [...deduped.values()];
   }
 
+  function setupGroupLinkControls(supply = null) {
+    const panel = $('#holderGroupLink');
+    const select = $('#holderTargetGroup');
+    const action = $('#holderLinkToGroup');
+    if (!panel || !select || !action) return;
+
+    select.replaceChildren();
+    select.add(new Option('Selecciona un grupo existente', ''));
+    const groups = new Map();
+    for (const item of supplies) {
+      if (item.type !== 'GRUPO' || !item.clientId || item.clientId === supply?.clientId) continue;
+      if (!groups.has(item.clientId)) groups.set(item.clientId, item.client);
+    }
+    for (const [id, name] of [...groups].sort((a,b) => a[1].localeCompare(b[1], 'es'))) {
+      select.add(new Option(name, id));
+    }
+    const available = Boolean(supply?.holderId && supply?.clientId && groups.size);
+    panel.classList.toggle('hidden', !available);
+    action.disabled = !available;
+    select.value = '';
+    $('#holderGroupLinkStatus').textContent = '';
+  }
+
+  async function linkCurrentHolderToGroup() {
+    const supply = supplies.find((item) => cupsKey(item.cups) === cupsKey(editingCups));
+    const groupId = $('#holderTargetGroup')?.value || '';
+    const message = $('#holderGroupLinkStatus');
+    if (!supply?.holderId || !supply?.clientId || !groupId) {
+      message.textContent = 'Selecciona un grupo existente para vincular este titular.';
+      return;
+    }
+    const target = supplies.find((item) => item.clientId === groupId && item.type === 'GRUPO');
+    if (!target || target.clientId === supply.clientId) {
+      message.textContent = 'El grupo seleccionado no es válido.';
+      return;
+    }
+    if (!window.confirm('¿Vincular el titular «' + supply.holder + '» a «' + target.client + '»? Se conservarán todos sus CUPS y facturas. Los cambios no guardados de esta ficha no se aplicarán.')) return;
+
+    const button = $('#holderLinkToGroup');
+    button.disabled = true;
+    message.textContent = 'Vinculando titular en la base central…';
+    try {
+      const supabase = window.ibtSupabase;
+      const {data,error} = await supabase.rpc('link_existing_holder_to_group', {
+        p_holder_id: supply.holderId,
+        p_target_client_id: groupId,
+        p_expected_client_id: supply.clientId,
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        const failures = {
+          holder_client_changed: 'Otro cambio ha modificado la relación del titular. Recarga la ficha.',
+          holder_already_exists_in_group: 'Ya existe un titular con la misma identidad en ese grupo. No se ha movido ni duplicado.',
+          target_group_not_found: 'El grupo de destino ya no está disponible.',
+          not_authorized: 'No tienes permiso para vincular titulares.',
+        };
+        message.textContent = failures[data?.reason] || 'No se ha podido vincular el titular: ' + (data?.reason || 'error desconocido');
+        return;
+      }
+      closeForm();
+      await window.CentralSupabaseMaster?.reload?.();
+      status('', '<strong>Titular vinculado al grupo.</strong> Los suministros y facturas mantienen sus identificadores.');
+      window.dispatchEvent(new CustomEvent('ibt-central-data-changed', {detail:{action:'holder_group_linked'}}));
+    } catch (error) {
+      console.error('Error vinculando titular al grupo',error);
+      message.textContent = 'No se ha podido confirmar la vinculación. No se ha modificado la ficha local.';
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function fillForm(supply) {
+    setupGroupLinkControls(supply);
     $('#clientType').value = supply.type || 'PENDIENTE';
     $('#clientName').value = supply.client || '';
     if ($('#clientAlias')) $('#clientAlias').value = supply.clientAlias || '';
@@ -736,6 +808,7 @@
     const editor = $('#clientEditor');
     editor.classList.remove('hidden');
     $('#clientForm').reset();
+    setupGroupLinkControls();
     $('#supplyRetailerSource').textContent = 'Si indicas una comercializadora, quedará fijada manualmente para este CUPS.';
     $('#clientEditorTitle').textContent = blankHolder ? 'Nuevo titular / suministro' : 'Cliente y punto de suministro';
 
@@ -924,6 +997,7 @@
   function bindControls() {
     $('#newClient').onclick = () => openForm('');
     $('#cancelClient').onclick = closeForm;
+    $('#holderLinkToGroup').onclick = linkCurrentHolderToGroup;
     $('#supplyTariff').addEventListener('input', updatePowerPeriodVisibility);
     $('#supplyTariff').addEventListener('change', updatePowerPeriodVisibility);
     $('#clearSupplyContactOverrides').onclick = () => {
