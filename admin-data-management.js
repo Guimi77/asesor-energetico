@@ -281,6 +281,16 @@
     return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
 
+  // Canonical comparison ONLY. Never replace the legally stored display name.
+  // Identity is still determined by matching fiscal IDs before comparing names.
+  function holderNameComparisonKey(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+  }
+
   function holderInvoiceRelation(holder, invoice) {
     if (!holder || !invoice) return { kind: 'unknown' };
     const holderTax = taxKey(holder.tax_id);
@@ -290,7 +300,7 @@
     if (holderTax && !invoiceTax) return { kind: 'invoice_missing_tax' };
     if (!holderTax) return { kind: 'review' };
     if (holderTax === invoiceTax) {
-      return norm(holder.legal_name) === norm(invoice.source_holder_name)
+      return holderNameComparisonKey(holder.legal_name) === holderNameComparisonKey(invoice.source_holder_name)
         ? { kind: 'coherent' }
         : { kind: 'rename' };
     }
