@@ -185,7 +185,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=ece7aef0801e';
+    script.src='history-ui.js?v=98d99a027d35';
     script.dataset.historyUi='1';
     script.onload=()=>{
       loadAnalysisUi();
