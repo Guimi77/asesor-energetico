@@ -2,14 +2,17 @@ name: History chart refresh regression
 on:
   push:
     branches: [main]
-    paths: ['tools/ci-use-ubuntu-archive.sh', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-chart-refresh-regression.yml']
+    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-chart-refresh-regression.yml']
   pull_request:
-    paths: ['tools/ci-use-ubuntu-archive.sh', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
+    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
 permissions:
   contents: read
 jobs:
   regression:
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.51.1-noble
+      options: --init --ipc=host
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -24,12 +27,9 @@ jobs:
           node --check auth-bootstrap.js
           node --test tests/history-chart-refresh.test.cjs
           node --test tests/history-chart-refresh-axis-labels.test.cjs
-      - name: Use official Ubuntu package mirrors
-        run: bash tools/ci-use-ubuntu-archive.sh
       - name: Install browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
-          node node_modules/playwright/cli.js install --with-deps chromium
       - name: Refresh and recommendation integration
         run: |
           node tests/history-chart-refresh-browser.cjs
