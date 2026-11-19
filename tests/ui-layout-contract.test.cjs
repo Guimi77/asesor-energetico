@@ -228,3 +228,21 @@ test('compact control density balances non-title text and buttons across applica
   assert.doesNotMatch(css,/body \.app-view h[1-6]\s*\{/);
   assert.doesNotMatch(css,/body \.app-view \.history-kpi strong\s*\{/);
 });
+
+test('Clientes keeps its title actions and search sticky while the list scrolls',()=>{
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  const view=html.slice(html.indexOf('<div id="clientesView"'),html.indexOf('id="clientEditorBackdrop"'));
+  assert.match(view,/class="client-toolbar-sticky"/);
+  assert.match(view,/class="master-actions card"/);
+  assert.match(view,/id="newClient"/);
+  assert.match(view,/id="importMaster"/);
+  assert.match(view,/id="clientSearch"/);
+  assert.ok(view.indexOf('class="client-toolbar-sticky"')<view.indexOf('class="master-actions card"'));
+  assert.ok(view.indexOf('id="clientSearch"')<view.indexOf('</div><div '));
+  assert.match(css,/#clientesView \.client-toolbar-sticky\{[\s\S]*?position:sticky;[\s\S]*?top:0;[\s\S]*?z-index:6/);
+  assert.match(css,/@media\(max-width:650px\)\{[\s\S]*?#clientesView \.client-toolbar-sticky\{[\s\S]*?position:static/);
+  assert.match(css,/#clientesView \.client-toolbar-sticky>\.card:last-child\{[\s\S]*?position:sticky/);
+  // Modal must keep priority and the list's scroll mechanics untouched.
+  assert.match(css,/#clientEditorBackdrop\{position:fixed;inset:0;z-index:1998/);
+  assert.doesNotMatch(css,/#clientesView\{[^}]*overflow:(?:auto|hidden)/);
+});
