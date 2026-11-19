@@ -341,6 +341,8 @@
     }
 
     const internal = ['admin', 'staff'].includes(window.ibtCurrentProfile?.role);
+    // Only tracked alerts in open/reviewing status are reflected in Clients.
+    const activeAlerts = internal ? window.IBTAlertsUI?.activeCountsByCups?.() : null;
     const groups = new Map();
 
     for (const supply of supplies) {
@@ -382,6 +384,11 @@
         const holders = holderTree(list);
         const type = portfolioId || multiClient ? 'GRUPO' : (list[0]?.type || 'CLIENTE');
         const primaryClient = memberList[0]?.name || list[0]?.client || name;
+        const flaggedSupplies = activeAlerts ? list.filter(supply => (activeAlerts.get(cupsKey(supply.cups)) || 0) > 0) : [];
+        const alertCount = flaggedSupplies.reduce((sum,supply) => sum + (activeAlerts.get(cupsKey(supply.cups)) || 0),0);
+        const alertIcon = internal && alertCount
+          ? `<button type="button" class="client-alert-indicator" data-alert-cups="${esc(flaggedSupplies.map(supply=>supply.cups).join(','))}" aria-label="Ver ${alertCount} aviso${alertCount===1?'':'s'} pendiente${alertCount===1?'':'s'} de ${esc(name)} en Alertas" title="${alertCount} aviso${alertCount===1?'':'s'} pendiente${alertCount===1?'':'s'} · Ver en Alertas"><span aria-hidden="true">!</span><span class="client-alert-count">${alertCount}</span></button>`
+          : '';
         const isBusinessGroup = Boolean(portfolioId) || type === 'GRUPO';
         const collapsible = isBusinessGroup || multiClient;
         const groupIdentity = portfolioId ? 'PORTFOLIO|' + portfolioId : 'CLIENT|' + (key(list[0]?.clientTaxId) || key(list[0]?.client));
@@ -435,7 +442,7 @@
           ? ''
           : `<button class="company-link add-supply" data-client="${esc(primaryClient)}"${isBusinessGroup ? ' data-new-holder="1"' : ''}>${isBusinessGroup ? '+ Nuevo titular / suministro' : '+ Nuevo suministro'}</button>`;
 
-        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><div class="client-group-heading">${toggle}<h3>${esc(name)}</h3></div>${legalLine}<small>${summary}</small></div>${addTop}</div><div class="client-group-contents" ${collapsed ? 'hidden' : ''}>${memberRows}<div class="holder-tree">${folders}</div></div></article>`;
+        return `<article class="card company-card company-card-tree ${multiClient ? 'multi-client-group' : ''} client-type-${esc(String(type).toLowerCase())}" data-client-primary="${esc(primaryClient)}" data-client-type="${esc(type)}" data-client-count="${memberList.length}"><div class="company-card-head"><span class="company-mark">${esc(name.slice(0, 2).toUpperCase())}</span><span class="status ${type === 'PENDIENTE' ? 'review' : 'ok'}">${esc(type)}</span></div><div class="client-tree-title"><div><div class="client-group-heading">${toggle}<h3>${esc(name)}</h3>${alertIcon}</div>${legalLine}<small>${summary}</small></div>${addTop}</div><div class="client-group-contents" ${collapsed ? 'hidden' : ''}>${memberRows}<div class="holder-tree">${folders}</div></div></article>`;
       })
       .join('');
 
@@ -454,6 +461,14 @@
           (button.closest('.company-card-tree')?.querySelector('.client-tree-title h3')?.textContent || ''));
         button.title = nextCollapsed ? 'Desplegar todo el grupo' : 'Replegar todo el grupo';
         button.querySelector('.client-group-toggle-chevron').textContent = nextCollapsed ? '▸' : '▾';
+      });
+    });
+    grid.querySelectorAll('.client-alert-indicator').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const cups = (button.dataset.alertCups || '').split(',').filter(Boolean);
+        window.IBTAlertsUI?.openForSupplies?.(cups);
       });
     });
     grid.querySelectorAll('.edit-supply-tree').forEach((button) => {
