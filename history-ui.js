@@ -99,6 +99,11 @@
     refreshPending: false,
     loadedScope: null,
     exporting: false,
+    archivedChanges: new Set(),
+    changeReviewsReady: false,
+    changeReviewsError: '',
+    showArchivedChanges: false,
+    changingReview: false,
   };
 
   function exportScopeKey() {
@@ -139,7 +144,7 @@
     const style = document.createElement('style');
     style.id = 'historyUiStyles';
     style.textContent = `
-      .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.7fr) minmax(0,.92fr) minmax(0,.92fr);column-gap:14px;row-gap:10px;align-items:end}.history-toolbar label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-combo{position:relative;min-width:0;width:100%;max-width:100%}.history-combo .history-search-input{padding-right:40px}.history-combo-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:7px;background:transparent;color:#65758a;font:700 15px/1 sans-serif;cursor:pointer}.history-combo-toggle:hover,.history-combo-toggle:focus-visible{background:#eef3f8;color:#10233f;outline:none}.history-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:100;max-height:300px;overflow:auto;padding:5px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;box-shadow:0 10px 28px rgba(16,35,63,.16)}.history-combo-menu[hidden]{display:none}.history-combo-option{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:#fff;color:#10233f;text-align:left;font:inherit;line-height:1.25;cursor:pointer;white-space:normal}.history-combo-option:hover,.history-combo-option:focus-visible{background:#f1f5fb;outline:none}.history-combo-option.active{background:#eef1ff;color:#1834b8;font-weight:800}.history-combo-option.multi{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:7px}.history-combo-check{display:grid;place-items:center;width:18px;height:18px;margin-top:0;border:1px solid #b9c7d8;border-radius:4px;background:#fff;color:#1834b8;font-weight:900;line-height:1}.history-combo-option.multi.active .history-combo-check{border-color:#1834b8;background:#eef1ff}.history-combo-option.multi span:last-child{min-width:0;overflow-wrap:anywhere}.history-combo-empty{padding:10px;color:#65758a;font-weight:500}.history-search-input[aria-invalid="true"]{border-color:#b42318;box-shadow:0 0 0 2px rgba(180,35,24,.08)}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
+      .history-app{display:grid;gap:16px}.history-toolbar{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.7fr) minmax(0,.92fr) minmax(0,.92fr);column-gap:14px;row-gap:10px;align-items:end}.history-toolbar label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:700;color:#65758a}.history-toolbar select,.history-toolbar input{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.history-combo{position:relative;min-width:0;width:100%;max-width:100%}.history-combo .history-search-input{padding-right:40px}.history-combo-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:7px;background:transparent;color:#65758a;font:700 15px/1 sans-serif;cursor:pointer}.history-combo-toggle:hover,.history-combo-toggle:focus-visible{background:#eef3f8;color:#10233f;outline:none}.history-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:100;max-height:300px;overflow:auto;padding:5px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;box-shadow:0 10px 28px rgba(16,35,63,.16)}.history-combo-menu[hidden]{display:none}.history-combo-option{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:#fff;color:#10233f;text-align:left;font:inherit;line-height:1.25;cursor:pointer;white-space:normal}.history-combo-option:hover,.history-combo-option:focus-visible{background:#f1f5fb;outline:none}.history-combo-option.active{background:#eef1ff;color:#1834b8;font-weight:800}.history-combo-option.multi{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:7px}.history-combo-check{display:grid;place-items:center;width:18px;height:18px;margin-top:0;border:1px solid #b9c7d8;border-radius:4px;background:#fff;color:#1834b8;font-weight:900;line-height:1}.history-combo-option.multi.active .history-combo-check{border-color:#1834b8;background:#eef1ff}.history-combo-option.multi span:last-child{min-width:0;overflow-wrap:anywhere}.history-combo-empty{padding:10px;color:#65758a;font-weight:500}.history-search-input[aria-invalid="true"]{border-color:#b42318;box-shadow:0 0 0 2px rgba(180,35,24,.08)}.history-client-fixed{padding:10px 12px;border-radius:9px;background:#eef1ff;color:#1834b8;font-weight:800;border:1px solid #d9e0ff}.history-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.history-kpi{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff}.history-kpi small{display:block;color:#65758a;margin-bottom:6px}.history-kpi strong{font-size:23px;color:#061b38}.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.history-chart{padding:16px;border:1px solid #dce4ed;border-radius:12px;background:#fff;min-height:245px}.history-chart h3{margin:0 0 4px}.history-chart p{margin:0 0 12px;color:#65758a;font-size:12px}.history-svg{width:100%;height:180px;display:block}.history-empty{padding:28px;text-align:center;color:#65758a}.history-table-wrap{overflow:auto}.history-table{width:100%;border-collapse:collapse;font-size:12px}.history-table th{position:sticky;top:0;background:#10233f;color:#fff;padding:10px 8px;text-align:left;white-space:nowrap}.history-table td{padding:9px 8px;border-bottom:1px solid #e7edf4;white-space:nowrap}.history-table tr:hover td{background:#f7f9fc}.history-detail-btn{border:1px solid #cfd9e5;background:#fff;border-radius:7px;padding:5px 8px;cursor:pointer}.history-events{display:grid;gap:8px}.history-event-actions{margin-top:8px}.history-event-actions button{padding:5px 10px;border:1px solid #007b73;border-radius:6px;background:#e1f5f0;color:#075650;cursor:pointer;font-weight:750}.history-event-archived{opacity:.78;border-style:dashed}.history-review-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:0 0 10px}.history-review-toolbar button{padding:5px 10px}.history-review-note{color:#526678;font-size:12px}.history-review-error{color:#9d2620;font-size:12px;font-weight:700;margin:8px 0}.history-review-empty{padding:14px;color:#526678;text-align:center}.history-event{display:grid;grid-template-columns:110px 150px 1fr;gap:10px;padding:10px 12px;border:1px solid #e1e8f0;border-radius:9px;background:#fff}.history-event b{color:#1834b8}.history-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.history-scope{font-size:12px;color:#65758a}.history-detail{margin-top:14px;padding:14px;border:1px solid #dce4ed;border-radius:10px;background:#f8faff}.history-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.history-mini-table{width:100%;border-collapse:collapse;font-size:12px}.history-mini-table th,.history-mini-table td{padding:6px 7px;border-bottom:1px solid #e3e9f0;text-align:right}.history-mini-table th:first-child,.history-mini-table td:first-child{text-align:left}.history-pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef1ff;color:#1834b8;font-weight:700}.history-loading{padding:30px;text-align:center;color:#65758a}.history-error{padding:14px;border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.history-topline{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.history-topline h2{margin:0}.history-topline p{margin:5px 0 0;color:#65758a}.history-badge{padding:7px 10px;border-radius:999px;background:#e7f5e9;color:#19742b;font-size:12px;font-weight:800}.history-mode-note{font-size:11px;color:#65758a;margin-top:4px}
       .history-data-note{margin:10px 0 0;padding:10px 12px;border-left:4px solid #b58232;border-radius:8px;background:#fffcf6;color:#10233f;font-size:12px;line-height:1.4}.history-data-note strong{margin-right:5px}.history-data-note-neutral{border-left-color:#8190a5;background:#f8fafc}
       @media(min-width:1400px){#historyContent .history-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:1100px){.history-toolbar{grid-template-columns:repeat(2,minmax(150px,1fr))}.history-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.history-grid{grid-template-columns:1fr}.history-detail-grid{grid-template-columns:1fr}.history-event{grid-template-columns:1fr}}
@@ -736,6 +741,64 @@
     return events.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   }
 
+  function historyChangeType(e) {
+    return e.type === 'Cambio de potencia observado' ? 'power' : 'tariff';
+  }
+
+  // Source invoice IDs and supply UUID are stable across browsers and reloads.
+  // Numbers/dates/display labels are intentionally excluded from review identity.
+  function historyChangeKey(e) {
+    return [e.supplyId,e.prev?.id,e.cur?.id,historyChangeType(e)].join('|');
+  }
+
+  async function loadHistoryChangeReviews(supplyIds) {
+    const role = window.ibtCurrentProfile?.role;
+    state.archivedChanges = new Set();
+    state.changeReviewsReady = false;
+    state.changeReviewsError = '';
+    if (!['admin','staff'].includes(role)) return;
+    if (!supplyIds.length) { state.changeReviewsReady = true; return; }
+    try {
+      const {data,error} = await window.ibtSupabase.rpc('get_history_change_reviews',{p_supply_ids:supplyIds});
+      if (error) throw error;
+      state.archivedChanges = new Set((data||[]).filter(item=>item.is_archived)
+        .map(item=>[item.supply_id,item.previous_invoice_id,item.current_invoice_id,item.event_type].join('|')));
+      state.changeReviewsReady = true;
+    } catch(error) {
+      console.error('No se pudieron obtener los cambios archivados',error);
+      state.changeReviewsError = 'No se pudo consultar el estado de archivo. Los cambios siguen visibles y no pueden archivarse hasta recuperar la conexión.';
+    }
+  }
+
+  async function setHistoryChangeArchived(e, archived) {
+    if (state.changingReview || !state.changeReviewsReady) return;
+    if (!['admin','staff'].includes(window.ibtCurrentProfile?.role)) return;
+    const scope = exportScopeKey();
+    state.changingReview = true;
+    const key = historyChangeKey(e);
+    try {
+      const {data,error} = await window.ibtSupabase.rpc('set_history_change_review',{
+        p_supply_id:e.supplyId,
+        p_previous_invoice_id:e.prev.id,
+        p_current_invoice_id:e.cur.id,
+        p_event_type:historyChangeType(e),
+        p_archive:archived
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.reason || 'review_write_rejected');
+      // Do not apply a stale UI update to a different selected client/CUPS.
+      if (scope !== exportScopeKey()) return;
+      if (archived) state.archivedChanges.add(key);
+      else state.archivedChanges.delete(key);
+      state.changeReviewsError = '';
+      render(state.records);
+    } catch(error) {
+      console.error('No se pudo guardar el archivo del cambio',error);
+      state.changeReviewsError = 'No se pudo ' + (archived?'archivar':'restaurar') + ' el cambio. No se ha ocultado; comprueba la conexión.';
+      render(state.records);
+    } finally { state.changingReview = false; }
+  }
+
   function renderContractEvent(e) {
     const s=supplyById(e.supplyId),h=holderForSupply(s);
     const name=s?.supply_name||s?.address||'Suministro';
@@ -747,7 +810,11 @@
       return '<tr><td>'+esc(c.label)+'</td><td>'+esc(before)+'</td><td><strong>'+esc(after)+'</strong></td><td>'+esc(difference)+'</td></tr>';
     }).join('');
     const source=r=>esc(r.invoice_number||'Sin referencia')+' · '+dateES(r.billing_start)+' – '+dateES(r.billing_end);
-    return '<div class="history-event"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p></div></div>';
+    const archived = state.archivedChanges.has(historyChangeKey(e));
+    const action = state.changeReviewsReady && ['admin','staff'].includes(window.ibtCurrentProfile?.role)
+      ? '<div class="history-event-actions"><button type="button" class="history-change-review" data-event-key="'+esc(historyChangeKey(e))+'">'+(archived?'Restaurar':'Archivar')+'</button></div>'
+      : '';
+    return '<div class="history-event'+(archived?' history-event-archived':'')+'"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p>'+action+'</div></div>';
   }
 
   function rowDetail(r) {
@@ -827,6 +894,8 @@
     }
     const scope = scopeParts.join(' → ') || 'Histórico';
     const events = detectedEvents(records);
+    const archivedCount = events.filter(e=>state.archivedChanges.has(historyChangeKey(e))).length;
+    const visibleEvents = state.showArchivedChanges ? events : events.filter(e=>!state.archivedChanges.has(historyChangeKey(e)));
 
     host.innerHTML = `
       <section class="history-kpis">
@@ -854,13 +923,27 @@
         </div>
         <div id="historyDetailHost"></div>
       </section>
-      ${events.length ? `<section class="card history-change-section">
+      ${events.length || state.changeReviewsError ? `<section class="card history-change-section">
         <div class="history-section-head"><div><h2 style="margin:0">Cambios detectados</h2></div><span class="history-scope">Tarifa y potencia</span></div>
-        <div class="history-events">${events.map(renderContractEvent).join('')}</div>
+        ${state.changeReviewsError ? '<p class="history-review-error" role="alert">'+esc(state.changeReviewsError)+'</p>' : ''}
+        <div class="history-review-toolbar"><span class="history-review-note">${events.length-archivedCount} sin archivar · ${archivedCount} archivado${archivedCount===1?'':'s'}</span>
+        ${archivedCount ? '<button type="button" id="historyToggleArchived" class="secondary">'+(state.showArchivedChanges?'Ocultar archivados':'Ver archivados ('+archivedCount+')')+'</button>' : ''}</div>
+        <div class="history-events">${visibleEvents.length ? visibleEvents.map(renderContractEvent).join('') : '<div class="history-review-empty">Todos los cambios detectados están archivados.</div>'}</div>
       </section>` : ''}
       ${renderRecommendations(records)}`;
 
-    $$('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {
+    $('#historyToggleArchived',host)?.addEventListener('click',()=>{
+      state.showArchivedChanges = !state.showArchivedChanges;
+      render(state.records);
+    });
+    const byKey = new Map(events.map(e=>[historyChangeKey(e),e]));
+    $('.history-change-review',host).forEach(btn => btn.addEventListener('click',()=>{
+      const event = byKey.get(btn.dataset.eventKey);
+      if (!event) return;
+      btn.disabled = true;
+      void setHistoryChangeArchived(event,!state.archivedChanges.has(historyChangeKey(event)));
+    }));
+    $('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {
       const r = records.find(x => x.id === btn.dataset.id);
       const detailHost = $('#historyDetailHost');
       if (!detailHost || !r) return;
@@ -881,6 +964,8 @@
     try {
       const supplyIds = effectiveSupplies().map(s=>s.id);
       const records = await fetchRecords(supplyIds);
+      if (requestScope !== exportScopeKey() || state.scopeLoading) { state.refreshPending = true; return; }
+      await loadHistoryChangeReviews(supplyIds);
       if (requestScope !== exportScopeKey() || state.scopeLoading) { state.refreshPending = true; return; }
       state.records = records;
       render(state.records);
