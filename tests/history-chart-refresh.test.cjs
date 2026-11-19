@@ -153,6 +153,7 @@ test('history archive and detail action listeners bind all buttons, not one quer
   const selector=String.fromCharCode(36,36);
   assert.ok(ui.includes(selector+"('.history-change-review',host).forEach"));
   assert.ok(ui.includes(selector+"('.history-detail-btn', host).forEach"));
-  assert.ok(!ui.includes(String.fromCharCode(36)+"('.history-change-review',host).forEach"));
-  assert.ok(!ui.includes(String.fromCharCode(36)+"('.history-detail-btn', host).forEach"));
+  const changedLines = ui.split('\n').filter(line=>line.includes("'.history-change-review',host).forEach") || line.includes("'.history-detail-btn', host).forEach"));
+  assert.equal(changedLines.length,2);
+  assert.ok(changedLines.every(line=>line.trimStart().startsWith(selector+'(')));
 });
