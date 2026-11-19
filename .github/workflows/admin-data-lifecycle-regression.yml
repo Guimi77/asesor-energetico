@@ -27,6 +27,9 @@ on:
 jobs:
   regression:
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.51.1-noble
+      options: --init --ipc=host
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +38,6 @@ jobs:
           node-version: '22'
       - run: node --test tests/admin-data-lifecycle.test.cjs tests/client-contact-details.test.cjs tests/runtime-cache-bust.test.cjs
       - run: npm install --no-save --package-lock=false playwright@1.51.1
-      - run: npx playwright install --with-deps chromium
       - run: node tests/holder-portfolio-editor-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()

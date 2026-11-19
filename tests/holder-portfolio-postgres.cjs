@@ -54,6 +54,7 @@ const fullState = async (client) => (await client.query(`select jsonb_build_obje
       'supabase/migrations/20261117121000_holder_billing_profiles_inheritance.sql',
       'supabase/migrations/20261118113000_supply_portfolios.sql',
       'supabase/migrations/20261119104956_holder_commercial_portfolio_assignment.sql',
+      'supabase/migrations/20261119114837_explicit_empty_supply_and_holder_fields.sql',
       'tests/holder-portfolio-regression.sql',
     ]) {
       await main.query(fs.readFileSync(path.join(root, filename), 'utf8'));

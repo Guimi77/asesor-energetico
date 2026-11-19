@@ -432,6 +432,7 @@
             allowMove: true,
             fillOnly: false,
             preserveIdentity: false,
+            authoritative: true,
           });
 
           if (!result?.ok) blocked += 1;

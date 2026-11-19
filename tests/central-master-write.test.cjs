@@ -113,14 +113,16 @@ test('central cache alignment preserves a local archive before pruning', () => {
   assert.ok(master.includes("archiveReason: 'central_cache_alignment'"));
   assert.ok(master.includes("localStorage.setItem(LEGACY_ARCHIVE_STORAGE"));
   assert.ok(master.includes("return { ok: false, reason: 'legacy_archive_failed', error }"));
-  assert.ok(master.includes('mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })'));
+  assert.ok(master.includes('mergeSupply(existing, raw, { fillOnly: false, preserveIdentity: false, authoritative: true })'));
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /master-v2\.js\?v=bea39432ba8f/);
   assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   // Validate current Git blob, not an obsolete hardcoded cache token.
   const crypto = require('node:crypto');
+  const masterBytes = Buffer.from(master);
+  const masterHash = crypto.createHash('sha1').update('blob ' + masterBytes.length + '\0').update(masterBytes).digest('hex').slice(0, 12);
+  assert.ok(index.includes('master-v2.js?v=' + masterHash));
   const bytes = fs.readFileSync(path.join(root, 'auth-bootstrap.js'));
   const expected = crypto.createHash('sha1').update('blob ' + bytes.length).update(Buffer.from([0])).update(bytes).digest('hex').slice(0, 12);
   assert.ok(index.includes('auth-bootstrap.js?v=' + expected));
