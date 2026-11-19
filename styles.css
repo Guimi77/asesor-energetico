@@ -128,3 +128,49 @@ body .company-card .supply-current-retailer strong{
 .holder-supply-history-link:hover{background:#e8faf7!important}
 .holder-supply-history-link:focus-visible{outline:2px solid var(--bt-teal-deep,#006b68);outline-offset:-2px;background:#e8faf7!important}
 .holder-supply-history-link:hover>div:first-child>b{text-decoration:underline;text-decoration-color:var(--bt-teal-deep,#006b68)}
+
+/* Clientes: keep actions and search visible when scrolling long supply lists.
+   Sticky is scoped to Clientes and never sits above modal overlays. */
+#clientesView .client-toolbar-sticky{
+  position:sticky;
+  top:0;
+  z-index:6;
+  display:grid;
+  gap:0;
+  padding-bottom:4px;
+  background:var(--bt-bg,#f3f7f7);
+  box-shadow:0 5px 12px rgba(23,33,38,.05);
+}
+#clientesView .client-toolbar-sticky>.card{
+  box-shadow:none;
+}
+#clientesView .client-toolbar-sticky>.card:first-child{
+  border-radius:10px 10px 0 0;
+}
+#clientesView .client-toolbar-sticky>.card:last-child{
+  border-radius:0 0 10px 10px;
+  border-top:0;
+}
+/* On mobile preserve vertical space: only the search panel remains sticky.
+   The actions card scrolls normally and remains reachable above the list. */
+@media(max-width:650px){
+  #clientesView .client-toolbar-sticky{
+    position:static;
+    display:contents;
+    padding:0;
+    box-shadow:none;
+    background:transparent;
+  }
+  #clientesView .client-toolbar-sticky>.card:first-child{
+    border-radius:10px;
+  }
+  #clientesView .client-toolbar-sticky>.card:last-child{
+    position:sticky;
+    top:0;
+    z-index:6;
+    border:1px solid var(--line,#d7e4e2);
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 5px 12px rgba(23,33,38,.08);
+  }
+}
