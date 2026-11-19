@@ -117,9 +117,11 @@ test('central cache alignment preserves a local archive before pruning', () => {
 });
 
 test('browser cache markers force the central-authoritative code', () => {
-  assert.match(index, /client-archive-integrated\.js\?v=8221aca23000/);
   // Validate current Git blob, not an obsolete hardcoded cache token.
   const crypto = require('node:crypto');
+  const integratedBytes = Buffer.from(integratedUi);
+  const integratedHash = crypto.createHash('sha1').update('blob ' + integratedBytes.length + '\0').update(integratedBytes).digest('hex').slice(0, 12);
+  assert.ok(index.includes('client-archive-integrated.js?v=' + integratedHash));
   const masterBytes = Buffer.from(master);
   const masterHash = crypto.createHash('sha1').update('blob ' + masterBytes.length + '\0').update(masterBytes).digest('hex').slice(0, 12);
   assert.ok(index.includes('master-v2.js?v=' + masterHash));
