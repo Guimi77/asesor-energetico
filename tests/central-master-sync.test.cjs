@@ -84,7 +84,11 @@ function buildHarness(role = 'admin', options = {}) {
       eq(column, value) { calls.push({ table, op: 'eq', column, value }); return chain; },
       in(column, value) { calls.push({ table, op: 'in', column, value }); return chain; },
       order(column) { calls.push({ table, op: 'order', column }); return chain; },
-      then(resolve, reject) { return Promise.resolve({ data: datasets[table] || [], error: null }).then(resolve, reject); },
+      then(resolve, reject) {
+        const error = options.queryFailOnce === table ? new Error('synthetic_query_failure') : null;
+        if (error) options.queryFailOnce = null;
+        return Promise.resolve({ data: datasets[table] || [], error }).then(resolve, reject);
+      },
     };
     return chain;
   }
@@ -485,7 +489,9 @@ test('client accounts do not read or reconcile the internal central master', asy
 });
 
 test('bootstrap forces browsers to fetch the global reconciliation audit version', () => {
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
+  const bytes = Buffer.from(source);
+  const hash = require('node:crypto').createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex').slice(0, 12);
+  assert.ok(bootstrap.includes('supabase-xtra-pilot.js?v=' + hash));
   assert.doesNotMatch(bootstrap, /supabase-xtra-pilot\.js\?v=20260925-central6/);
   assert.match(source, /ensure_supply_from_master/);
   assert.match(source, /ensure_master_hierarchy_from_local/);
@@ -495,6 +501,16 @@ test('bootstrap forces browsers to fetch the global reconciliation audit version
   assert.match(source, /select\('id,name,tax_id,status,client_type'\)/);
   assert.match(source, /const explicit = norm\(client\?\.client_type\)\.toUpperCase\(\)/);
   assert.doesNotMatch(source, /holderCount > 1/);
+});
+
+test('reload reports a failed central query and recovers on the next request', async () => {
+  const { window, replacements, status } = buildHarness('admin', { queryFailOnce: 'holders' });
+  assert.equal(await window.CentralSupabaseMaster.reload(), false);
+  assert.equal(replacements.length, 0, 'An incomplete query must preserve the existing cache');
+  assert.equal(status.dataset.remoteStatus, 'error');
+  assert.equal(await window.CentralSupabaseMaster.reload(), true);
+  assert.equal(replacements.length, 1);
+  assert.equal(status.dataset.remoteStatus, 'ok');
 });
 
 test('central portfolios are loaded independently from client and holder identity',async()=>{

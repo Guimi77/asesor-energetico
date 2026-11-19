@@ -9,6 +9,8 @@ on:
       - 'supabase-xtra-pilot.js'
       - 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'
       - 'tests/admin-data-lifecycle.test.cjs'
+      - 'tests/holder-portfolio-editor-browser.cjs'
+      - 'tests/runtime-cache-bust.test.cjs'
       - '.github/workflows/admin-data-lifecycle-regression.yml'
   pull_request:
     paths:
@@ -18,14 +20,26 @@ on:
       - 'supabase-xtra-pilot.js'
       - 'supabase/migrations/20260915171900_archive_visibility_for_clients.sql'
       - 'tests/admin-data-lifecycle.test.cjs'
+      - 'tests/holder-portfolio-editor-browser.cjs'
+      - 'tests/runtime-cache-bust.test.cjs'
       - '.github/workflows/admin-data-lifecycle-regression.yml'
 
 jobs:
   regression:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/admin-data-lifecycle.test.cjs
+      - run: node --test tests/admin-data-lifecycle.test.cjs tests/client-contact-details.test.cjs tests/runtime-cache-bust.test.cjs
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/holder-portfolio-editor-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: holder-portfolio-editor-synthetic
+          path: test-output/holder-portfolio-editor-*.png
+          if-no-files-found: ignore

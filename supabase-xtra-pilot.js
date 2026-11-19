@@ -271,14 +271,14 @@
   }
 
   async function syncCentralMaster() {
-    if (syncing) return;
+    if (syncing) return false;
     const supabase = window.ibtSupabase;
     const profile = window.ibtCurrentProfile;
     const master = window.EnergyMaster;
-    if (!supabase || !master?.__v2 || !roleIsInternal(profile)) return;
+    if (!supabase || !master?.__v2 || !roleIsInternal(profile)) return false;
 
     const syncKey = `${profile.id}:${profile.role}`;
-    if (lastSyncKey === syncKey) return;
+    if (lastSyncKey === syncKey) return true;
 
     syncing = true;
     try {
@@ -472,9 +472,11 @@
           clientId: activeClients.find((client) => norm(client.name).toUpperCase() === 'GRUPO XTRA')?.id || null,
         },
       }));
+      return true;
     } catch (error) {
       console.error('No se pudo sincronizar el maestro central desde Supabase', error);
       setStatus(`no se ha podido leer el maestro central: ${String(error?.message || error)}. La caché local continúa disponible temporalmente.`, 'error');
+      return false;
     } finally {
       syncing = false;
     }

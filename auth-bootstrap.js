@@ -98,7 +98,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   if(!document.querySelector('script[data-xtra-pilot]')){
     const script=document.createElement('script');
-    script.src='supabase-xtra-pilot.js?v=88dc059b6d58';
+    script.src='supabase-xtra-pilot.js?v=99aae9d54789';
     script.dataset.xtraPilot='1';
     document.body.appendChild(script);
   }
