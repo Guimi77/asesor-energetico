@@ -407,7 +407,7 @@
             const contract = supply.contract || 'Contrato pendiente';
             const retailer = supply.retailer || 'Comercializadora pendiente';
             const manualTag = supply.manualRetailer ? '<span class="supply-retailer-manual-tag">MANUAL</span>' : '';
-            return `<div class="holder-supply-row" data-cups="${esc(supply.cups)}"><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><div class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora:</span><strong>${esc(retailer)}</strong>${manualTag}</div></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
+            return `<div class="holder-supply-row ${supply.clientId && supply.supplyId ? 'holder-supply-history-link' : ''}" data-cups="${esc(supply.cups)}" ${supply.clientId && supply.supplyId ? `data-history-client-id="${esc(supply.clientId)}" data-history-supply-id="${esc(supply.supplyId)}" role="link" tabindex="0" aria-label="Ver histórico de ${esc(title)}"` : ''}><div><b>${esc(title)}</b><small>${esc(supply.cups)} · ${esc(city)} · ${esc(tariff)} · ${esc(contract)}</small><div class="supply-current-retailer"><span class="supply-current-retailer-label">Comercializadora:</span><strong>${esc(retailer)}</strong>${manualTag}</div></div><button class="secondary edit-supply-tree" data-cups="${esc(supply.cups)}">Editar</button></div>`;
           }).join('');
 
           const holderContactBits = internal ? [
@@ -469,6 +469,40 @@
         event.stopPropagation();
         const cups = (button.dataset.alertCups || '').split(',').filter(Boolean);
         window.IBTAlertsUI?.openForSupplies?.(cups);
+      });
+    });
+    // Reuse the existing history focus API; never infer IDs from holder or group names.
+    async function openSupplyHistory(row) {
+      const clientId = row.dataset.historyClientId;
+      const supplyId = row.dataset.historySupplyId;
+      if (!clientId || !supplyId) return;
+      const history = window.IBTHistoryUI;
+      if (typeof history?.focusSupply !== 'function') {
+        console.warn('Histórico todavía no disponible para la navegación directa.');
+        return;
+      }
+      const nav = document.querySelector('.sidebar nav a[data-view="historico"]');
+      if (!nav) return;
+      nav.click();
+      try {
+        const result = await history.focusSupply(clientId, supplyId);
+        if (result?.ok === false) throw new Error(result.reason || 'history_focus_failed');
+      } catch (error) {
+        console.error('No se pudo abrir el histórico del suministro', error);
+        const content = $('#historyContent');
+        if (content) content.textContent = 'No se pudo abrir el histórico de este suministro. Comprueba los permisos y vuelve a intentarlo.';
+      }
+    }
+
+    grid.querySelectorAll('.holder-supply-history-link').forEach((row) => {
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea')) return;
+        void openSupplyHistory(row);
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.target !== row || !['Enter',' '].includes(event.key)) return;
+        event.preventDefault();
+        void openSupplyHistory(row);
       });
     });
     grid.querySelectorAll('.edit-supply-tree').forEach((button) => {
