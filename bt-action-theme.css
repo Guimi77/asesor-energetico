@@ -165,6 +165,27 @@ body button.client-group-toggle:focus-visible {
   outline-offset: 2px;
 }
 
+/* Business group headers use the dark brand teal for readable white labels. */
+body .client-type-grupo > .client-tree-title {
+  background: var(--bt-teal-deep, #006b68);
+  border-bottom-color: var(--bt-teal-deep, #006b68);
+  color: #fff;
+}
+body .client-type-grupo > .client-tree-title h3,
+body .client-type-grupo > .client-tree-title small {
+  color: #fff;
+}
+body .client-type-grupo > .client-tree-title button.client-group-toggle,
+body .client-type-grupo > .client-tree-title button.client-group-toggle:hover:not(:disabled) {
+  color: #fff !important;
+}
+body .client-type-grupo > .client-tree-title button.client-group-toggle:hover:not(:disabled) {
+  background: rgba(255,255,255,.12) !important;
+}
+body .client-type-grupo > .client-tree-title button.client-group-toggle:focus-visible {
+  outline-color: #fff !important;
+}
+
 /* An alert marker is not a general action button. Warm warning accent, accessible click target. */
 body button.client-alert-indicator{
   display:inline-flex;align-items:center;justify-content:center;gap:4px;
