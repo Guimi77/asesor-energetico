@@ -102,3 +102,16 @@ test('Approved history logic and FENIE enrichment remain locked while Endesa rou
  // app.js, client-report-export.js and auth.js are allowed to evolve through their dedicated regression suites.
  for(const f of ['history-recommendations.js','history-recommendations.css','history-cost-chart.js'])assert.equal(source(f),old(f),f);
 });
+test('History hides holder records without supplies but retains linked archived holders',()=>{
+  const section=chunk(ui,'  async function loadClientScope(clientId) {','  async function applyClientSearch');
+  assert.match(section,/const linkedHolderIds = new Set\(supplies\.map\(supply => supply\.holder_id\)\)/);
+  assert.match(section,/state\.holders = \(holders \|\| \[\]\)\.filter\(holder => linkedHolderIds\.has\(holder\.id\)\)/);
+  const fixture=[
+    {id:'legacy',legal_name:'LEGACY PLACEHOLDER',status:'active'},
+    {id:'current',legal_name:'RENAMED HOLDER',status:'active'},
+    {id:'historical',legal_name:'PAST HOLDER',status:'archived'},
+  ];
+  const supplyFixture=[{holder_id:'current'},{holder_id:'historical'}];
+  const linked=new Set(supplyFixture.map(s=>s.holder_id));
+  assert.deepEqual(fixture.filter(holder=>linked.has(holder.id)).map(holder=>holder.id),['current','historical']);
+});
