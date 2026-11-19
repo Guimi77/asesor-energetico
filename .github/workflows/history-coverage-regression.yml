@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'tools/ci-use-ubuntu-archive.sh'
       - 'history-ui.js'
       - 'auth-bootstrap.js'
       - 'index.html'
@@ -10,6 +11,7 @@ on:
       - '.github/workflows/history-coverage-regression.yml'
   pull_request:
     paths:
+      - 'tools/ci-use-ubuntu-archive.sh'
       - 'history-ui.js'
       - 'auth-bootstrap.js'
       - 'index.html'
@@ -33,6 +35,8 @@ jobs:
           node --check history-ui.js
           node --check auth-bootstrap.js
           node --test tests/history-coverage.test.cjs
+      - name: Use official Ubuntu package mirrors
+        run: bash tools/ci-use-ubuntu-archive.sh
       - name: Install isolated browser test dependencies
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1 exceljs@4.4.0 jszip@3.10.1

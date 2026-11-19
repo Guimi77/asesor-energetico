@@ -28,6 +28,8 @@ jobs:
           node --check client-report-export.js
           node --check historical-export-enrichment.js
           node --test tests/history-client-export.test.cjs tests/client-report-export.test.cjs tests/historical-export-enrichment.test.cjs
+      - name: Use official Ubuntu package mirrors
+        run: bash tools/ci-use-ubuntu-archive.sh
       - name: Install browser and workbook test dependencies
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1 exceljs@4.4.0 jszip@3.10.1

@@ -3,6 +3,7 @@ name: Admin data lifecycle regression
 on:
   push:
     paths:
+      - 'tools/ci-use-ubuntu-archive.sh'
       - 'admin-data-management.js'
       - 'client-archive-integrated.js'
       - 'auth.js'
@@ -14,6 +15,7 @@ on:
       - '.github/workflows/admin-data-lifecycle-regression.yml'
   pull_request:
     paths:
+      - 'tools/ci-use-ubuntu-archive.sh'
       - 'admin-data-management.js'
       - 'client-archive-integrated.js'
       - 'auth.js'
@@ -34,6 +36,8 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/admin-data-lifecycle.test.cjs tests/client-contact-details.test.cjs tests/runtime-cache-bust.test.cjs
+      - name: Use official Ubuntu package mirrors
+        run: bash tools/ci-use-ubuntu-archive.sh
       - run: npm install --no-save --package-lock=false playwright@1.51.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/holder-portfolio-editor-browser.cjs

@@ -2,9 +2,9 @@ name: History chart refresh regression
 on:
   push:
     branches: [main]
-    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-chart-refresh-regression.yml']
+    paths: ['tools/ci-use-ubuntu-archive.sh', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', 'tests/regression-baselines.json', 'tests/regression-baseline-acceptance.json', 'tests/helpers/regression-baseline.cjs', '.github/workflows/history-chart-refresh-regression.yml']
   pull_request:
-    paths: ['history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
+    paths: ['tools/ci-use-ubuntu-archive.sh', 'history-ui.js', 'auth-bootstrap.js', 'index.html', 'tests/history-chart-refresh*', '.github/workflows/history-chart-refresh-regression.yml']
 permissions:
   contents: read
 jobs:
@@ -24,6 +24,8 @@ jobs:
           node --check auth-bootstrap.js
           node --test tests/history-chart-refresh.test.cjs
           node --test tests/history-chart-refresh-axis-labels.test.cjs
+      - name: Use official Ubuntu package mirrors
+        run: bash tools/ci-use-ubuntu-archive.sh
       - name: Install browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
