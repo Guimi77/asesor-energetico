@@ -81,3 +81,57 @@ test('analysis findings can open the exact supply history', () => {
   assert.match(history, /window\.IBTHistoryUI = \{ reload: refreshRecords, focusSupply \}/);
   assert.match(history, /ibt-history-focus/);
 });
+
+test('client indicators only count real open or reviewing incidents by supply',()=>{
+  const vm = require('node:vm');
+  const start = alerts.indexOf('  function activeCountsByCups() {');
+  const end = alerts.indexOf('  function openForSupplies(',start);
+  assert.ok(start>=0 && end>start);
+  const state = {
+    supplies:[{id:'s1',cups:'ES000001'},{id:'s2',cups:'ES000002'},{id:'s3',cups:'ES000003'}],
+    incidents:[
+      {supply_id:'s1',status:'open'},
+      {supply_id:'s1',status:'reviewing'},
+      {supply_id:'s1',status:'resolved'},
+      {supply_id:'s2',status:'dismissed'},
+      {supply_id:'s3',status:'reviewing'},
+      {supply_id:'orphan',status:'open'}
+    ],
+  };
+  const context=vm.createContext({
+    state,
+    isInternal:()=>true,
+    ACTIVE_STATUSES:new Set(['open','reviewing']),
+    cupsKey:value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'')
+  });
+  const count=vm.runInContext('('+alerts.slice(start,end).trim()+')',context);
+  const active=count();
+  assert.equal(active.get('ES000001'),2);
+  assert.equal(active.has('ES000002'),false);
+  assert.equal(active.get('ES000003'),1);
+  context.isInternal=()=>false;
+  assert.equal(count().size,0);
+});
+
+test('client badge opens Alerts with selected CUPS, including mixed-client portfolios',()=>{
+  const master=fs.readFileSync('master-v2.js','utf8');
+  assert.match(master,/const flaggedSupplies = activeAlerts \?/);
+  assert.match(master,/flaggedSupplies\.map\(supply=>supply\.cups\)/);
+  assert.match(master,/class="client-alert-indicator"/);
+  assert.match(master,/IBTAlertsUI\?\.openForSupplies\?\.\(cups\)/);
+  assert.match(master,/window\.addEventListener\('ibt-alerts-loaded'/);
+  assert.match(alerts,/state\.focusedCups = new Set\(keys\)/);
+  assert.match(alerts,/if \(state\.focusedCups && !state\.focusedCups\.has/);
+  assert.match(alerts,/const list = state\.incidents\.filter/);
+  assert.match(alerts,/id="clearAlertsSupplyFocus"/);
+  assert.match(alerts,/Todos los clientes/);
+});
+
+test('retailer name alone receives BT palette color',()=>{
+  const master=fs.readFileSync('master-v2.js','utf8');
+  const css=fs.readFileSync('styles.css','utf8');
+  const theme=fs.readFileSync('bt-action-theme.css','utf8');
+  assert.match(master,/class="supply-current-retailer-label">Comercializadora:<\/span><strong>/);
+  assert.match(css,/body \.company-card \.supply-current-retailer strong\{[\s\S]*?color:var\(--bt-teal-deep,#006b68\)!important/);
+  assert.match(theme,/body button\.client-alert-indicator/);
+});
