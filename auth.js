@@ -9,13 +9,13 @@ const SIGNUP_CONFIRM_URL=new URL('registro-completado.html',APP_ROOT).href;
 
 if(!document.querySelector('script[data-admin-data-management]')){
   const script=document.createElement('script');
-  script.src='admin-data-management.js?v=988ce6b29eee';
+  script.src='admin-data-management.js?v=34ee914d56af';
   script.dataset.adminDataManagement='1';
   document.head.appendChild(script);
 }
 if(!document.querySelector('script[data-client-archive-integrated]')){
   const script=document.createElement('script');
-  script.src='client-archive-integrated.js?v=20260917-1';
+  script.src='client-archive-integrated.js?v=18db3aa9dd79';
   script.dataset.clientArchiveIntegrated='1';
   document.head.appendChild(script);
 }

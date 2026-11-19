@@ -59,18 +59,22 @@
   }
 
   function holderSourceRows() {
-    const rows = new Map();
+    const byId = new Map();
+    const byName = new Map();
     for (const row of $$('#centralHoldersList .db-admin-row')) {
       const holderName = $('strong', row)?.textContent || '';
       const meta = $('.db-admin-meta', row)?.textContent || '';
       const parts = meta.split('·').map((part) => part.trim());
       const clientName = parts[1] || '';
       const sourceKey = norm(holderName) + '|' + norm(clientName);
-      if (holderName && clientName && !rows.has(sourceKey)) {
-        rows.set(sourceKey, { row, taxId: parts[0] || '' });
+      const source = { row, taxId: parts[0] || '' };
+      const holderId = $('[data-db-action="edit_holder"]', row)?.dataset.id;
+      if (holderId) byId.set(holderId, source);
+      if (holderName && clientName && !byName.has(sourceKey)) {
+        byName.set(sourceKey, source);
       }
     }
-    return rows;
+    return { byId, byName };
   }
 
   function ensureHolderActions(folder) {
@@ -93,7 +97,8 @@
       for (const folder of folders) {
         const holderName = $('summary strong', folder)?.textContent || '';
         const clientName = $('.add-supply-holder', folder)?.dataset.client || card.dataset.clientPrimary || '';
-        const source = sources.get(norm(holderName) + '|' + norm(clientName));
+        const holderId = folder.dataset.holderId;
+        const source = holderId ? sources.byId.get(holderId) : sources.byName.get(norm(holderName) + '|' + norm(clientName));
         if (!source) continue;
 
         const summary = $('summary', folder);

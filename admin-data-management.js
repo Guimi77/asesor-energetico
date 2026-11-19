@@ -7,7 +7,7 @@
   const norm = (value) => String(value ?? '').trim().toLowerCase();
   const isAdmin = () => window.ibtCurrentProfile?.role === 'admin';
   const STORAGE = 'ibt-energy-master-v1';
-  const holderEditor = { request: 0, context: null, initialChoice: '__keep__', saving: false, saved: false, returnFocus: null };
+  const holderEditor = { request: 0, context: null, initialChoice: '__keep__', initialAlias: '', clientId: '', aliasReady: false, saving: false, saved: false, returnFocus: null };
 
   const state = {
     clients: [],
@@ -17,6 +17,7 @@
     supplyDependencyCounts: new Map(),
     latestInvoiceBySupply: new Map(),
     billingProfiles: { holders: {}, supplies: {}, legacy_clients: {} },
+    clientAliases: null,
     showArchivedClients: false,
     showArchivedHolders: false,
     showArchivedSupplies: false,
@@ -29,7 +30,7 @@
     style.id = 'adminDataManagementStyles';
     style.textContent = `
       .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}.db-mismatch{display:block;margin-top:5px;color:#9a5b00;font-weight:800}.db-mismatch-ok{display:block;margin-top:5px;color:#237a45;font-weight:700}.db-mismatch-neutral{display:block;margin-top:5px;color:#52657a;font-weight:650}.holder-profile-line{display:block;margin-top:5px;color:#52657a;font-size:12px}.holder-editor-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(15,29,48,.5);display:flex;align-items:center;justify-content:center;padding:18px}.holder-editor-backdrop.hidden{display:none}.holder-editor-dialog{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:20px}.holder-editor-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.holder-editor-head h2{margin:2px 0 4px}.holder-editor-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.holder-editor-form label{display:grid;gap:6px;font-size:12px;font-weight:800;color:#3f5064}.holder-editor-form input{width:100%;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px}.holder-editor-form .full{grid-column:1/-1}.holder-editor-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;align-items:center;margin-top:6px}.holder-editor-msg{margin-right:auto;font-size:12px;font-weight:700}.holder-editor-msg.error{color:#b42318}.holder-editor-msg.ok{color:#237a45}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}.holder-editor-form{grid-template-columns:1fr}}
-      .holder-editor-form select{width:100%;min-width:0;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;color:#253746;font:inherit}.holder-portfolio-section{border-top:1px solid #e0e7ef;padding-top:14px}.holder-portfolio-help{margin:8px 0 0;color:#52657a;font-size:13px;line-height:1.5}.holder-portfolio-new{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.holder-portfolio-new.hidden,.holder-portfolio-section .hidden{display:none}.holder-portfolio-section button{margin-top:8px}.holder-editor-form [disabled]{opacity:.65}.holder-editor-actions{flex-wrap:wrap}.holder-editor-msg{flex:1 1 220px;line-height:1.45}@media(max-width:600px){.holder-portfolio-new{grid-template-columns:1fr}.holder-editor-dialog{padding:16px}.holder-editor-head h2{font-size:22px}.holder-editor-msg{flex-basis:100%}}
+      .holder-editor-form select{width:100%;min-width:0;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;color:#253746;font:inherit}.holder-alias-help{color:#52657a;font-size:12px;line-height:1.5;font-weight:400}.holder-portfolio-section{border-top:1px solid #e0e7ef;padding-top:14px}.holder-portfolio-help{margin:8px 0 0;color:#52657a;font-size:13px;line-height:1.5}.holder-portfolio-new{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.holder-portfolio-new.hidden,.holder-portfolio-section .hidden{display:none}.holder-portfolio-section button{margin-top:8px}.holder-editor-form [disabled]{opacity:.65}.holder-editor-actions{flex-wrap:wrap}.holder-editor-msg{flex:1 1 220px;line-height:1.45}@media(max-width:600px){.holder-portfolio-new{grid-template-columns:1fr}.holder-editor-dialog{padding:16px}.holder-editor-head h2{font-size:22px}.holder-editor-msg{flex-basis:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -103,6 +104,7 @@
           <form id="holderProfileForm" class="holder-editor-form">
             <input id="holderProfileId" type="hidden"/>
             <label class="full">Nombre legal del titular<input id="holderProfileName" required/></label>
+            <label class="full">Alias del cliente (opcional)<input id="holderProfileAlias" autocomplete="off" aria-describedby="holderProfileAliasHelp"/><small id="holderProfileAliasHelp" class="holder-alias-help"></small></label>
             <label>NIF / CIF<input id="holderProfileTaxId" autocomplete="off"/></label>
             <label>Correo electrónico<input id="holderProfileEmail" type="email" maxlength="320" autocomplete="email"/></label>
             <label>Teléfono de contacto<input id="holderProfilePhone" type="tel" maxlength="64" autocomplete="tel"/></label>
@@ -146,6 +148,9 @@
     if (holderEditor.saving) return;
     holderEditor.request += 1;
     holderEditor.context = null;
+    holderEditor.initialAlias = '';
+    holderEditor.clientId = '';
+    holderEditor.aliasReady = false;
     holderEditor.saved = false;
     $('#holderProfileEditor')?.classList.add('hidden');
     const form = $('#holderProfileForm');
@@ -162,6 +167,9 @@
     if (!holder) return;
     const request = ++holderEditor.request;
     holderEditor.context = null;
+    holderEditor.clientId = holder.client_id || '';
+    holderEditor.aliasReady = state.clientAliases !== null && Boolean(holderEditor.clientId);
+    holderEditor.initialAlias = holderEditor.aliasReady ? (state.clientAliases[holderEditor.clientId] || '').trim() : '';
     holderEditor.saved = false;
     holderEditor.returnFocus = document.activeElement;
     $('#holderProfileForm').reset();
@@ -171,28 +179,42 @@
     const profile = state.billingProfiles?.holders?.[holderId] || {};
     $('#holderProfileId').value = holder.id;
     $('#holderProfileName').value = holder.legal_name || '';
+    $('#holderProfileAlias').value = holderEditor.initialAlias;
+    $('#holderProfileAlias').placeholder = holderEditor.aliasReady ? '' : 'Alias no disponible';
+    const siblingHolders = state.holders.filter((item) => item.client_id === holderEditor.clientId).length;
+    $('#holderProfileAliasHelp').textContent = siblingHolders > 1
+      ? `Este cliente tiene ${siblingHolders} titulares. El alias se comparte entre todos ellos.`
+      : 'Nombre habitual del cliente, compartido entre sus titulares. Puedes dejarlo vacío para quitarlo.';
     $('#holderProfileTaxId').value = holder.tax_id || '';
     $('#holderProfileEmail').value = profile.email || '';
     $('#holderProfilePhone').value = profile.phone || '';
     $('#holderProfileBankAccount').value = profile.bank_account || '';
     $('#holderProfileTitle').textContent = `Editar titular · ${holder.legal_name || 'Titular'}`;
     $('#holderProfileEditor').classList.remove('hidden');
-    $('#holderProfileName').focus();
-    loadHolderPortfolioContext(holderId, request);
+    if (holderEditor.aliasReady) {
+      $('#holderProfileName').focus();
+      loadHolderPortfolioContext(holderId, request);
+    } else {
+      $('#holderProfileMsg').textContent = 'No se han podido cargar los alias. Recarga la página antes de editar este titular.';
+      $('#holderProfileMsg').className = 'holder-editor-msg error';
+      $('#holderProfileGroup').replaceChildren(new Option('Datos no disponibles', '__keep__'));
+      $('#holderProfileGroupHelp').textContent = '';
+      $('#closeHolderProfile').focus();
+    }
   }
 
   function setHolderProfileBusy(busy) {
     holderEditor.saving = busy;
     $('#holderProfileForm')?.setAttribute('aria-busy', String(busy));
     $$('#holderProfileForm input, #holderProfileForm button, #closeHolderProfile').forEach((element) => {
-      element.disabled = busy || (holderEditor.saved && element.id !== 'cancelHolderProfile' && element.id !== 'closeHolderProfile');
+      element.disabled = busy || ((holderEditor.saved || !holderEditor.aliasReady) && element.id !== 'cancelHolderProfile' && element.id !== 'closeHolderProfile');
     });
     const group = $('#holderProfileGroup');
-    if (group) group.disabled = busy || holderEditor.saved || !holderEditor.context?.total_supplies;
+    if (group) group.disabled = busy || holderEditor.saved || !holderEditor.aliasReady || !holderEditor.context?.total_supplies;
     const isNew = group?.value === '__new__';
     for (const id of ['holderProfileNewGroupName', 'holderProfileNewGroupAlias']) {
       const input = $('#' + id);
-      if (input) input.disabled = busy || holderEditor.saved || !isNew;
+      if (input) input.disabled = busy || holderEditor.saved || !holderEditor.aliasReady || !isNew;
     }
   }
 
@@ -281,8 +303,10 @@
     if (holderEditor.saving || holderEditor.saved) return;
     const id = $('#holderProfileId')?.value || '';
     const msg = $('#holderProfileMsg');
-    if (!id || !window.ibtSupabase) return;
+    if (!id || !window.ibtSupabase || !holderEditor.aliasReady) return;
     const change = holderPortfolioChange();
+    const alias = $('#holderProfileAlias').value.trim();
+    const aliasChanged = alias !== holderEditor.initialAlias;
     if (change?.p_portfolio_action === 'set' && !change.p_group_id && !change.p_new_name) {
       msg.textContent = 'Escribe el nombre del nuevo grupo.';
       msg.className = 'holder-editor-msg error';
@@ -293,13 +317,19 @@
     setHolderProfileBusy(true);
     if (msg) { msg.textContent = 'Guardando titular…'; msg.className = 'holder-editor-msg'; }
     try {
-      const { data, error } = await window.ibtSupabase.rpc(change ? 'admin_update_holder_profile_with_portfolio' : 'admin_update_holder_profile', {
+      const rpc = aliasChanged ? 'admin_update_holder_profile_with_alias' : (change ? 'admin_update_holder_profile_with_portfolio' : 'admin_update_holder_profile');
+      const { data, error } = await window.ibtSupabase.rpc(rpc, {
         p_holder_id: id,
         p_legal_name: $('#holderProfileName').value,
         p_tax_id: $('#holderProfileTaxId').value || null,
         p_email: $('#holderProfileEmail').value || null,
         p_phone: $('#holderProfilePhone').value || null,
         p_bank_account: $('#holderProfileBankAccount').value || null,
+        ...(aliasChanged ? {
+          p_client_alias: alias || null,
+          p_expected_client_alias: holderEditor.initialAlias || null,
+          p_expected_client_id: holderEditor.clientId,
+        } : {}),
         ...(change || {}),
       });
       if (error) throw error;
@@ -324,6 +354,9 @@
           portfolio_snapshot_required: 'Vuelve a cargar los grupos antes de guardar.',
           portfolio_context_changed: 'Han cambiado los suministros o sus grupos. Revisa la agrupación actual y vuelve a elegir el destino. No se ha guardado ningún cambio.',
           holder_portfolio_busy: 'Otro cambio está actualizando estos suministros. Espera unos segundos y vuelve a intentarlo.',
+          client_alias_conflict: 'El alias del cliente ha cambiado desde que abriste la ficha. Cierra y recarga la página antes de volver a editar. No se ha guardado ningún cambio.',
+          holder_client_changed: 'Este titular ha cambiado de cliente. Cierra y recarga la página para revisar su ficha. No se ha guardado ningún cambio.',
+          holder_profile_busy: 'Otro cambio está actualizando este titular o su cliente. Espera unos segundos y vuelve a intentarlo.',
         };
         if (['portfolio_context_changed', 'portfolio_snapshot_required', 'group_not_found', 'holder_has_no_supplies', 'group_name_exists'].includes(reason)) {
           await loadHolderPortfolioContext(id, request);
@@ -331,7 +364,9 @@
         throw new Error(labels[reason] || 'No se ha podido guardar la ficha del titular.');
       }
       holderEditor.saved = true;
-      const success = change ? `Titular guardado. Agrupación aplicada a ${data.total_supplies === 1 ? 'su suministro' : `sus ${data.total_supplies} suministros`}.` : 'Titular guardado. Sus suministros heredarán estos datos salvo excepción.';
+      if (aliasChanged) state.clientAliases = null;
+      const savedLabel = aliasChanged ? 'Titular y alias del cliente guardados.' : 'Titular guardado.';
+      const success = change ? `${savedLabel} Agrupación aplicada a ${data.total_supplies === 1 ? 'su suministro' : `sus ${data.total_supplies} suministros`}.` : (aliasChanged ? savedLabel : 'Titular guardado. Sus suministros heredarán estos datos salvo excepción.');
       if (msg) { msg.textContent = success; msg.className = 'holder-editor-msg ok'; }
       if (await window.CentralSupabaseMaster?.reload?.() !== true || await loadState() !== true) {
         throw new Error('holder_view_refresh_failed');
@@ -531,13 +566,19 @@
         supabase.from('recommendations').select('id,supply_id'),
         supabase.from('supply_events').select('id,supply_id'),
         supabase.rpc('get_internal_billing_profiles'),
+        supabase.rpc('get_internal_aliases'),
       ]);
       const error = results.find((result) => result.error)?.error;
       if (error) throw error;
+      const aliases = results[8].data?.clients;
+      if (!aliases || typeof aliases !== 'object' || Array.isArray(aliases) || Object.values(aliases).some((value) => typeof value !== 'string')) {
+        throw new Error('No se han podido cargar los alias de los clientes.');
+      }
       state.clients = results[0].data || [];
       state.holders = results[1].data || [];
       state.supplies = results[2].data || [];
       state.billingProfiles = results[7].data || { holders: {}, supplies: {}, legacy_clients: {} };
+      state.clientAliases = aliases;
       state.invoiceCounts = new Map();
       state.supplyDependencyCounts = new Map();
       state.latestInvoiceBySupply = new Map();
@@ -568,6 +609,7 @@
       window.dispatchEvent(new CustomEvent('ibt-central-data-ready', { detail: { supplies: state.supplies.length } }));
       return true;
     } catch (error) {
+      state.clientAliases = null;
       console.error('Gestión central', error);
       setMessage('#centralClientsMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
       setMessage('#centralHoldersMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
