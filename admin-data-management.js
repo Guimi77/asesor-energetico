@@ -7,6 +7,7 @@
   const norm = (value) => String(value ?? '').trim().toLowerCase();
   const isAdmin = () => window.ibtCurrentProfile?.role === 'admin';
   const STORAGE = 'ibt-energy-master-v1';
+  const holderEditor = { request: 0, context: null, initialChoice: '__keep__', saving: false, saved: false, returnFocus: null };
 
   const state = {
     clients: [],
@@ -28,6 +29,7 @@
     style.id = 'adminDataManagementStyles';
     style.textContent = `
       .db-admin-card{display:none;margin-top:16px}.db-admin-card.visible{display:block}.db-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}.db-admin-head h2{margin:2px 0 4px}.db-admin-head p{margin:0;color:#65758a}.db-admin-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.db-admin-search{min-width:260px;padding:10px 12px;border:1px solid #d8e2ef;border-radius:9px}.db-admin-list{display:grid;gap:9px;margin-top:14px}.db-admin-row{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e0e7ef;border-radius:10px;background:#fff}.db-admin-row.archived{background:#f7f8fa;color:#5f6d7d}.db-admin-meta{display:block;margin-top:4px;color:#718096;font-size:12px}.db-admin-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.db-danger{border:1px solid #d92d20!important;color:#b42318!important;background:#fff!important}.db-warning{border:1px solid #d6a14a!important;color:#8a5a00!important;background:#fffaf0!important}.db-restore{border:1px solid #2f855a!important;color:#276749!important;background:#f0fff4!important}.db-admin-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f7f9fc;color:#5b6c82;font-size:12px}.db-admin-msg{min-height:18px;margin-top:10px;font-size:12px;font-weight:700}.db-admin-msg.error{color:#b42318}.db-admin-msg.ok{color:#237a45}.db-empty{padding:18px;text-align:center;color:#718096;border:1px dashed #d8e2ef;border-radius:10px}.db-status{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#e9f7ee;color:#237a45}.db-status.archived{background:#eef1f5;color:#65758a}.db-locked{font-size:11px;color:#8a6a2c}.db-user-actions{display:flex;gap:6px;align-items:center}.db-user-self{font-size:12px;color:#718096}.db-mismatch{display:block;margin-top:5px;color:#9a5b00;font-weight:800}.db-mismatch-ok{display:block;margin-top:5px;color:#237a45;font-weight:700}.db-mismatch-neutral{display:block;margin-top:5px;color:#52657a;font-weight:650}.holder-profile-line{display:block;margin-top:5px;color:#52657a;font-size:12px}.holder-editor-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(15,29,48,.5);display:flex;align-items:center;justify-content:center;padding:18px}.holder-editor-backdrop.hidden{display:none}.holder-editor-dialog{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:20px}.holder-editor-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.holder-editor-head h2{margin:2px 0 4px}.holder-editor-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.holder-editor-form label{display:grid;gap:6px;font-size:12px;font-weight:800;color:#3f5064}.holder-editor-form input{width:100%;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px}.holder-editor-form .full{grid-column:1/-1}.holder-editor-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;align-items:center;margin-top:6px}.holder-editor-msg{margin-right:auto;font-size:12px;font-weight:700}.holder-editor-msg.error{color:#b42318}.holder-editor-msg.ok{color:#237a45}@media(max-width:900px){.db-admin-row{grid-template-columns:1fr}.db-admin-actions{justify-content:flex-start}.db-admin-search{min-width:0;width:100%}.holder-editor-form{grid-template-columns:1fr}}
+      .holder-editor-form select{width:100%;min-width:0;padding:10px 12px;border:1px solid #cfd9e5;border-radius:9px;background:#fff;color:#253746;font:inherit}.holder-portfolio-section{border-top:1px solid #e0e7ef;padding-top:14px}.holder-portfolio-help{margin:8px 0 0;color:#52657a;font-size:13px;line-height:1.5}.holder-portfolio-new{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.holder-portfolio-new.hidden,.holder-portfolio-section .hidden{display:none}.holder-portfolio-section button{margin-top:8px}.holder-editor-form [disabled]{opacity:.65}.holder-editor-actions{flex-wrap:wrap}.holder-editor-msg{flex:1 1 220px;line-height:1.45}@media(max-width:600px){.holder-portfolio-new{grid-template-columns:1fr}.holder-editor-dialog{padding:16px}.holder-editor-head h2{font-size:22px}.holder-editor-msg{flex-basis:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -105,8 +107,17 @@
             <label>Correo electrónico<input id="holderProfileEmail" type="email" maxlength="320" autocomplete="email"/></label>
             <label>Teléfono de contacto<input id="holderProfilePhone" type="tel" maxlength="64" autocomplete="tel"/></label>
             <label>Cuenta / IBAN<input id="holderProfileBankAccount" maxlength="64" autocomplete="off" spellcheck="false"/></label>
+            <div class="full holder-portfolio-section">
+              <label>Grupo comercial<select id="holderProfileGroup" aria-describedby="holderProfileGroupHelp" disabled><option value="__keep__">Cargando grupos…</option></select></label>
+              <p id="holderProfileGroupHelp" class="holder-portfolio-help" role="status" aria-live="polite"></p>
+              <button id="holderProfileGroupRetry" class="secondary hidden" type="button">Volver a cargar grupos</button>
+              <div id="holderProfileNewGroup" class="holder-portfolio-new hidden">
+                <label>Nombre del nuevo grupo<input id="holderProfileNewGroupName" maxlength="160" disabled/></label>
+                <label>Alias del grupo (opcional)<input id="holderProfileNewGroupAlias" maxlength="100" disabled/></label>
+              </div>
+            </div>
             <div class="holder-editor-actions">
-              <span id="holderProfileMsg" class="holder-editor-msg"></span>
+              <span id="holderProfileMsg" class="holder-editor-msg" role="status" aria-live="polite"></span>
               <button class="secondary" id="cancelHolderProfile" type="button">Cancelar</button>
               <button class="primary" type="submit">Guardar titular</button>
             </div>
@@ -119,20 +130,44 @@
         if (event.target === editor) closeHolderProfile();
       });
       $('#holderProfileForm')?.addEventListener('submit', saveHolderProfile);
+      $('#holderProfileGroup')?.addEventListener('change', updateHolderPortfolioChoice);
+      $('#holderProfileNewGroupName')?.addEventListener('input', updateHolderPortfolioChoice);
+      $('#holderProfileGroupRetry')?.addEventListener('click', () => {
+        const id = $('#holderProfileId').value;
+        if (id && !holderEditor.saving && !holderEditor.saved) loadHolderPortfolioContext(id, ++holderEditor.request);
+      });
+      editor.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') { event.preventDefault(); closeHolderProfile(); }
+      });
     }
   }
 
   function closeHolderProfile() {
+    if (holderEditor.saving) return;
+    holderEditor.request += 1;
+    holderEditor.context = null;
+    holderEditor.saved = false;
     $('#holderProfileEditor')?.classList.add('hidden');
     const form = $('#holderProfileForm');
     if (form) form.reset();
     const msg = $('#holderProfileMsg');
     if (msg) { msg.textContent = ''; msg.className = 'holder-editor-msg'; }
+    if (holderEditor.returnFocus?.isConnected) holderEditor.returnFocus.focus();
+    holderEditor.returnFocus = null;
   }
 
   function openHolderProfile(holderId) {
+    if (holderEditor.saving) return;
     const holder = state.holders.find((item) => item.id === holderId);
     if (!holder) return;
+    const request = ++holderEditor.request;
+    holderEditor.context = null;
+    holderEditor.saved = false;
+    holderEditor.returnFocus = document.activeElement;
+    $('#holderProfileForm').reset();
+    $('#holderProfileMsg').textContent = '';
+    $('#holderProfileMsg').className = 'holder-editor-msg';
+    setHolderProfileBusy(false);
     const profile = state.billingProfiles?.holders?.[holderId] || {};
     $('#holderProfileId').value = holder.id;
     $('#holderProfileName').value = holder.legal_name || '';
@@ -143,24 +178,129 @@
     $('#holderProfileTitle').textContent = `Editar titular · ${holder.legal_name || 'Titular'}`;
     $('#holderProfileEditor').classList.remove('hidden');
     $('#holderProfileName').focus();
+    loadHolderPortfolioContext(holderId, request);
+  }
+
+  function setHolderProfileBusy(busy) {
+    holderEditor.saving = busy;
+    $('#holderProfileForm')?.setAttribute('aria-busy', String(busy));
+    $$('#holderProfileForm input, #holderProfileForm button, #closeHolderProfile').forEach((element) => {
+      element.disabled = busy || (holderEditor.saved && element.id !== 'cancelHolderProfile' && element.id !== 'closeHolderProfile');
+    });
+    const group = $('#holderProfileGroup');
+    if (group) group.disabled = busy || holderEditor.saved || !holderEditor.context?.total_supplies;
+    const isNew = group?.value === '__new__';
+    for (const id of ['holderProfileNewGroupName', 'holderProfileNewGroupAlias']) {
+      const input = $('#' + id);
+      if (input) input.disabled = busy || holderEditor.saved || !isNew;
+    }
+  }
+
+  async function loadHolderPortfolioContext(holderId, request) {
+    const group = $('#holderProfileGroup');
+    holderEditor.context = null;
+    holderEditor.initialChoice = '__keep__';
+    group.replaceChildren(new Option('Cargando grupos…', '__keep__'));
+    group.disabled = true;
+    $('#holderProfileGroupHelp').textContent = 'Consultando todos los suministros de este titular…';
+    $('#holderProfileGroupRetry').classList.add('hidden');
+    updateHolderPortfolioChoice();
+    try {
+      const { data, error } = await window.ibtSupabase.rpc('get_internal_holder_portfolio_context', { p_holder_id: holderId });
+      if (request !== holderEditor.request || $('#holderProfileId').value !== holderId) return;
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.reason || 'portfolio_context_unavailable');
+      const counts = [data.total_supplies, data.active_supplies, data.other_supplies];
+      if (data.holder_id !== holderId || !Array.isArray(data.groups) || counts.some((count) => !Number.isInteger(count) || count < 0) ||
+          data.active_supplies + data.other_supplies !== data.total_supplies || typeof data.mixed !== 'boolean' ||
+          typeof data.snapshot !== 'string' || !data.snapshot ||
+          (data.group_id && !data.groups.some((item) => item.id === data.group_id))) {
+        throw new Error('portfolio_context_invalid');
+      }
+      holderEditor.context = data;
+      holderEditor.initialChoice = data.mixed ? '__keep__' : (data.group_id || '');
+      group.replaceChildren();
+      if (data.mixed) group.add(new Option('Mantener los grupos actuales (varios)', '__keep__'));
+      group.add(new Option('Sin grupo comercial', ''));
+      for (const item of [...data.groups].sort((a, b) => (a.alias || a.name).localeCompare(b.alias || b.name, 'es'))) {
+        group.add(new Option(item.alias ? `${item.alias} (${item.name})` : item.name, item.id));
+      }
+      group.add(new Option('+ Crear un nuevo grupo…', '__new__'));
+      group.value = holderEditor.initialChoice;
+      group.disabled = holderEditor.saving || holderEditor.saved || data.total_supplies === 0;
+      updateHolderPortfolioChoice();
+    } catch (error) {
+      if (request !== holderEditor.request || $('#holderProfileId').value !== holderId) return;
+      holderEditor.context = null;
+      group.replaceChildren(new Option('Grupo no disponible', '__keep__'));
+      group.disabled = true;
+      $('#holderProfileGroupHelp').textContent = 'No se han podido consultar los grupos. Puedes guardar los datos del titular conservando su agrupación actual.';
+      $('#holderProfileGroupRetry').classList.remove('hidden');
+    }
+  }
+
+  function holderPortfolioChange() {
+    const chosen = $('#holderProfileGroup').value;
+    if (!holderEditor.context || chosen === holderEditor.initialChoice || chosen === '__keep__') return null;
+    return {
+      p_portfolio_action: chosen ? 'set' : 'clear',
+      p_group_id: chosen && chosen !== '__new__' ? chosen : null,
+      p_new_name: chosen === '__new__' ? $('#holderProfileNewGroupName').value.trim() : null,
+      p_new_alias: chosen === '__new__' ? ($('#holderProfileNewGroupAlias').value.trim() || null) : null,
+      p_expected_portfolio_snapshot: holderEditor.context.snapshot,
+    };
+  }
+
+  function updateHolderPortfolioChoice() {
+    const chosen = $('#holderProfileGroup').value;
+    const isNew = chosen === '__new__';
+    $('#holderProfileNewGroup').classList.toggle('hidden', !isNew);
+    $('#holderProfileNewGroupName').required = isNew;
+    $('#holderProfileNewGroupName').disabled = !isNew || holderEditor.saving || holderEditor.saved;
+    $('#holderProfileNewGroupAlias').disabled = !isNew || holderEditor.saving || holderEditor.saved;
+    const context = holderEditor.context;
+    if (!context) return;
+    const count = context.total_supplies;
+    if (!count) {
+      $('#holderProfileGroupHelp').textContent = 'Este titular todavía no tiene suministros para agrupar.';
+      return;
+    }
+    const amount = `${count} suministro${count === 1 ? '' : 's'}`;
+    const scope = count === 1 ? 'su suministro' : `sus ${amount}`;
+    const states = context.other_supplies ? ` (${context.active_supplies} activo${context.active_supplies === 1 ? '' : 's'} y ${context.other_supplies} ${context.other_supplies === 1 ? 'archivado o inactivo' : 'archivados o inactivos'})` : '';
+    const change = holderPortfolioChange();
+    const destination = isNew ? ($('#holderProfileNewGroupName').value.trim() || 'el nuevo grupo') :
+      context.groups.find((item) => item.id === chosen)?.name;
+    const action = !change ? (context.mixed ? 'Cada suministro conservará su grupo actual.' : 'La agrupación actual se conservará.') :
+      chosen ? `Al guardar, ${scope} ${count === 1 ? 'quedará' : 'quedarán'} en «${destination}».` : `Al guardar, ${scope} ${count === 1 ? 'quedará' : 'quedarán'} sin grupo comercial.`;
+    $('#holderProfileGroupHelp').textContent = `${amount}${states}. ${action}`;
   }
 
   async function saveHolderProfile(event) {
     event.preventDefault();
+    if (holderEditor.saving || holderEditor.saved) return;
     const id = $('#holderProfileId')?.value || '';
-    const button = $('#holderProfileForm button[type="submit"]');
     const msg = $('#holderProfileMsg');
     if (!id || !window.ibtSupabase) return;
-    if (button) button.disabled = true;
+    const change = holderPortfolioChange();
+    if (change?.p_portfolio_action === 'set' && !change.p_group_id && !change.p_new_name) {
+      msg.textContent = 'Escribe el nombre del nuevo grupo.';
+      msg.className = 'holder-editor-msg error';
+      $('#holderProfileNewGroupName').focus();
+      return;
+    }
+    const request = holderEditor.request;
+    setHolderProfileBusy(true);
     if (msg) { msg.textContent = 'Guardando titular…'; msg.className = 'holder-editor-msg'; }
     try {
-      const { data, error } = await window.ibtSupabase.rpc('admin_update_holder_profile', {
+      const { data, error } = await window.ibtSupabase.rpc(change ? 'admin_update_holder_profile_with_portfolio' : 'admin_update_holder_profile', {
         p_holder_id: id,
         p_legal_name: $('#holderProfileName').value,
         p_tax_id: $('#holderProfileTaxId').value || null,
         p_email: $('#holderProfileEmail').value || null,
         p_phone: $('#holderProfilePhone').value || null,
         p_bank_account: $('#holderProfileBankAccount').value || null,
+        ...(change || {}),
       });
       if (error) throw error;
       if (!data?.ok) {
@@ -175,18 +315,36 @@
           invalid_email: 'El correo electrónico no es válido.',
           invalid_phone: 'El teléfono no es válido.',
           invalid_bank_account: 'La cuenta bancaria no es válida.',
+          not_authorized: 'No tienes permiso para editar la agrupación.',
+          group_name_exists: 'Ya existe un grupo con ese nombre. Selecciónalo en la lista.',
+          group_not_found: 'El grupo seleccionado ya no existe. Vuelve a cargar los grupos.',
+          invalid_group_name_or_alias: 'Revisa el nombre y el alias del grupo.',
+          ambiguous_destination: 'Selecciona un grupo existente o crea uno nuevo.',
+          holder_has_no_supplies: 'El titular ya no tiene suministros para agrupar.',
+          portfolio_snapshot_required: 'Vuelve a cargar los grupos antes de guardar.',
+          portfolio_context_changed: 'Han cambiado los suministros o sus grupos. Revisa la agrupación actual y vuelve a elegir el destino. No se ha guardado ningún cambio.',
+          holder_portfolio_busy: 'Otro cambio está actualizando estos suministros. Espera unos segundos y vuelve a intentarlo.',
         };
+        if (['portfolio_context_changed', 'portfolio_snapshot_required', 'group_not_found', 'holder_has_no_supplies', 'group_name_exists'].includes(reason)) {
+          await loadHolderPortfolioContext(id, request);
+        }
         throw new Error(labels[reason] || 'No se ha podido guardar la ficha del titular.');
       }
-      if (msg) { msg.textContent = 'Titular guardado. Sus suministros heredarán estos datos salvo excepción.'; msg.className = 'holder-editor-msg ok'; }
-      await window.CentralSupabaseMaster?.reload?.();
-      await loadState();
+      holderEditor.saved = true;
+      const success = change ? `Titular guardado. Agrupación aplicada a ${data.total_supplies === 1 ? 'su suministro' : `sus ${data.total_supplies} suministros`}.` : 'Titular guardado. Sus suministros heredarán estos datos salvo excepción.';
+      if (msg) { msg.textContent = success; msg.className = 'holder-editor-msg ok'; }
+      if (await window.CentralSupabaseMaster?.reload?.() !== true || await loadState() !== true) {
+        throw new Error('holder_view_refresh_failed');
+      }
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed', { detail: { action: 'update_holder_profile', id } }));
-      setTimeout(closeHolderProfile, 250);
+      setTimeout(() => { if (request === holderEditor.request) closeHolderProfile(); }, 350);
     } catch (error) {
-      if (msg) { msg.textContent = error?.message || String(error); msg.className = 'holder-editor-msg error'; }
+      if (msg) {
+        msg.textContent = holderEditor.saved ? 'Los cambios están guardados. No se ha podido actualizar la vista; ciérrala y recarga la página para verlos.' : (error?.message || String(error));
+        msg.className = 'holder-editor-msg ' + (holderEditor.saved ? 'ok' : 'error');
+      }
     } finally {
-      if (button) button.disabled = false;
+      setHolderProfileBusy(false);
     }
   }
 
@@ -360,7 +518,7 @@
   }
 
   async function loadState() {
-    if (!isAdmin() || state.loading || !window.ibtSupabase) return;
+    if (!isAdmin() || state.loading || !window.ibtSupabase) return false;
     state.loading = true;
     try {
       const supabase = window.ibtSupabase;
@@ -408,11 +566,13 @@
       renderSupplies();
       pruneArchivedUserOptions();
       window.dispatchEvent(new CustomEvent('ibt-central-data-ready', { detail: { supplies: state.supplies.length } }));
+      return true;
     } catch (error) {
       console.error('Gestión central', error);
       setMessage('#centralClientsMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
       setMessage('#centralHoldersMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
       setMessage('#centralSuppliesMsg', 'No se pudo cargar la base central: ' + (error?.message || error), 'error');
+      return false;
     } finally {
       state.loading = false;
     }

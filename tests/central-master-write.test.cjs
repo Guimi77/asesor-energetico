@@ -124,7 +124,9 @@ test('browser cache markers force the central-authoritative code', () => {
   const bytes = fs.readFileSync(path.join(root, 'auth-bootstrap.js'));
   const expected = crypto.createHash('sha1').update('blob ' + bytes.length).update(Buffer.from([0])).update(bytes).digest('hex').slice(0, 12);
   assert.ok(index.includes('auth-bootstrap.js?v=' + expected));
-  assert.match(bootstrap, /supabase-xtra-pilot\.js\?v=88dc059b6d58/);
+  const pilotBytes = Buffer.from(pilot);
+  const pilotHash = crypto.createHash('sha1').update('blob ' + pilotBytes.length + '\0').update(pilotBytes).digest('hex').slice(0, 12);
+  assert.ok(bootstrap.includes('supabase-xtra-pilot.js?v=' + pilotHash));
 });
 
 

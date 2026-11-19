@@ -44,8 +44,12 @@ test('sin factura se conserva estado desconocido',()=>{
   assert.equal(classify(holder,null).kind,'unknown');
 });
 test('administración e inicio de sesión cargan scripts sin caché antigua',()=>{
-  assert.match(auth,/admin-data-management\.js\?v=29ea04e8a775/);
-  assert.match(index,/auth\.js\?v=8fce342eeeda/);
+  const hash = (source) => {
+    const bytes = Buffer.from(source);
+    return require('node:crypto').createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex').slice(0, 12);
+  };
+  assert.ok(auth.includes('admin-data-management.js?v=' + hash(src)));
+  assert.ok(index.includes('auth.js?v=' + hash(auth)));
 });
 
 test('same fiscal ID with uppercase, accents and company abbreviation punctuation is coherent',()=>{
