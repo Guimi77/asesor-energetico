@@ -197,3 +197,16 @@ test('maximum contractable power is immediately below the whole P1-P6 contracted
   assert.match(css,/\.client-form-grid \.power-profile-full-row\{grid-column:1\/-1\}/);
   assert.match(css,/\.client-form-grid \.max-contractable-power-field\{grid-column:1\/-1;max-width:290px\}/);
 });
+
+test('client supply row opens exact supply history without hijacking editing',()=>{
+  const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
+  assert.match(masterUi,/data-history-client-id=/);
+  assert.match(masterUi,/data-history-supply-id=/);
+  assert.match(masterUi,/holder-supply-history-link/);
+  assert.match(masterUi,/history\.focusSupply\(clientId, supplyId\)/);
+  assert.match(masterUi,/nav\.click\(\)/);
+  assert.match(masterUi,/event\.target\.closest\('button, a, input, select, textarea'\)/);
+  assert.match(masterUi,/if \(event\.target !== row/);
+  assert.match(masterUi,/grid\.querySelectorAll\('\.edit-supply-tree'\)/);
+  assert.match(css,/\.holder-supply-history-link:focus-visible/);
+});
