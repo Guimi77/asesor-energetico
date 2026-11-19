@@ -156,7 +156,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const loadAlertsUi=()=>{
     if(document.querySelector('script[data-alerts-ui]'))return;
     const script=document.createElement('script');
-    script.src='alerts-ui.js?v=2c76f3b2072d';
+    script.src='alerts-ui.js?v=4a0eff6e2237';
     script.dataset.alertsUi='1';
     script.onload=()=>{
       if(window.ibtCurrentProfile){
