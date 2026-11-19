@@ -943,13 +943,13 @@
       render(state.records);
     });
     const byKey = new Map(events.map(e=>[historyChangeKey(e),e]));
-    $('.history-change-review',host).forEach(btn => btn.addEventListener('click',()=>{
+    $$('.history-change-review',host).forEach(btn => btn.addEventListener('click',()=>{
       const event = byKey.get(btn.dataset.eventKey);
       if (!event) return;
       btn.disabled = true;
       void setHistoryChangeArchived(event,!state.archivedChanges.has(historyChangeKey(event)));
     }));
-    $('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {
+    $$('.history-detail-btn', host).forEach(btn => btn.addEventListener('click', () => {
       const r = records.find(x => x.id === btn.dataset.id);
       const detailHost = $('#historyDetailHost');
       if (!detailHost || !r) return;
