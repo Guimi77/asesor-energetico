@@ -20,6 +20,7 @@
     incidents: [],
     clientId: '',
     status: 'active',
+    focusedCups: null,
     loading: false,
     knownActive: new Set(),
     activeIncidentByKey: new Map(),
@@ -34,7 +35,7 @@
     const style = document.createElement('style');
     style.id = 'alertsUiStyles';
     style.textContent = `
-      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.analysis-add-alert,.analysis-dismiss,.analysis-history-link{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled],.analysis-dismiss[disabled],.analysis-history-link[disabled]{opacity:.72;cursor:default}.analysis-dismiss:not([disabled]){color:#6f3b1f;border-color:#d8c3b4;background:#fffaf6}.analysis-history-link{color:#1834b8;border-color:#cbd4ff;background:#f7f8ff}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
+      .alerts-app{display:grid;gap:16px}.alerts-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alerts-head h2{margin:0 0 6px}.alerts-head p{margin:0;color:#65758a;max-width:760px;line-height:1.45}.alerts-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.alerts-toolbar label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#65758a}.alerts-toolbar select{min-width:220px;padding:10px 12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f}.alerts-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.alerts-kpi{padding:15px}.alerts-kpi small{display:block;color:#65758a}.alerts-kpi strong{display:block;font-size:24px;color:#061b38;margin:5px 0}.alerts-kpi span{font-size:12px;color:#65758a}.alerts-list{display:grid;gap:10px}.alert-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;padding:14px;border:1px solid #dce4ed;border-left:4px solid #8190a5;border-radius:10px;background:#fff}.alert-card[data-severity="4"],.alert-card[data-severity="5"]{border-left-color:#b58232}.alert-card h3{margin:0 0 4px;font-size:16px}.alert-identity{display:block;color:#65758a;font-size:12px;line-height:1.4}.alert-description{white-space:pre-line;margin:9px 0 0;color:#10233f;line-height:1.45}.alert-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;color:#65758a;font-size:12px}.alert-priority{display:inline-block;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#526176;font-weight:700}.alert-card[data-severity="4"] .alert-priority,.alert-card[data-severity="5"] .alert-priority{background:#fff4df;color:#83550b}.alert-status-box{min-width:160px}.alert-status-box label{display:grid;gap:5px;color:#65758a;font-size:11px;font-weight:700}.alert-status-box select{width:100%;padding:8px 9px;border:1px solid #dce4ed;border-radius:8px;background:#fff;color:#10233f;font-weight:700}.alerts-focused-supplies{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 12px;padding:9px 12px;background:#e8faf7;border-radius:8px;color:#006b68;font-size:12px;font-weight:700}.alerts-focused-supplies button{font-size:12px}.alerts-empty,.alerts-loading,.alerts-error{padding:28px;text-align:center;color:#65758a}.alerts-error{border:1px solid #f1c6c1;background:#fff3f1;color:#8f1f17;border-radius:9px}.alerts-note{margin:0;color:#65758a;font-size:12px;line-height:1.45}.analysis-alert-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.analysis-add-alert,.analysis-dismiss,.analysis-history-link{font-size:12px;padding:7px 10px}.analysis-add-alert[disabled],.analysis-dismiss[disabled],.analysis-history-link[disabled]{opacity:.72;cursor:default}.analysis-dismiss:not([disabled]){color:#6f3b1f;border-color:#d8c3b4;background:#fffaf6}.analysis-history-link{color:#1834b8;border-color:#cbd4ff;background:#f7f8ff}@media(max-width:900px){.alerts-head{display:grid}.alerts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-card{grid-template-columns:1fr}.alert-status-box{min-width:0}}@media(max-width:560px){.alerts-kpis{grid-template-columns:1fr}.alerts-toolbar{display:grid}.alerts-toolbar select{min-width:0;width:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -130,9 +131,10 @@
     const client = $('#alertsClient');
     const status = $('#alertsStatus');
     if (client) {
-      if (!state.clientId || !state.clients.some(c => c.id === state.clientId)) state.clientId = state.clients[0]?.id || '';
-      client.innerHTML = state.clients.map(c => `<option value="${esc(c.id)}" ${c.id===state.clientId?'selected':''}>${esc(c.name)}</option>`).join('');
-      client.onchange = () => { state.clientId = client.value; render(); };
+      if (state.clientId && !state.clients.some(c => c.id === state.clientId)) state.clientId = '';
+      client.innerHTML = '<option value="">Todos los clientes</option>' + state.clients.map(c => `<option value="${esc(c.id)}" ${c.id===state.clientId?'selected':''}>${esc(c.name)}</option>`).join('');
+      client.value = state.clientId;
+      client.onchange = () => { state.clientId = client.value; state.focusedCups = null; render(); };
     }
     if (status) {
       status.value = state.status;
@@ -149,8 +151,9 @@
 
   function filteredIncidents() {
     const list = state.incidents.filter(incident => {
-      const {holder} = incidentContext(incident);
+      const {holder,supply} = incidentContext(incident);
       if (state.clientId && holder?.client_id !== state.clientId) return false;
+      if (state.focusedCups && !state.focusedCups.has(cupsKey(supply?.cups_key || supply?.cups))) return false;
       if (state.status === 'active') return ACTIVE_STATUSES.has(incident.status);
       if (state.status !== 'all' && incident.status !== state.status) return false;
       return true;
@@ -169,7 +172,11 @@
   function render() {
     const host = $('#alertsContent');
     if (!host) return;
-    const clientIncidents = state.incidents.filter(i => incidentContext(i).holder?.client_id === state.clientId);
+    const clientIncidents = state.incidents.filter(i => {
+      const {holder,supply} = incidentContext(i);
+      return (!state.clientId || holder?.client_id === state.clientId)
+        && (!state.focusedCups || state.focusedCups.has(cupsKey(supply?.cups_key || supply?.cups)));
+    });
     const counts = {
       open: clientIncidents.filter(i => i.status === 'open').length,
       reviewing: clientIncidents.filter(i => i.status === 'reviewing').length,
@@ -184,8 +191,9 @@
         <article class="card alerts-kpi"><small>Cerradas</small><strong>${counts.closed}</strong><span>resueltas o descartadas</span></article>
         <article class="card alerts-kpi"><small>Total</small><strong>${counts.total}</strong><span>alertas guardadas para este cliente</span></article>
       </section>
-      <section class="card" style="padding:18px"><div class="section-head"><div><p class="eyebrow">Bandeja interna</p><h2 style="margin:0">Qué tenemos pendiente</h2></div><span class="history-pill">${list.length} visible${list.length===1?'':'s'}</span></div><p class="alerts-note">Las alertas aparecen aquí solo cuando alguien de ELECTRICA BT decide seguirlas desde la pantalla de Análisis. No se crean presupuestos ni cifras de ahorro automáticamente.</p><div class="alerts-list" style="margin-top:12px">${list.length ? list.map(card).join('') : '<div class="alerts-empty">No hay alertas en este estado. Desde <strong>Análisis</strong> puedes añadir un punto que quieras seguir.</div>'}</div></section>`;
-    $$('.alert-status', host).forEach(select => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
+      <section class="card" style="padding:18px"><div class="section-head"><div><p class="eyebrow">Bandeja interna</p><h2 style="margin:0">Qué tenemos pendiente</h2></div><span class="history-pill">${list.length} visible${list.length===1?'':'s'}</span></div>${state.focusedCups ? `<div class="alerts-focused-supplies"><span>Mostrando alertas de ${state.focusedCups.size} suministro${state.focusedCups.size===1?'':'s'} seleccionado${state.focusedCups.size===1?'':'s'} en Clientes.</span><button type="button" id="clearAlertsSupplyFocus" class="secondary">Ver todos los suministros</button></div>` : ''}<p class="alerts-note">Las alertas aparecen aquí solo cuando alguien de ELECTRICA BT decide seguirlas desde la pantalla de Análisis. No se crean presupuestos ni cifras de ahorro automáticamente.</p><div class="alerts-list" style="margin-top:12px">${list.length ? list.map(card).join('') : '<div class="alerts-empty">No hay alertas en este estado. Desde <strong>Análisis</strong> puedes añadir un punto que quieras seguir.</div>'}</div></section>`;
+    $('.alert-status', host).forEach(select => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
+    $('#clearAlertsSupplyFocus')?.addEventListener('click', () => { state.focusedCups = null; render(); });
   }
 
   async function updateStatus(id, status) {
@@ -364,6 +372,30 @@
 
   const observer = new MutationObserver(() => decorateAnalysis());
 
+  // Read-only counts for client badges, never including closed or discarded incidents.
+  function activeCountsByCups() {
+    const counts = new Map();
+    if (!isInternal()) return counts;
+    const cupsBySupplyId = new Map(state.supplies.map(supply => [supply.id, cupsKey(supply.cups_key || supply.cups)]));
+    for (const incident of state.incidents) {
+      if (!ACTIVE_STATUSES.has(incident.status)) continue;
+      const cups = cupsBySupplyId.get(incident.supply_id);
+      if (cups) counts.set(cups, (counts.get(cups) || 0) + 1);
+    }
+    return counts;
+  }
+
+  function openForSupplies(cupsList) {
+    if (!isInternal()) return;
+    const keys = [...new Set((Array.isArray(cupsList) ? cupsList : [cupsList]).map(cupsKey).filter(Boolean))];
+    if (!keys.length) return;
+    state.focusedCups = new Set(keys);
+    state.clientId = '';
+    state.status = 'active';
+    const link = document.querySelector('.sidebar nav a[data-view="alertas"]');
+    if (link) link.click();
+  }
+
   async function initialize() {
     ensureView();
     bindNav();
@@ -373,6 +405,7 @@
     if (host && !$('#alertasView')?.classList.contains('hidden')) host.innerHTML = '<div class="alerts-loading">Cargando alertas…</div>';
     try {
       await loadReferenceData();
+      window.dispatchEvent(new CustomEvent('ibt-alerts-loaded'));
       renderControls();
       if (!$('#alertasView')?.classList.contains('hidden')) render();
       decorateAnalysis();
@@ -400,5 +433,5 @@
     if (analysis) observer.observe(analysis,{childList:true,subtree:true});
   }
 
-  window.IBTAlertsUI = Object.freeze({initialize,decorateAnalysis});
+  window.IBTAlertsUI = Object.freeze({initialize,decorateAnalysis,activeCountsByCups,openForSupplies});
 })();

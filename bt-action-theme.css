@@ -164,3 +164,17 @@ body button.client-group-toggle:focus-visible {
   outline: 2px solid #008b83 !important;
   outline-offset: 2px;
 }
+
+/* An alert marker is not a general action button. Warm warning accent, accessible click target. */
+body button.client-alert-indicator{
+  display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  min-width:24px;min-height:22px;padding:2px 6px;
+  background:#fff5df!important;border:1px solid #c38e36!important;
+  color:#875711!important;border-radius:5px;font-size:.72rem;line-height:1;
+}
+body button.client-alert-indicator:hover:not(:disabled){
+  background:#fce5b2!important;border-color:#a56b1d!important;color:#65400c!important;
+}
+body button.client-alert-indicator:focus-visible{
+  outline:2px solid #a56b1d!important;outline-offset:2px;
+}

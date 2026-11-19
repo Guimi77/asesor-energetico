@@ -114,3 +114,11 @@ body.client-editor-modal-open #clientEditor .section-head{
    The technical maximum belongs directly beneath P1-P6, not in a side column. */
 .client-form-grid .power-profile-full-row{grid-column:1/-1}
 .client-form-grid .max-contractable-power-field{grid-column:1/-1;max-width:290px}
+
+/* Only the retailer NAME receives brand emphasis, never its label or manual tag. */
+body .company-card .supply-current-retailer strong{
+  color:var(--bt-teal-deep,#006b68)!important;
+  font-weight:850!important;
+}
+.client-group-heading .client-alert-indicator{margin-left:4px}
+.client-alert-indicator .client-alert-count{font-size:.68rem;font-weight:850}
