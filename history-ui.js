@@ -694,53 +694,6 @@
     }).join('');
   }
 
-  function powerSignature(r) {
-    return [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period).map(p => `P${p.period}:${n(p.contracted_kw).toFixed(3)}`).join('|');
-  }
-
-  function describePower(r) {
-    const rows = [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period);
-    return rows.length ? rows.map(p => `P${p.period} ${qty(p.contracted_kw,3)} kW`).join(' · ') : 'Sin potencia registrada';
-  }
-
-  function comparablePowers(record) {
-    const map=new Map();
-    for(const x of record.invoice_power_periods || []) {
-      if(x.contracted_kw==null || String(x.contracted_kw).trim()==='')continue;
-      const value=Number(x.contracted_kw), period=Number(x.period);
-      if(!Number.isFinite(value)||value<0||!Number.isInteger(period)||period<1||period>6)continue;
-      if(map.has(period) && map.get(period)!==value)map.set(period,null);
-      else if(!map.has(period))map.set(period,value);
-    }
-    return map;
-  }
-
-  function detectedEvents(records) {
-    const bySupply=new Map(),events=[];
-    for(const r of records){
-      if(!bySupply.has(r.supply_id))bySupply.set(r.supply_id,[]);
-      bySupply.get(r.supply_id).push(r);
-    }
-    for(const [supplyId,list] of bySupply){
-      list.sort((a,b)=>String(a.billing_start).localeCompare(String(b.billing_start)));
-      for(let i=1;i<list.length;i++){
-        const prev=list[i-1],cur=list[i];
-        const before=String(prev.tariff||'').trim(),after=String(cur.tariff||'').trim();
-        if(before&&after&&before!=='—'&&after!=='—'&&before!==after)
-          events.push({date:cur.billing_start,type:'Cambio de tarifa observado',supplyId,prev,cur,changes:[{label:'Tarifa',before,after}]});
-        const p0=comparablePowers(prev),p1=comparablePowers(cur),changes=[];
-        for(const [period,value] of p1){
-          const old=p0.get(period);
-          if(old==null||value==null||Math.abs(value-old)<0.0005)continue;
-          changes.push({label:'P'+period,before:old,after:value,delta:value-old});
-        }
-        changes.sort((a,b)=>a.label.localeCompare(b.label));
-        if(changes.length)events.push({date:cur.billing_start,type:'Cambio de potencia observado',supplyId,prev,cur,changes});
-      }
-    }
-    return events.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  }
-
   function historyChangeType(e) {
     return e.type === 'Cambio de potencia observado' ? 'power' : 'tariff';
   }
@@ -799,7 +752,64 @@
     } finally { state.changingReview = false; }
   }
 
-  function renderContractEvent(e, {archived = false, allowReview = false} = {}) {
+  // Archive controls decorate the existing stable energy-change renderer, not its logic.
+  function renderReviewedContractEvent(e) {
+    let html = renderContractEvent(e);
+    if (!state.changeReviewsReady || !['admin','staff'].includes(window.ibtCurrentProfile?.role)) return html;
+    const archived = state.archivedChanges.has(historyChangeKey(e));
+    const action = '<div class="history-event-actions"><button type="button" class="history-change-review" data-event-key="'+esc(historyChangeKey(e))+'">'+(archived?'Restaurar':'Archivar')+'</button></div>';
+    if (archived) html = html.replace('class="history-event"','class="history-event history-event-archived"');
+    return html.replace('</div></div>',action+'</div></div>');
+  }
+
+  function powerSignature(r) {
+    return [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period).map(p => `P${p.period}:${n(p.contracted_kw).toFixed(3)}`).join('|');
+  }
+
+  function describePower(r) {
+    const rows = [...(r.invoice_power_periods || [])].sort((a,b)=>a.period-b.period);
+    return rows.length ? rows.map(p => `P${p.period} ${qty(p.contracted_kw,3)} kW`).join(' · ') : 'Sin potencia registrada';
+  }
+
+  function comparablePowers(record) {
+    const map=new Map();
+    for(const x of record.invoice_power_periods || []) {
+      if(x.contracted_kw==null || String(x.contracted_kw).trim()==='')continue;
+      const value=Number(x.contracted_kw), period=Number(x.period);
+      if(!Number.isFinite(value)||value<0||!Number.isInteger(period)||period<1||period>6)continue;
+      if(map.has(period) && map.get(period)!==value)map.set(period,null);
+      else if(!map.has(period))map.set(period,value);
+    }
+    return map;
+  }
+
+  function detectedEvents(records) {
+    const bySupply=new Map(),events=[];
+    for(const r of records){
+      if(!bySupply.has(r.supply_id))bySupply.set(r.supply_id,[]);
+      bySupply.get(r.supply_id).push(r);
+    }
+    for(const [supplyId,list] of bySupply){
+      list.sort((a,b)=>String(a.billing_start).localeCompare(String(b.billing_start)));
+      for(let i=1;i<list.length;i++){
+        const prev=list[i-1],cur=list[i];
+        const before=String(prev.tariff||'').trim(),after=String(cur.tariff||'').trim();
+        if(before&&after&&before!=='—'&&after!=='—'&&before!==after)
+          events.push({date:cur.billing_start,type:'Cambio de tarifa observado',supplyId,prev,cur,changes:[{label:'Tarifa',before,after}]});
+        const p0=comparablePowers(prev),p1=comparablePowers(cur),changes=[];
+        for(const [period,value] of p1){
+          const old=p0.get(period);
+          if(old==null||value==null||Math.abs(value-old)<0.0005)continue;
+          changes.push({label:'P'+period,before:old,after:value,delta:value-old});
+        }
+        changes.sort((a,b)=>a.label.localeCompare(b.label));
+        if(changes.length)events.push({date:cur.billing_start,type:'Cambio de potencia observado',supplyId,prev,cur,changes});
+      }
+    }
+    return events.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  }
+
+  function renderContractEvent(e) {
     const s=supplyById(e.supplyId),h=holderForSupply(s);
     const name=s?.supply_name||s?.address||'Suministro';
     const rows=e.changes.map(c=>{
@@ -810,10 +820,7 @@
       return '<tr><td>'+esc(c.label)+'</td><td>'+esc(before)+'</td><td><strong>'+esc(after)+'</strong></td><td>'+esc(difference)+'</td></tr>';
     }).join('');
     const source=r=>esc(r.invoice_number||'Sin referencia')+' · '+dateES(r.billing_start)+' – '+dateES(r.billing_end);
-    const action = allowReview
-      ? '<div class="history-event-actions"><button type="button" class="history-change-review" data-event-key="'+esc(historyChangeKey(e))+'">'+(archived?'Restaurar':'Archivar')+'</button></div>'
-      : '';
-    return '<div class="history-event'+(archived?' history-event-archived':'')+'"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p>'+action+'</div></div>';
+    return '<div class="history-event"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p></div></div>';
   }
 
   function rowDetail(r) {
@@ -927,7 +934,7 @@
         ${state.changeReviewsError ? '<p class="history-review-error" role="alert">'+esc(state.changeReviewsError)+'</p>' : ''}
         <div class="history-review-toolbar"><span class="history-review-note">${events.length-archivedCount} sin archivar · ${archivedCount} archivado${archivedCount===1?'':'s'}</span>
         ${archivedCount ? '<button type="button" id="historyToggleArchived" class="secondary">'+(state.showArchivedChanges?'Ocultar archivados':'Ver archivados ('+archivedCount+')')+'</button>' : ''}</div>
-        <div class="history-events">${visibleEvents.length ? visibleEvents.map(e=>renderContractEvent(e,{archived:state.archivedChanges.has(historyChangeKey(e)),allowReview:state.changeReviewsReady && ['admin','staff'].includes(window.ibtCurrentProfile?.role)})).join('') : '<div class="history-review-empty">Todos los cambios detectados están archivados.</div>'}</div>
+        <div class="history-events">${visibleEvents.length ? visibleEvents.map(renderReviewedContractEvent).join('') : '<div class="history-review-empty">Todos los cambios detectados están archivados.</div>'}</div>
       </section>` : ''}
       ${renderRecommendations(records)}`;
 
