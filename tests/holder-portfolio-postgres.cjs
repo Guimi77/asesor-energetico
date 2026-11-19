@@ -21,7 +21,7 @@ const claim = (client, user = admin) => client.query("select set_config('request
 const context = async (client) => (await client.query('select public.get_internal_holder_portfolio_context($1) as data', [holder])).rows[0].data;
 const save = async (client, snapshot, overrides = {}) => {
   const args = {
-    name: 'TITULAR DE PRUEBA RENOMBRADO', email: 'profile@example.invalid',
+    name: 'TITULAR DE PRUEBA RENOMBRADO', email: 'profile@example.org',
     action: 'set', group, newName: null, newAlias: null, ...overrides,
   };
   const result = await client.query(
@@ -53,7 +53,7 @@ const fullState = async (client) => (await client.query(`select jsonb_build_obje
       'supabase/migrations/20261117113606_add_private_client_contact_details.sql',
       'supabase/migrations/20261117121000_holder_billing_profiles_inheritance.sql',
       'supabase/migrations/20261118113000_supply_portfolios.sql',
-      'supabase/migrations/20261119103907_holder_commercial_portfolio_assignment.sql',
+      'supabase/migrations/20261119104956_holder_commercial_portfolio_assignment.sql',
       'tests/holder-portfolio-regression.sql',
     ]) {
       await main.query(fs.readFileSync(path.join(root, filename), 'utf8'));
@@ -146,7 +146,7 @@ const fullState = async (client) => (await client.query(`select jsonb_build_obje
     before = await fullState(main);
     await first.query('begin');
     await first.query("insert into private.supply_portfolios(name) values('CONCURRENT SYNTHETIC GROUP')");
-    const pendingSave = save(second, preview.snapshot, { name: 'UNIQUE RACE MUST ROLL BACK', email: 'race@example.invalid', group: null, newName: 'CONCURRENT SYNTHETIC GROUP' });
+    const pendingSave = save(second, preview.snapshot, { name: 'UNIQUE RACE MUST ROLL BACK', email: 'race@example.org', group: null, newName: 'CONCURRENT SYNTHETIC GROUP' });
     pendingSave.catch(() => {});
     await waitForLock();
     await first.query('commit');

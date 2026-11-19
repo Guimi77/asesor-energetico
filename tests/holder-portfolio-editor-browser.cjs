@@ -28,7 +28,7 @@ const fs = require('node:fs');
       window.testDB = { clients, holders, supplies, invoices: [{ id: 'synthetic-invoice', supply_id: 'supply-a3', total_eur: 12.34 }] };
       window.testGroups = [{ id: 'group-a', name: 'Synthetic Group A', alias: 'Alpha' }, { id: 'group-b', name: 'Synthetic <img src=x onerror=alert(1)>', alias: 'Beta' }];
       window.testMembers = { 'supply-a1': 'group-a', 'supply-a2': 'group-b', 'supply-b1': 'group-a' };
-      window.testProfiles = { 'holder-a': { email: 'original@example.invalid' } };
+      window.testProfiles = { 'holder-a': { email: 'original@example.org' } };
       window.rpcCalls = [];
       window.ibtCurrentProfile = { id: 'synthetic-admin', role: 'admin' };
       window.contextFor = (holderId) => {
@@ -106,7 +106,7 @@ const fs = require('node:fs');
     assert.match(await page.locator('#holderProfileGroupHelp').innerText(), /3 suministros.*2 activos y 1 archivado o inactivo/);
     assert.equal(await editor.locator('img').count(), 0, 'Group labels must be plain text');
     const mixedBefore = await page.evaluate(() => structuredClone(window.testMembers));
-    await page.fill('#holderProfileEmail', 'profile-only@example.invalid');
+    await page.fill('#holderProfileEmail', 'profile-only@example.org');
     await submit.click();
     await saved();
     assert.equal((await writes()).at(-1).name, 'admin_update_holder_profile');
@@ -166,14 +166,14 @@ const fs = require('node:fs');
     // Concurrent regrouping rejects the complete save, preserves typed profile,
     // refreshes the context and requires a deliberate new destination choice.
     await open();
-    await page.fill('#holderProfileEmail', 'pending-edit@example.invalid');
+    await page.fill('#holderProfileEmail', 'pending-edit@example.org');
     await group.selectOption('group-b');
     await page.evaluate(() => { window.testMembers['supply-a1'] = 'group-a'; });
     await submit.click();
     await page.waitForFunction(() => document.querySelector('#holderProfileMsg').textContent.includes('No se ha guardado ningún cambio'));
-    assert.equal(await page.locator('#holderProfileEmail').inputValue(), 'pending-edit@example.invalid');
+    assert.equal(await page.locator('#holderProfileEmail').inputValue(), 'pending-edit@example.org');
     assert.equal(await group.inputValue(), '__keep__');
-    assert.equal(await page.evaluate(() => window.testProfiles['holder-a'].email), 'profile-only@example.invalid');
+    assert.equal(await page.evaluate(() => window.testProfiles['holder-a'].email), 'profile-only@example.org');
     assert.equal(await page.evaluate(() => window.testMembers['supply-a1']), 'group-a');
     assert(!(await submit.isDisabled()));
     await page.locator('#closeHolderProfile').click();

@@ -76,10 +76,10 @@ begin
   perform pg_temp.assert_true((select count(*) from public.audit_log) = before_audit, 'rejected changes create no misleading audit success');
 
   -- One transaction saves valid profile fields and every current supply.
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'total_supplies')::integer = 3 and (r->>'changed_supplies')::integer = 2, 'bulk save counts only memberships that actually changed');
   perform pg_temp.assert_true((select count(*) from private.supply_portfolio_members m join public.supplies s on s.id=m.supply_id where s.holder_id=h and m.portfolio_id=g) = 3, 'all statuses belong to destination');
-  perform pg_temp.assert_true((select email from private.holder_contact_details where holder_id=h) = 'profile@example.invalid', 'profile fields saved in same transaction');
+  perform pg_temp.assert_true((select email from private.holder_contact_details where holder_id=h) = 'profile@example.org', 'profile fields saved in same transaction');
   perform pg_temp.assert_true((select client_id from public.holders where id=h) = '20000000-0000-4000-8000-000000000001', 'grouping never reparents legal holder');
   perform pg_temp.assert_true((select details->'supply_ids' from public.audit_log where action='holder_supply_portfolio_assigned' order by id desc limit 1) = '["40000000-0000-4000-8000-000000000001","40000000-0000-4000-8000-000000000002","40000000-0000-4000-8000-000000000003"]'::jsonb, 'audit records exact complete supply set');
 
@@ -91,36 +91,36 @@ begin
   select to_jsonb(t) into before_holder from public.holders t where id=h;
   select to_jsonb(t) into before_profile from private.holder_contact_details t where holder_id=h;
   select count(*) into before_audit from public.audit_log;
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=0, 'same destination is idempotent');
   perform pg_temp.assert_true((select jsonb_agg(to_jsonb(t) order by supply_id) from private.supply_portfolio_members t)=before_members, 'idempotent grouping preserves timestamps and actors');
   perform pg_temp.assert_true((select count(*) from public.audit_log)=before_audit, 'identical profile and grouping add no duplicate audits');
   perform pg_temp.assert_true((select to_jsonb(t) from public.holders t where id=h)=before_holder and (select to_jsonb(t) from private.holder_contact_details t where holder_id=h)=before_profile, 'identical profile and grouping preserve all profile timestamps');
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'edited@example.invalid', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
-  perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=0 and (select email from private.holder_contact_details where holder_id=h)='edited@example.invalid', 'real profile edit is saved even when destination is unchanged');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'edited@example.org', '1234', 'SYNTHETIC-BANK', 'set', g, null, null, c->>'snapshot');
+  perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=0 and (select email from private.holder_contact_details where holder_id=h)='edited@example.org', 'real profile edit is saved even when destination is unchanged');
 
   -- A per-supply edit after opening the holder cannot be silently overwritten.
   perform public.set_internal_supply_portfolio('40000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001');
   r := public.admin_update_holder_profile_with_portfolio(h, 'STALE MUST NOT SAVE', 'TESTHOLDER1', null, null, null, 'set', g, null, null, c->>'snapshot');
   perform pg_temp.assert_true(r->>'reason'='portfolio_context_changed', 'individual change invalidates snapshot');
   perform pg_temp.assert_true((select legal_name from public.holders where id=h)='TITULAR DE PRUEBA RENOMBRADO', 'stale save never changes identity');
-  perform pg_temp.assert_true((select email from private.holder_contact_details where holder_id=h)='edited@example.invalid', 'stale save never clears contact data');
+  perform pg_temp.assert_true((select email from private.holder_contact_details where holder_id=h)='edited@example.org', 'stale save never clears contact data');
 
   -- Keeping a mixed grouping saves only the profile; it never clears groups.
   select jsonb_agg(to_jsonb(t) order by supply_id) into before_members from private.supply_portfolio_members t;
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'keep');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'keep');
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'mixed')::boolean and (select jsonb_agg(to_jsonb(t) order by supply_id) from private.supply_portfolio_members t)=before_members, 'keep preserves mixed memberships');
 
   c := public.get_internal_holder_portfolio_context(h);
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'set', null, '  NUEVO GRUPO DE PRUEBA  ', '  Alias nuevo  ', c->>'snapshot');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'set', null, '  NUEVO GRUPO DE PRUEBA  ', '  Alias nuevo  ', c->>'snapshot');
   new_group := (r->>'group_id')::uuid;
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=3, 'new group saves every supply atomically');
   perform pg_temp.assert_true((select name='NUEVO GRUPO DE PRUEBA' and alias='Alias nuevo' from private.supply_portfolios where id=new_group), 'new group labels are trimmed');
   c := public.get_internal_holder_portfolio_context(h);
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'clear', null, null, null, c->>'snapshot');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'clear', null, null, null, c->>'snapshot');
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=3 and r->>'group_id' is null, 'clear removes all holder memberships');
   c := public.get_internal_holder_portfolio_context(h);
-  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.invalid', '1234', 'SYNTHETIC-BANK', 'clear', null, null, null, c->>'snapshot');
+  r := public.admin_update_holder_profile_with_portfolio(h, 'TITULAR DE PRUEBA RENOMBRADO', 'TESTHOLDER1', 'profile@example.org', '1234', 'SYNTHETIC-BANK', 'clear', null, null, null, c->>'snapshot');
   perform pg_temp.assert_true((r->>'ok')::boolean and (r->>'changed_supplies')::integer=0, 'repeated clear is idempotent');
 
   c := public.get_internal_holder_portfolio_context(empty_h);
@@ -136,4 +136,4 @@ select pg_temp.assert_true((select jsonb_agg(to_jsonb(t) order by id) from publi
 select pg_temp.assert_true((select jsonb_agg(to_jsonb(t) order by id) from public.invoices t) = (select invoices from protected_state), 'historical invoice identity and values unchanged');
 select pg_temp.assert_true((select jsonb_agg(to_jsonb(t) order by invoice_id, period) from public.invoice_energy_periods t) = (select periods from protected_state), 'energy period history unchanged');
 select pg_temp.assert_true((select to_jsonb(t) from private.supply_portfolio_members t where supply_id = '40000000-0000-4000-8000-000000000004') = (select other_member from protected_state), 'another holder is never moved');
-select pg_temp.assert_true(not exists(select 1 from public.audit_log where action='holder_supply_portfolio_assigned' and (details::text like '%example.invalid%' or details::text like '%SYNTHETIC-BANK%' or details::text like '%TESTHOLDER%')), 'group audit contains no copied fiscal/contact values');
+select pg_temp.assert_true(not exists(select 1 from public.audit_log where action='holder_supply_portfolio_assigned' and (details::text like '%example.org%' or details::text like '%SYNTHETIC-BANK%' or details::text like '%TESTHOLDER%')), 'group audit contains no copied fiscal/contact values');
