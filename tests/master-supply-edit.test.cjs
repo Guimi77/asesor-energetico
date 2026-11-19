@@ -51,7 +51,11 @@ function harness({ rows = [seed()], storage = null, rejectSave = false } = {}) {
   }
   const document = {
     body: element(), activeElement: null,
-    querySelector(selector) { if (!controls.has(selector)) controls.set(selector, element(selector)); return controls.get(selector); },
+    querySelector(selector) {
+      if (selector === '#supplyName') return null; // Removed from the editor; stale accesses must fail.
+      if (!controls.has(selector)) controls.set(selector, element(selector));
+      return controls.get(selector);
+    },
     querySelectorAll() { return []; }, addEventListener() {},
   };
   const window = {
@@ -146,12 +150,14 @@ test('fallback central add is authoritative without turning incomplete imports i
 test('manual editor sends explicit nulls for cleared optional fields and preserves untouched data', async () => {
   const app = harness();
   app.open();
-  for (const id of ['supplyName', 'supplyAddress', 'supplyCity', 'supplyProvince', 'supplyTariff', 'supplyContract']) app.control('#' + id).value = '';
+  for (const id of ['supplyAddress', 'supplyCity', 'supplyProvince', 'supplyTariff', 'supplyContract']) app.control('#' + id).value = '';
   await app.submit();
   const write = app.calls.find(call => call.name === 'save_master_supply_v2');
   assert.ok(write);
-  for (const field of ['supply_name', 'address', 'city', 'province', 'tariff', 'contract_number']) assert.equal(write.args.p_payload[field], null, field);
-  for (const field of ['name', 'address', 'city', 'province', 'tariff', 'contract']) assert.equal(app.window.EnergyMaster.find(cups)[field], '', field);
+  for (const field of ['address', 'city', 'province', 'tariff', 'contract_number']) assert.equal(write.args.p_payload[field], null, field);
+  for (const field of ['address', 'city', 'province', 'tariff', 'contract']) assert.equal(app.window.EnergyMaster.find(cups)[field], '', field);
+  assert.ok(!Object.hasOwn(write.args.p_payload, 'supply_name'), 'manual form no longer edits the imported name');
+  assert.equal(app.window.EnergyMaster.find(cups).name, seed().name);
   assert.ok(!Object.hasOwn(write.args.p_payload, 'postal_code'), 'manual form does not edit postal code');
   assert.ok(!Object.hasOwn(write.args.p_payload, 'distributor'), 'manual form does not edit distributor');
   assert.equal(app.window.EnergyMaster.find(cups).postalCode, seed().postalCode);
@@ -181,18 +187,54 @@ test('an automatic retailer can be cleared but a manually fixed retailer require
   assert.match(fixed.control('#clientFormMsg').textContent, /manual.*vac[ií]a/i);
 });
 
-test('manual edits omit unavailable noneditable postal code and distributor instead of clearing them', async () => {
+test('manual edits omit unavailable noneditable name, postal code and distributor instead of clearing them', async () => {
   const partial = seed();
+  delete partial.name;
   delete partial.postalCode;
   delete partial.distributor;
   const app = harness({ rows: [partial] });
   app.open();
-  app.control('#supplyName').value = 'NOMBRE EDITADO';
+  app.control('#supplyAlias').value = 'ALIAS EDITADO';
   await app.submit();
   const payload = app.calls.find(call => call.name === 'save_master_supply_v2').args.p_payload;
   assert.ok(!Object.hasOwn(payload, 'postal_code'), 'unavailable noneditable postal code is omitted');
   assert.ok(!Object.hasOwn(payload, 'distributor'), 'unavailable noneditable distributor is omitted');
-  assert.equal(payload.supply_name, 'NOMBRE EDITADO');
+  assert.ok(!Object.hasOwn(payload, 'supply_name'), 'unavailable imported name must not clear the central value');
+  assert.equal(app.calls.find(call => call.name === 'set_internal_aliases').args.p_supply_alias, 'ALIAS EDITADO');
+});
+
+test('editing and clearing the private alias preserves the imported name', async () => {
+  for (const alias of ['ALIAS NUEVO', '']) {
+    const app = harness({ rows: [{ ...seed(), alias: 'ALIAS ANTERIOR' }] });
+    app.open();
+    assert.equal(app.control('#supplyName'), null);
+    assert.equal(app.control('#supplyAlias').value, 'ALIAS ANTERIOR');
+    app.control('#supplyAlias').value = alias;
+    await app.submit();
+    const payload = app.calls.find(call => call.name === 'save_master_supply_v2').args.p_payload;
+    assert.ok(!Object.hasOwn(payload, 'supply_name'), 'alias edits must not overwrite the imported name');
+    assert.equal(app.calls.find(call => call.name === 'set_internal_aliases').args.p_supply_alias, alias || null);
+    assert.equal(app.window.EnergyMaster.find(cups).name, seed().name);
+    assert.equal(app.window.EnergyMaster.find(cups).alias, alias);
+    const stored = JSON.parse(app.saved.get(storageKey))[0];
+    assert.equal(stored.name, seed().name);
+    assert.ok(!Object.hasOwn(stored, 'alias'), 'private alias stays out of localStorage');
+  }
+});
+
+test('a new supply can be saved with only the private alias', async () => {
+  const app = harness({ rows: [] });
+  app.control('#newClient').onclick();
+  app.control('#clientName').value = 'CLIENTE SINTETICO';
+  app.control('#holderName').value = 'TITULAR SINTETICO';
+  app.control('#clientType').value = 'EMPRESA';
+  app.control('#clientCups').value = cups;
+  app.control('#supplyAlias').value = 'ALIAS DE ALTA';
+  await app.submit();
+  const payload = app.calls.find(call => call.name === 'save_master_supply_v2').args.p_payload;
+  assert.ok(!Object.hasOwn(payload, 'supply_name'));
+  assert.equal(app.calls.find(call => call.name === 'set_internal_aliases').args.p_supply_alias, 'ALIAS DE ALTA');
+  assert.equal(app.window.EnergyMaster.find(cups).alias, 'ALIAS DE ALTA');
 });
 
 test('editing a supply cannot silently erase or replace an existing client tax identity', async () => {
@@ -223,7 +265,7 @@ test('rejected manual write leaves both cache and current supply intact', async 
   const app = harness({ rejectSave: true });
   const before = app.saved.get(storageKey);
   app.open();
-  app.control('#supplyName').value = '';
+  app.control('#supplyAlias').value = 'ALIAS RECHAZADO';
   await app.submit();
   assert.equal(app.window.EnergyMaster.find(cups).name, seed().name);
   assert.equal(app.saved.get(storageKey), before);
