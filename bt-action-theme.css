@@ -178,3 +178,108 @@ body button.client-alert-indicator:hover:not(:disabled){
 body button.client-alert-indicator:focus-visible{
   outline:2px solid #a56b1d!important;outline-offset:2px;
 }
+
+/* Visual density audit, 2026-11-19.
+   Match secondary controls to the 11–12px metadata/table scale.
+   Keep titles, KPIs, charts, icon toggles, and dropdown option hit areas intact. */
+:root{
+  --bt-control-font:11.5px;
+  --bt-control-line:1.25;
+  --bt-control-height:28px;
+  --bt-control-padding-y:5px;
+  --bt-control-padding-x:9px;
+}
+body .app-view button:not(.history-combo-option):not(.history-combo-toggle):not(.client-group-toggle):not(.client-alert-indicator),
+body .app-view input[type="button"],
+body .app-view input[type="submit"],
+body .app-view input[type="reset"]{
+  font-size:var(--bt-control-font)!important;
+  line-height:var(--bt-control-line)!important;
+  min-height:var(--bt-control-height);
+  padding:var(--bt-control-padding-y) var(--bt-control-padding-x)!important;
+  letter-spacing:normal;
+  border-radius:6px;
+  vertical-align:middle;
+}
+body .app-view button.primary,
+body .app-view input[type="submit"].primary{
+  font-size:12px!important;
+  padding:7px 11px!important;
+  min-height:32px;
+}
+body .app-view .history-detail-btn,
+body .app-view .history-change-review,
+body .app-view #historyToggleArchived,
+body .app-view .holder-supply-actions button,
+body .app-view .integrated-holder-actions button{
+  font-size:11px!important;
+  padding:4px 8px!important;
+  min-height:27px;
+  line-height:1.2!important;
+}
+body .app-view .history-review-toolbar{gap:8px!important}
+body .app-view .history-review-note,
+body .app-view .history-scope{
+  font-size:11.5px!important;
+  line-height:1.4;
+}
+body .app-view .history-event,
+body .app-view .history-mini-table,
+body .app-view .history-table{
+  font-size:12px;
+  line-height:1.4;
+}
+body .app-view .history-event-actions{margin-top:7px}
+body .app-view .history-review-empty{font-size:12px}
+body .app-view .history-combo-option{
+  font-size:12px!important;
+  min-height:30px;
+}
+body .app-view .history-combo-toggle{
+  width:30px;
+  min-width:30px;
+  min-height:30px;
+}
+body .app-view .client-group-toggle{min-height:22px}
+body .app-view .client-alert-indicator{min-height:22px}
+
+/* Preserve comfortable tap targets on touch screens without inflating desktop lists. */
+@media (pointer:coarse), (max-width:650px){
+  body .app-view button:not(.client-group-toggle):not(.client-alert-indicator),
+  body .app-view input[type="button"],
+  body .app-view input[type="submit"],
+  body .app-view input[type="reset"]{
+    min-height:40px;
+    font-size:12px!important;
+    padding:8px 10px!important;
+  }
+  body .app-view .history-combo-option{min-height:40px}
+  body .app-view .history-combo-toggle{min-height:38px;min-width:38px}
+  body .app-view .client-group-toggle{min-height:32px}
+  body .app-view .client-alert-indicator{min-height:32px}
+}
+
+/* Compact list metadata should remain readable next to the reduced actions.
+   Do not resize client names, section headings or numerical KPI values. */
+body .app-view .client-tree-title small,
+body .app-view .holder-folder summary span:last-child,
+body .app-view .holder-supply-row small,
+body .app-view .client-legal-name,
+body .app-view .supply-current-retailer,
+body .app-view .supply-current-retailer strong,
+body .app-view .supply-current-retailer-label{
+  font-size:11px!important;
+  line-height:1.35!important;
+}
+body .app-view .holder-supply-row b{
+  font-size:12px!important;
+  line-height:1.3!important;
+}
+body .app-view .history-table th,
+body .app-view .history-mini-table th{
+  font-size:11px!important;
+}
+body .app-view .history-table td,
+body .app-view .history-mini-table td{
+  font-size:12px!important;
+}
