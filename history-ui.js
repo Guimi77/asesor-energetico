@@ -192,7 +192,10 @@
       supplies = data || [];
     }
     if (clientId !== state.currentClient) return;
-    state.holders = holders || [];
+    // A holder with no linked supply has no energy history to select.
+    // Preserve archived holders that DO have supplies, so old periods remain accessible.
+    const linkedHolderIds = new Set(supplies.map(supply => supply.holder_id));
+    state.holders = (holders || []).filter(holder => linkedHolderIds.has(holder.id));
     state.supplies = supplies;
     const validHolderIds = new Set(state.holders.map(h => h.id));
     state.selectedHolders = state.selectedHolders.filter(id => validHolderIds.has(id));
