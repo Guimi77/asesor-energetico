@@ -115,3 +115,36 @@ test('History hides holder records without supplies but retains linked archived 
   const linked=new Set(supplyFixture.map(s=>s.holder_id));
   assert.deepEqual(fixture.filter(holder=>linked.has(holder.id)).map(holder=>holder.id),['current','historical']);
 });
+
+test('detected change archive key is stable across price/label changes, but not invoice or event type',()=>{
+  const keySource=chunk(ui,'  function historyChangeType(e) {','  async function loadHistoryChangeReviews');
+  const c={};
+  vm.createContext(c);
+  vm.runInContext(keySource+'\nthis.getKey=historyChangeKey;',c);
+  const base={supplyId:'supply-1',prev:{id:'invoice-1'},cur:{id:'invoice-2'},type:'Cambio de potencia observado'};
+  const key=c.getKey(base);
+  assert.equal(key,'supply-1|invoice-1|invoice-2|power');
+  assert.equal(c.getKey({...base,changes:[{before:3.45,after:5.7}],date:'different',title:'Otro'}),key);
+  assert.notEqual(c.getKey({...base,cur:{id:'invoice-3'}}),key);
+  assert.notEqual(c.getKey({...base,type:'Cambio de tarifa observado'}),key);
+});
+
+test('archived history changes are hidden by default and can be restored without modifying invoices',()=>{
+  assert.match(ui,/const visibleEvents = state\.showArchivedChanges \? events : events\.filter\(e=>!state\.archivedChanges\.has\(historyChangeKey\(e\)\)\)/);
+  assert.match(ui,/Ver archivados \(/);
+  assert.match(ui,/Restaurar/);
+  assert.match(ui,/state\.archivedChanges\.add\(key\)/);
+  assert.match(ui,/state\.archivedChanges\.delete\(key\)/);
+  assert.match(ui,/await loadHistoryChangeReviews\(supplyIds\)/);
+  assert.match(ui,/p_previous_invoice_id:e\.prev\.id/);
+  assert.match(ui,/p_current_invoice_id:e\.cur\.id/);
+  assert.match(ui,/if \(!data\?\.ok\) throw new Error/);
+  assert.match(ui,/state\.changeReviewsReady = false/);
+  const sql=source('supabase/migrations/20261119090000_history_change_reviews.sql');
+  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql,/REVOKE ALL ON TABLE private\.history_change_reviews/);
+  assert.match(sql,/private\.is_internal_user\(\)/);
+  assert.match(sql,/history_change_archived/);
+  assert.match(sql,/history_change_restored/);
+  assert.match(sql,/previous_invoice_id uuid NOT NULL REFERENCES public\.invoices/);
+});
