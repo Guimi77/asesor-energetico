@@ -999,7 +999,6 @@
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
     if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
-    $('#supplyName').value = supply.name || '';
     $('#supplyAddress').value = supply.address || '';
     $('#supplyCity').value = supply.city || '';
     $('#supplyProvince').value = supply.province || '';
@@ -1196,7 +1195,10 @@
           holder_name: holderName || null,
           holder_tax_id: holderTaxId || null,
           cups: norm(supply.cups) || null,
-          supply_name: norm(supply.name) || null,
+          // The editor only changes the private alias. Preserve the imported name,
+          // including when the local cache does not contain it.
+          ...(mode === 'fill_only' && Object.prototype.hasOwnProperty.call(supply, 'name')
+            ? { supply_name: norm(supply.name) || null } : {}),
           address: norm(supply.address) || null,
           city: norm(supply.city) || null,
           province: norm(supply.province) || null,
@@ -1322,7 +1324,6 @@
         holder: $('#holderName').value || client,
         cups,
         alias: $('#supplyAlias')?.value || '',
-        name: $('#supplyName').value,
         address: $('#supplyAddress').value,
         city: $('#supplyCity').value,
         province: $('#supplyProvince').value,
