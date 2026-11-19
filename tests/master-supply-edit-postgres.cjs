@@ -14,7 +14,7 @@ if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !==
 
 const root = path.resolve(__dirname, '..');
 const admin = '10000000-0000-4000-8000-000000000001';
-const migration = 'supabase/migrations/20261119113930_explicit_empty_supply_and_holder_fields.sql';
+const migration = 'supabase/migrations/20261119114837_explicit_empty_supply_and_holder_fields.sql';
 
 (async () => {
   const db = new Client({ connectionString });
