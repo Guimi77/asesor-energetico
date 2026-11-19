@@ -1464,5 +1464,9 @@
     status();
   }
 
+  // Alerts load independently after authentication. Refresh indicators without altering the master.
+  window.addEventListener('ibt-alerts-loaded', () => {
+    if (['admin','staff'].includes(window.ibtCurrentProfile?.role)) renderClients();
+  });
   load();
 })();
