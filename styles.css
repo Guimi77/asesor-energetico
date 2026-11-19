@@ -122,3 +122,9 @@ body .company-card .supply-current-retailer strong{
 }
 .client-group-heading .client-alert-indicator{margin-left:4px}
 .client-alert-indicator .client-alert-count{font-size:.68rem;font-weight:850}
+
+/* Supply detail opens the existing history view; edit button stays independent. */
+.holder-supply-history-link{cursor:pointer;transition:background-color .15s ease}
+.holder-supply-history-link:hover{background:#e8faf7!important}
+.holder-supply-history-link:focus-visible{outline:2px solid var(--bt-teal-deep,#006b68);outline-offset:-2px;background:#e8faf7!important}
+.holder-supply-history-link:hover>div:first-child>b{text-decoration:underline;text-decoration-color:var(--bt-teal-deep,#006b68)}
