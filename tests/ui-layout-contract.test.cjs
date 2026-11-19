@@ -210,3 +210,21 @@ test('client supply row opens exact supply history without hijacking editing',()
   assert.match(masterUi,/grid\.querySelectorAll\('\.edit-supply-tree'\)/);
   assert.match(css,/\.holder-supply-history-link:focus-visible/);
 });
+
+test('compact control density balances non-title text and buttons across application',()=>{
+  const css=fs.readFileSync(path.join(root,'bt-action-theme.css'),'utf8');
+  const themeLink=html.match(/bt-action-theme\.css\?v=([a-f0-9]{12})/);
+  assert.ok(themeLink,'style cache token');
+  assert.match(css,/--bt-control-font:11\.5px/);
+  assert.match(css,/--bt-control-height:28px/);
+  assert.match(css,/body \.app-view button:not\(\.history-combo-option\)/);
+  assert.match(css,/body \.app-view \.history-detail-btn/);
+  assert.match(css,/body \.app-view \.history-change-review/);
+  assert.match(css,/body \.app-view \.client-tree-title small/);
+  assert.match(css,/body \.app-view \.holder-supply-row small/);
+  assert.match(css,/body \.app-view \.history-table td/);
+  assert.match(css,/@media \(pointer:coarse\), \(max-width:650px\)/);
+  assert.match(css,/min-height:40px/);
+  assert.doesNotMatch(css,/body \.app-view h[1-6]\s*\{/);
+  assert.doesNotMatch(css,/body \.app-view \.history-kpi strong\s*\{/);
+});
