@@ -135,3 +135,9 @@ test('retailer name alone receives BT palette color',()=>{
   assert.match(css,/body \.company-card \.supply-current-retailer strong\{[\s\S]*?color:var\(--bt-teal-deep,#006b68\)!important/);
   assert.match(theme,/body button\.client-alert-indicator/);
 });
+
+test('alert list binds every status selector using a collection, including zero or many alerts',()=>{
+  assert.match(alerts,/\$\$\('\.alert-status', host\)\.forEach\(select => select\.addEventListener\('change'/);
+  assert.doesNotMatch(alerts,/(?<!\$)\$\('\.alert-status', host\)\.forEach/);
+  assert.match(alerts,/const \$\$ = \(selector, root = document\) => \[\.\.\.root\.querySelectorAll\(selector\)\]/);
+});
