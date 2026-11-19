@@ -351,3 +351,80 @@ body .app-view .history-table td,
 body .app-view .history-mini-table td{
   font-size:12px!important;
 }
+
+/* Client hierarchy framing 2026-11-19.
+   Presentation only: clearer group > holder > supply boundaries without changing data or behaviour. */
+body #clientesView .company-grid{
+  gap:10px;
+}
+body #clientesView .company-card-tree{
+  --client-frame:var(--bt-teal,#009b91);
+  border:1px solid var(--client-frame);
+  border-radius:9px;
+  overflow:hidden;
+  background:#fff;
+}
+body #clientesView .company-card-tree.client-type-grupo,
+body #clientesView .company-card-tree.business-group-client{
+  --client-frame:var(--bt-teal-deep,#006b68);
+  border-width:2px;
+}
+body #clientesView .company-card-tree>.client-tree-title{
+  border-bottom:1px solid var(--client-frame);
+}
+body #clientesView .company-card-tree>.client-group-contents{
+  padding:8px 9px 9px;
+  background:#fff;
+}
+body #clientesView .company-card-tree .holder-tree{
+  gap:8px;
+}
+body #clientesView .company-card-tree .holder-folder{
+  border:1px solid #8dcfc7;
+  border-radius:7px;
+  overflow:hidden;
+  background:#fff;
+}
+body #clientesView .company-card-tree .holder-folder>summary{
+  background:#f2fbf9;
+  border-bottom:1px solid #b3e0da;
+  box-shadow:inset 3px 0 0 var(--bt-teal,#009b91);
+}
+body #clientesView .company-card-tree .holder-folder>summary:hover{
+  background:#e8f7f4;
+}
+body #clientesView .company-card-tree .holder-folder>.holder-supplies{
+  margin:0;
+  padding:2px 8px 8px;
+  border:0;
+  background:#fff;
+}
+body #clientesView .company-card-tree .holder-supply-row{
+  margin-top:6px;
+  padding:7px 9px;
+  border:1px solid #d2e5e2;
+  border-radius:6px;
+  background:#fff;
+}
+body #clientesView .company-card-tree .holder-supply-row:last-of-type{
+  border-bottom:1px solid #d2e5e2;
+}
+body #clientesView .company-card-tree .holder-supply-row:hover{
+  background:#f8fcfb;
+}
+body #clientesView .company-card-tree .holder-supplies>.company-link{
+  margin:8px 2px 0;
+}
+@media(max-width:700px){
+  body #clientesView .company-grid{gap:8px}
+  body #clientesView .company-card-tree>.client-group-contents{padding:7px}
+  body #clientesView .company-card-tree .holder-tree{gap:7px}
+  body #clientesView .company-card-tree .holder-folder>.holder-supplies{
+    margin:0;
+    padding:2px 7px 7px;
+  }
+  body #clientesView .company-card-tree .holder-supply-row{
+    padding:7px 8px;
+  }
+}
+
