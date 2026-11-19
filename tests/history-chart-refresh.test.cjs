@@ -148,3 +148,11 @@ test('archived history changes are hidden by default and can be restored without
   assert.match(sql,/history_change_restored/);
   assert.match(sql,/previous_invoice_id uuid NOT NULL REFERENCES public\.invoices/);
 });
+
+test('history archive and detail action listeners bind all buttons, not one query result',()=>{
+  const selector=String.fromCharCode(36,36);
+  assert.ok(ui.includes(selector+"('.history-change-review',host).forEach"));
+  assert.ok(ui.includes(selector+"('.history-detail-btn', host).forEach"));
+  assert.ok(!ui.includes(String.fromCharCode(36)+"('.history-change-review',host).forEach"));
+  assert.ok(!ui.includes(String.fromCharCode(36)+"('.history-detail-btn', host).forEach"));
+});
