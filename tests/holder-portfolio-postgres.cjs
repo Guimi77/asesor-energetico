@@ -74,7 +74,7 @@ const fullState = async (client) => (await client.query(`select jsonb_build_obje
       'supabase/migrations/20261118113000_supply_portfolios.sql',
       'supabase/migrations/20261119104956_holder_commercial_portfolio_assignment.sql',
       'supabase/migrations/20261119114837_explicit_empty_supply_and_holder_fields.sql',
-      'supabase/migrations/20261119122957_holder_profile_client_alias.sql',
+      'supabase/migrations/20261119123942_holder_profile_client_alias.sql',
       'tests/holder-portfolio-regression.sql',
       'tests/holder-portfolio-alias-regression.sql',
     ]) {
