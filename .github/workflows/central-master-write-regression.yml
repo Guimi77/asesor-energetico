@@ -12,10 +12,13 @@ on:
       - 'supabase/migrations/20261001104000_canonical_cups_identity.sql'
       - 'supabase/migrations/20261117113606_add_private_client_contact_details.sql'
       - 'supabase/migrations/20261117125021_supply_power_profile_fields.sql'
+      - 'supabase/migrations/*explicit_empty_supply_and_holder_fields.sql'
       - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
       - 'tests/client-contact-details.test.cjs'
       - 'tests/supply-power-profile.test.cjs'
+      - 'tests/master-supply-edit*'
+      - 'tests/holder-portfolio-fixture.sql'
       - '.github/workflows/central-master-write-regression.yml'
   pull_request:
     paths:
@@ -28,11 +31,17 @@ on:
       - 'supabase/migrations/20261001104000_canonical_cups_identity.sql'
       - 'supabase/migrations/20261117113606_add_private_client_contact_details.sql'
       - 'supabase/migrations/20261117125021_supply_power_profile_fields.sql'
+      - 'supabase/migrations/*explicit_empty_supply_and_holder_fields.sql'
       - 'client-archive-integrated.js'
       - 'tests/central-master-write.test.cjs'
       - 'tests/client-contact-details.test.cjs'
       - 'tests/supply-power-profile.test.cjs'
+      - 'tests/master-supply-edit*'
+      - 'tests/holder-portfolio-fixture.sql'
       - '.github/workflows/central-master-write-regression.yml'
+
+permissions:
+  contents: read
 
 jobs:
   regression:
@@ -42,4 +51,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/central-master-write.test.cjs tests/client-contact-details.test.cjs tests/supply-power-profile.test.cjs
+      - run: node --test tests/central-master-write.test.cjs tests/client-contact-details.test.cjs tests/supply-power-profile.test.cjs tests/master-supply-edit.test.cjs
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: master_supply_edit_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MASTER_SUPPLY_EDIT_TEST_DATABASE_URL: postgres://postgres:synthetic-test-password@localhost:5432/master_supply_edit_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --package-lock=false pg@8.16.3
+      - run: node --check tests/master-supply-edit-postgres.cjs
+      - run: node tests/master-supply-edit-postgres.cjs

@@ -186,6 +186,53 @@ body .client-type-grupo > .client-tree-title button.client-group-toggle:focus-vi
   outline-color: #fff !important;
 }
 
+/* Holder headers and their indented white supplies form a distinct second level. */
+body .company-card-tree .holder-folder {
+  background: #fff;
+  border-bottom-color: var(--bt-action-light-hover, #b3e9df);
+}
+body .company-card-tree .holder-folder > summary {
+  background: var(--bt-action-light, #d4f3ed);
+  border-bottom: 1px solid var(--bt-action-light-hover, #b3e9df);
+  box-shadow: inset 4px 0 0 var(--bt-teal, #009b91);
+  color: #064e47;
+}
+body .company-card-tree .holder-folder > summary:hover {
+  background: var(--bt-action-light-hover, #b3e9df);
+}
+body .company-card-tree .holder-folder > summary:focus-visible {
+  outline: 2px solid var(--bt-teal-deep, #006b68);
+  outline-offset: -2px;
+}
+body .company-card-tree .holder-folder > summary .holder-title-main > strong {
+  color: #064e47;
+  font-size: .84rem;
+  font-weight: 800;
+}
+body .company-card-tree .holder-folder > summary .holder-contact-label,
+body .company-card-tree .holder-folder > summary .holder-contact-value,
+body .company-card-tree .holder-folder > summary .integrated-holder-tax,
+body .company-card-tree .holder-folder > summary .holder-client-name,
+body .company-card-tree .holder-folder > summary > span:not([class]) {
+  color: #315b55;
+}
+body .company-card-tree .holder-folder > .holder-supplies {
+  margin: 0 12px 6px 34px;
+  padding: 0 0 4px 12px;
+  border-top: 0;
+  border-left: 2px solid var(--bt-action-light-hover, #b3e9df);
+  background: #fff;
+}
+@media (max-width:700px) {
+  body .company-card-tree .holder-folder > summary {
+    padding-left: 16px;
+  }
+  body .company-card-tree .holder-folder > .holder-supplies {
+    margin-left: 22px;
+    padding-left: 10px;
+  }
+}
+
 /* An alert marker is not a general action button. Warm warning accent, accessible click target. */
 body button.client-alert-indicator{
   display:inline-flex;align-items:center;justify-content:center;gap:4px;

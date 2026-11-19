@@ -524,3 +524,31 @@ test('central portfolios are loaded independently from client and holder identit
   const rows=last?.rows || last?.supplies || last;
   assert.ok(JSON.stringify(rows).includes('Pepe vecino'));
 });
+
+test('fallback sync marks central values authoritative, including explicit blanks', async () => {
+  const { window, added, datasets } = buildHarness('admin');
+  delete window.EnergyMaster.replaceActiveFromCentral;
+  datasets.supplies[0].supply_name = null;
+  datasets.supplies[0].contracted_power_kw = {};
+  await window.CentralSupabaseMaster.reload();
+  const synced = added.find(entry => entry.item.supplyId === 's-xtra-1');
+  assert.ok(synced);
+  assert.equal(synced.item.name, '');
+  assert.equal(synced.item.p1, '');
+  assert.equal(synced.options.authoritative, true, 'fallback must not restore values from stale local rows');
+  assert.equal(synced.options.fillOnly, false);
+});
+
+test('an explicitly cleared holder profile suppresses the legacy client fallback', async () => {
+  const { window, replacements } = buildHarness('admin', {
+    billingProfiles: {
+      holders: { 'holder-xtra-1': {} }, supplies: {},
+      legacy_clients: { 'client-xtra': { email: 'legacy@example.org', phone: '1234', bank_account: 'SYNTHETIC-BANK' } },
+    },
+  });
+  await window.CentralSupabaseMaster.reload();
+  const row = replacements.at(-1).find(item => item.holderId === 'holder-xtra-1');
+  for (const field of ['holderEmail', 'holderPhone', 'holderBankAccount', 'effectiveEmail', 'effectivePhone', 'effectiveBankAccount']) {
+    assert.equal(row[field], '', field + ' must stay empty instead of recovering legacy client contact');
+  }
+});

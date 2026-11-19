@@ -74,7 +74,8 @@
     }
     return out;
   };
-  const powerPeriodCount = (tariff = '') => /^(?:3\.0TD|6\.[1-4]TD)$/i.test(norm(tariff)) ? 6 : 2;
+  // Unknown/cleared tariffs must not hide and erase existing P3-P6 values.
+  const powerPeriodCount = (tariff = '') => /^2\.0TD$/i.test(norm(tariff)) ? 2 : 6;
   const holderDefaultsFor = (supply = {}) => ({
     email: norm(supply.holderEmail),
     phone: norm(supply.holderPhone),
@@ -164,14 +165,14 @@
       holder: norm(raw.holder) || company,
       status: norm(raw.status) || 'ACTIVO',
       cups: norm(raw.cups).replace(/\s/g, ''),
-      alias: norm(raw.alias || raw.supplyAlias),
-      retailer: semanticText(raw.retailer || raw.commercializer),
+      alias: norm(raw.alias ?? raw.supplyAlias),
+      retailer: semanticText(raw.retailer ?? raw.commercializer),
       manualRetailer: semanticText(raw.manualRetailer),
       distributor: semanticText(raw.distributor),
     };
   }
 
-  function mergeSupply(existing, incoming, { fillOnly = false, preserveIdentity = false } = {}) {
+  function mergeSupply(existing, incoming, { fillOnly = false, preserveIdentity = false, authoritative = false } = {}) {
     const merged = { ...existing };
     const identityFields = new Set(['client', 'clientTaxId', 'type', 'company', 'holder']);
 
@@ -189,6 +190,15 @@
       'alias',
     ]);
     for (const [field, value] of Object.entries(incoming)) {
+      // A central snapshot describes the current value, including explicit
+      // clears. Iterate its raw keys so omitted fields keep local-only data
+      // instead of being erased by defaults added during normalization.
+      if (authoritative && !fillOnly) {
+        if (value === undefined) continue;
+        if (preserveIdentity && identityFields.has(field) && !empty(merged[field])) continue;
+        merged[field] = value === null ? '' : value;
+        continue;
+      }
       if (empty(value)) {
         if (!fillOnly && clearableFields.has(field)) merged[field] = '';
         continue;
@@ -218,6 +228,7 @@
     allowMove = false,
     fillOnly = false,
     preserveIdentity = false,
+    authoritative = false,
   } = {}) {
     let incoming = normalizeSupply(raw);
     const idx = supplies.findIndex((item) => cupsKey(item.cups) === cupsKey(incoming.cups));
@@ -244,7 +255,7 @@
       }
 
       const before = JSON.stringify(existing);
-      supplies[idx] = mergeSupply(existing, incoming, { fillOnly, preserveIdentity });
+      supplies[idx] = mergeSupply(existing, authoritative ? raw : incoming, { fillOnly, preserveIdentity, authoritative });
       return {
         ok: true,
         updated: true,
@@ -261,6 +272,9 @@
     try {
       const safeSupplies = supplies.map(({
         clientAlias,
+        clientEmail,
+        clientPhone,
+        clientBankAccount,
         holderEmail,
         holderPhone,
         holderBankAccount,
@@ -271,6 +285,7 @@
         effectivePhone,
         effectiveBankAccount,
         alias,
+        supplyAlias,
         ...supply
       }) => supply);
       localStorage.setItem(STORAGE, JSON.stringify(safeSupplies));
@@ -577,7 +592,7 @@
 
       const existing = previousByKey.get(wanted);
       const merged = existing
-        ? mergeSupply(existing, incoming, { fillOnly: false, preserveIdentity: false })
+        ? mergeSupply(existing, raw, { fillOnly: false, preserveIdentity: false, authoritative: true })
         : incoming;
 
       if (!existing) {
@@ -1068,9 +1083,11 @@
       label.hidden = period > count;
     });
     const hint = $('#contractedPowerHint');
-    if (hint) hint.textContent = count === 6
-      ? 'Tarifa con seis periodos de potencia: P1-P6.'
-      : 'Tarifa 2.0TD: potencia contratada P1 y P2.';
+    if (hint) hint.textContent = count === 2
+      ? 'Tarifa 2.0TD: potencia contratada P1 y P2.'
+      : /^(?:3\.0TD|6\.[1-4]TD)$/i.test(norm($('#supplyTariff')?.value))
+        ? 'Tarifa con seis periodos de potencia: P1-P6.'
+        : 'Indica la tarifa para identificar sus periodos. Se conservan las potencias P1-P6 disponibles.';
   }
 
   async function persistPowerProfile(cups, supply, { mode = 'manual', source = 'manual' } = {}) {
@@ -1183,11 +1200,15 @@
           address: norm(supply.address) || null,
           city: norm(supply.city) || null,
           province: norm(supply.province) || null,
-          postal_code: norm(supply.postalCode) || null,
+          // The manual form does not edit these two fields. Omitting them
+          // avoids sending an old/absent cache value as an intentional clear.
+          ...(mode === 'fill_only' && Object.prototype.hasOwnProperty.call(supply, 'postalCode')
+            ? { postal_code: norm(supply.postalCode) || null } : {}),
           tariff: norm(supply.tariff) || null,
           contract_number: norm(supply.contract) || null,
           retailer: norm(supply.retailer) || null,
-          distributor: norm(supply.distributor) || null,
+          ...(mode === 'fill_only' && Object.prototype.hasOwnProperty.call(supply, 'distributor')
+            ? { distributor: norm(supply.distributor) || null } : {}),
         },
       });
       if (error) throw error;
@@ -1264,6 +1285,14 @@
       const existingBefore = editingCups
         ? supplies.find((supply) => cupsKey(supply.cups) === cupsKey(editingCups))
         : null;
+      if (existingBefore?.clientTaxId && key($('#clientTaxId').value) !== key(existingBefore.clientTaxId)) {
+        $('#clientFormMsg').textContent = 'El NIF/CIF existente no se puede borrar ni sustituir desde un suministro. Revisa la identidad en «Editar titular».';
+        return;
+      }
+      if (existingBefore?.holderId && norm($('#holderName').value) !== norm(existingBefore.holder || existingBefore.company)) {
+        $('#clientFormMsg').textContent = 'El nombre del titular no se puede borrar ni cambiar desde esta ficha. Utiliza «Editar titular».';
+        return;
+      }
       const requestedRetailer = norm($('#supplyRetailer').value);
       const manualRetailerChanged = Boolean(requestedRetailer) &&
         (!existingBefore || requestedRetailer !== norm(existingBefore.retailer));
@@ -1306,7 +1335,8 @@
         p5: visiblePowerPeriods >= 5 ? kwValue($('#supplyPowerP5').value) : '',
         p6: visiblePowerPeriods >= 6 ? kwValue($('#supplyPowerP6').value) : '',
         maxContractablePower: kwValue($('#supplyMaxContractablePower').value),
-        retailer: existingBefore?.retailer || '',
+        // Empty clears an automatic value; nonempty changes use the manual RPC below.
+        retailer: requestedRetailer ? (existingBefore?.retailer || '') : '',
         manualRetailer: existingBefore?.manualRetailer || '',
         status: 'ACTIVO',
       };
