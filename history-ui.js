@@ -799,7 +799,7 @@
     } finally { state.changingReview = false; }
   }
 
-  function renderContractEvent(e) {
+  function renderContractEvent(e, {archived = false, allowReview = false} = {}) {
     const s=supplyById(e.supplyId),h=holderForSupply(s);
     const name=s?.supply_name||s?.address||'Suministro';
     const rows=e.changes.map(c=>{
@@ -810,8 +810,7 @@
       return '<tr><td>'+esc(c.label)+'</td><td>'+esc(before)+'</td><td><strong>'+esc(after)+'</strong></td><td>'+esc(difference)+'</td></tr>';
     }).join('');
     const source=r=>esc(r.invoice_number||'Sin referencia')+' · '+dateES(r.billing_start)+' – '+dateES(r.billing_end);
-    const archived = state.archivedChanges.has(historyChangeKey(e));
-    const action = state.changeReviewsReady && ['admin','staff'].includes(window.ibtCurrentProfile?.role)
+    const action = allowReview
       ? '<div class="history-event-actions"><button type="button" class="history-change-review" data-event-key="'+esc(historyChangeKey(e))+'">'+(archived?'Restaurar':'Archivar')+'</button></div>'
       : '';
     return '<div class="history-event'+(archived?' history-event-archived':'')+'"><div><small>Inicio del periodo posterior</small><br><strong>'+dateES(e.date)+'</strong></div><b>'+esc(e.type)+'</b><div><strong>'+esc(name)+'</strong><p class="history-scope">'+esc([h?.legal_name,s?.cups].filter(Boolean).join(' · '))+'</p><table class="history-mini-table"><thead><tr><th>Concepto</th><th>Antes</th><th>Después</th><th>Diferencia</th></tr></thead><tbody>'+rows+'</tbody></table><p class="history-scope">Registro anterior: '+source(e.prev)+'<br>Registro posterior: '+source(e.cur)+'</p>'+action+'</div></div>';
@@ -928,7 +927,7 @@
         ${state.changeReviewsError ? '<p class="history-review-error" role="alert">'+esc(state.changeReviewsError)+'</p>' : ''}
         <div class="history-review-toolbar"><span class="history-review-note">${events.length-archivedCount} sin archivar · ${archivedCount} archivado${archivedCount===1?'':'s'}</span>
         ${archivedCount ? '<button type="button" id="historyToggleArchived" class="secondary">'+(state.showArchivedChanges?'Ocultar archivados':'Ver archivados ('+archivedCount+')')+'</button>' : ''}</div>
-        <div class="history-events">${visibleEvents.length ? visibleEvents.map(renderContractEvent).join('') : '<div class="history-review-empty">Todos los cambios detectados están archivados.</div>'}</div>
+        <div class="history-events">${visibleEvents.length ? visibleEvents.map(e=>renderContractEvent(e,{archived:state.archivedChanges.has(historyChangeKey(e)),allowReview:state.changeReviewsReady && ['admin','staff'].includes(window.ibtCurrentProfile?.role)})).join('') : '<div class="history-review-empty">Todos los cambios detectados están archivados.</div>'}</div>
       </section>` : ''}
       ${renderRecommendations(records)}`;
 
