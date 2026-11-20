@@ -63,12 +63,15 @@
             <div class="alerts-toolbar">
               <label>Cliente<select id="alertsClient"></select></label>
               <label>Estado<select id="alertsStatus"><option value="active">Pendientes y en revisión</option><option value="open">Pendientes</option><option value="reviewing">En revisión</option><option value="resolved">Resueltas</option><option value="dismissed">Descartadas</option><option value="all">Todas</option></select></label>
+              <button type="button" id="alertsPdfReport" class="secondary" disabled title="Selecciona un cliente; después elige Guardar como PDF en la impresión">Informe PDF</button>
             </div>
           </section>
           <div id="alertsContent"><div class="alerts-loading">Cargando alertas…</div></div>
         </div>`;
     }
     injectStyles();
+    const reportButton = $('#alertsPdfReport');
+    if (reportButton) reportButton.onclick = printSelectedClientReport;
     return view;
   }
 
@@ -169,6 +172,73 @@
     return `<article class="alert-card" data-id="${esc(incident.id)}" data-severity="${Number(incident.severity)||1}"><div><h3>${esc(incident.title)}</h3><span class="alert-identity">${esc(name)}${identity?` · ${esc(identity)}`:''}</span><p class="alert-description">${esc(incident.description || 'Pendiente de revisar.')}</p><div class="alert-meta"><span class="alert-priority">${esc(priorityLabel(incident.severity))}</span><span>Detectada ${esc(dateES(incident.detected_at))}</span></div></div><div class="alert-status-box"><label>Seguimiento<select class="alert-status" data-id="${esc(incident.id)}"><option value="open" ${incident.status==='open'?'selected':''}>Pendiente</option><option value="reviewing" ${incident.status==='reviewing'?'selected':''}>En revisión</option><option value="resolved" ${incident.status==='resolved'?'selected':''}>Resuelta</option><option value="dismissed" ${incident.status==='dismissed'?'selected':''}>Descartada</option></select></label></div></article>`;
   }
 
+  // Safe, client-scoped print report.
+  // Printable report is generated entirely in the browser from validated, already
+  // loaded alert records. The customer does not gain access to the internal page.
+  function buildClientAlertReport(client, entries, reportDate) {
+    const clean = (value) => esc(value === null || value === undefined ? '' : String(value));
+    const statusText = (value) => statusLabel(value);
+    const count = entries.length;
+    const rows = entries.map(({incident, supply, holder}, index) => {
+      const supplyName = supply?.supply_name || supply?.address || 'Suministro sin nombre';
+      return '<section class="alert">'
+        + '<div class="alert-num">' + (index + 1) + '. ' + clean(incident.title) + '</div>'
+        + '<p class="meta"><strong>Suministro:</strong> ' + clean(supplyName)
+        + ' | <strong>CUPS:</strong> ' + clean(supply?.cups || 'No disponible') + '</p>'
+        + '<p class="meta"><strong>Titular:</strong> ' + clean(holder?.legal_name || 'No disponible') + '</p>'
+        + '<p class="meta"><strong>Prioridad:</strong> ' + clean(priorityLabel(incident.severity))
+        + ' | <strong>Estado:</strong> ' + clean(statusText(incident.status))
+        + ' | <strong>Detección:</strong> ' + clean(dateES(incident.detected_at)) + '</p>'
+        + '<p class="detail">' + clean(incident.description || 'Pendiente de revisar.') + '</p>'
+        + '</section>';
+    }).join('');
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+      + '<title>Informe de alertas energéticas</title><style>'
+      + '@page{size:A4;margin:16mm 15mm}body{font:12px/1.5 Arial,Helvetica,sans-serif;color:#17263e;margin:0}'
+      + 'h1{font-size:22px;margin:0 0 6px;color:#142d53}h2{font-size:15px;margin:0 0 8px}'
+      + '.intro{border-bottom:2px solid #173b69;padding-bottom:16px;margin-bottom:20px}'
+      + '.muted,.meta{color:#4c5b6c}.meta{font-size:11px;margin:4px 0}.alert{break-inside:avoid;page-break-inside:avoid;border-bottom:1px solid #d6dfea;padding:10px 0 14px}'
+      + '.alert-num{font-weight:bold;font-size:14px}.detail{white-space:pre-wrap;margin:9px 0 0}'
+      + '.summary{padding:10px 12px;background:#eef2f7;margin-bottom:12px}'
+      + '.disclaimer{font-size:10px;color:#56657a;border-top:1px solid #d6dfea;padding-top:12px;margin-top:22px}'
+      + '</style></head><body><header class="intro"><h1>Informe de alertas energéticas</h1>'
+      + '<p class="meta"><strong>ELECTRICA BT MALLORCA S.L.</strong></p>'
+      + '<p><strong>Cliente:</strong> ' + clean(client.name) + '</p>'
+      + '<p class="meta">Fecha del informe: ' + clean(reportDate) + '</p></header>'
+      + '<div class="summary"><strong>' + count + ' alerta' + (count===1?'':'s') + ' incluida' + (count===1?'':'s') + '</strong></div>'
+      + '<main>' + rows + '</main>'
+      + '<p class="disclaimer">Las alertas son observaciones técnicas para revisión. No constituyen una garantía de ahorro, una valoración económica ni una instrucción de cambio de contrato. El contenido refleja las alertas seleccionadas en la fecha del informe.</p>'
+      + '</body></html>';
+  }
+
+  function printSelectedClientReport() {
+    if (!isInternal() || state.loading || !state.clientId) return;
+    const client = state.clients.find(item => item.id === state.clientId);
+    if (!client) return;
+    // Fail closed: require an exact client -> holder -> supply relation for every row.
+    const entries = filteredIncidents().map(incident => {
+      const {client: owner, holder, supply} = incidentContext(incident);
+      return owner?.id === client.id && holder && supply ? {incident, holder, supply} : null;
+    }).filter(Boolean);
+    if (!entries.length || entries.length !== filteredIncidents().length) {
+      alert('No se puede generar el informe: alguna alerta carece de una relación de cliente y suministro validada.');
+      return;
+    }
+    const iframe = document.createElement('iframe');
+    iframe.title = 'Informe imprimible de alertas';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-10000px;top:0';
+    iframe.addEventListener('load', () => {
+      const printWindow = iframe.contentWindow;
+      if (!printWindow) return;
+      printWindow.addEventListener('afterprint', () => iframe.remove(), {once:true});
+      printWindow.focus();
+      printWindow.print();
+    }, {once:true});
+    iframe.srcdoc = buildClientAlertReport(client, entries, new Date().toLocaleDateString('es-ES'));
+    document.body.appendChild(iframe);
+  }
+
   function render() {
     const host = $('#alertsContent');
     if (!host) return;
@@ -192,6 +262,8 @@
         <article class="card alerts-kpi"><small>Total</small><strong>${counts.total}</strong><span>alertas guardadas para este cliente</span></article>
       </section>
       <section class="card" style="padding:18px"><div class="section-head"><div><p class="eyebrow">Bandeja interna</p><h2 style="margin:0">Qué tenemos pendiente</h2></div><span class="history-pill">${list.length} visible${list.length===1?'':'s'}</span></div>${state.focusedCups ? `<div class="alerts-focused-supplies"><span>Mostrando alertas de ${state.focusedCups.size} suministro${state.focusedCups.size===1?'':'s'} seleccionado${state.focusedCups.size===1?'':'s'} en Clientes.</span><button type="button" id="clearAlertsSupplyFocus" class="secondary">Ver todos los suministros</button></div>` : ''}<p class="alerts-note">Las alertas aparecen aquí solo cuando alguien de ELECTRICA BT decide seguirlas desde la pantalla de Análisis. No se crean presupuestos ni cifras de ahorro automáticamente.</p><div class="alerts-list" style="margin-top:12px">${list.length ? list.map(card).join('') : '<div class="alerts-empty">No hay alertas en este estado. Desde <strong>Análisis</strong> puedes añadir un punto que quieras seguir.</div>'}</div></section>`;
+    const pdfButton = $('#alertsPdfReport');
+    if (pdfButton) pdfButton.disabled = !isInternal() || !state.clientId || !list.length;
     $$('.alert-status', host).forEach(select => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
     $('#clearAlertsSupplyFocus')?.addEventListener('click', () => { state.focusedCups = null; render(); });
   }
