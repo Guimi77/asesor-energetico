@@ -78,6 +78,21 @@ test('report contains only selected client alerts and preserves original evidenc
   assert.match(r.doc,/no constituyen una garantía de ahorro/i);
 });
 
+test('corporate design uses the existing Energia BT logo, palette and official client name, never an alias',()=>{
+  const r=setup([{id:'a',supply_id:'supply-a',title:'Comprobación',description:'Revisar.',severity:4,status:'open'}]);
+  r.context.state.clients[0].alias='ALIAS INTERNO OMITIR';
+  r.context.state.clients[0].clientAlias='ALIAS COMERCIAL OMITIR';
+  r.context.printSelectedClientReport();
+  assert.match(r.doc,/assets\/energia-bt-lateral\.jpg/);
+  assert.match(r.doc,/BT Energía - Informe de alertas - Cliente Uno/);
+  assert.match(r.doc,/class="client-name">Cliente Uno<\/div>/);
+  assert.match(r.doc,/#00a99d/i);
+  assert.match(r.doc,/energia@electricabt\.com/);
+  assert.match(r.doc,/636 078 960/);
+  assert.doesNotMatch(r.doc,/ALIAS INTERNO OMITIR|ALIAS COMERCIAL OMITIR/);
+  assert.doesNotMatch(reportSource,/client\.alias|client\.clientAlias/);
+});
+
 test('report encodes arbitrary text as HTML and cannot include markup from incident descriptions',()=>{
   const r=setup([{id:'a',supply_id:'supply-a',title:'<img src=x onerror=alert(1)>',
     description:'<script>steal()</script> & detalles',severity:1,status:'reviewing'}]);
