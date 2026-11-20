@@ -4,6 +4,14 @@ const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u03
 function initClientSearch(){
   const input=document.querySelector('#clientSearch'),grid=document.querySelector('#companyGrid');
   if(!input||!grid)return;
+  const emptyMessage=document.createElement('p');
+  emptyMessage.id='clientSearchEmptyMessage';
+  emptyMessage.setAttribute('role','status');
+  emptyMessage.setAttribute('aria-live','polite');
+  emptyMessage.textContent='Ups! Creo que te equivocas, no he encontrado nada.';
+  emptyMessage.style.cssText='text-align:center;padding:24px 12px;color:var(--muted,#64748b)';
+  emptyMessage.hidden=true;
+  grid.insertAdjacentElement('afterend',emptyMessage);
   function apply(){
     const q=norm(input.value).trim();
     grid.querySelectorAll('.company-card-tree').forEach(card=>{
@@ -31,6 +39,8 @@ function initClientSearch(){
       });
       card.hidden=!(cardMatch||visibleFolders>0);
     });
+    const cards=grid.querySelectorAll('.company-card-tree');
+    emptyMessage.hidden=!q||!cards.length||Array.from(cards).some(card=>!card.hidden);
   }
   input.addEventListener('input',apply);
   const observer=new MutationObserver(apply);
