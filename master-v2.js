@@ -91,7 +91,29 @@
     ? [norm(supply.alias), norm(supply.address)].filter(Boolean).join(' - ') || supply.cups || 'Suministro'
     : supply.name || supply.address || 'Suministro';
 
+  // Keep browser history in step with the existing single-page sections.
+  // Do not store customer data or change the URL; only the section name.
+  let restoringBrowserView = false;
+  const navLinkFor = (name) => document.querySelector(
+    '.sidebar [data-view="' + String(name).replace(/[^a-z]/g, '') + '"]'
+  );
+  const viewAllowed = (name) => {
+    const link = navLinkFor(name);
+    return Boolean(link && document.getElementById(name + 'View') &&
+      !link.classList.contains('hidden') &&
+      link.getAttribute('aria-hidden') !== 'true' &&
+      getComputedStyle(link).display !== 'none');
+  };
+
   function show(name) {
+    if (!viewAllowed(name)) return;
+    const previous = document.querySelector('.sidebar [data-view].active')?.dataset.view;
+    if (!restoringBrowserView && previous && name !== previous) {
+      // The first Back must return to the section we were on, not leave the app.
+      const state = history.state && typeof history.state === 'object' ? history.state : {};
+      history.replaceState({ ...state, ibtSection: previous }, '', location.href);
+      history.pushState({ ...state, ibtSection: name }, '', location.href);
+    }
     document.querySelectorAll('.app-view').forEach((view) => view.classList.add('hidden'));
     const target = $(`#${name}View`);
     if (target) target.classList.remove('hidden');
@@ -108,6 +130,25 @@
 
   document.querySelectorAll('.sidebar [data-view]').forEach((link) => {
     link.addEventListener('click', () => show(link.dataset.view));
+  });
+
+  window.addEventListener('popstate', (event) => {
+    const name = event.state?.ibtSection;
+    if (!name) return;
+    // Auth may have changed since a history entry was created.
+    const accessible = viewAllowed(name) ? name : (viewAllowed('historico') ? 'historico' : null);
+    if (!accessible) return;
+    if (accessible !== name) {
+      const state = event.state && typeof event.state === 'object' ? event.state : {};
+      history.replaceState({ ...state, ibtSection: accessible }, '', location.href);
+    }
+    restoringBrowserView = true;
+    try {
+      // Reuse normal sidebar navigation, including other section listeners.
+      navLinkFor(accessible).click();
+    } finally {
+      restoringBrowserView = false;
+    }
   });
 
   function pick(row, names) {
