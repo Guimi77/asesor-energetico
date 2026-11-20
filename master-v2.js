@@ -91,6 +91,14 @@
     ? [norm(supply.alias), norm(supply.address)].filter(Boolean).join(' - ') || supply.cups || 'Suministro'
     : supply.name || supply.address || 'Suministro';
 
+  // Distinct same-origin URLs make the browser's Back/Forward stack observable.
+  // Preserve existing query parameters and auth callback fragments.
+  const sectionUrl = (name) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('ibt_view', name);
+    return url.pathname + url.search + url.hash;
+  };
+
   // Keep browser history in step with the existing single-page sections.
   // Do not store customer data or change the URL; only the section name.
   let restoringBrowserView = false;
@@ -110,8 +118,8 @@
     if (!restoringBrowserView && previous && name !== previous) {
       // The first Back must return to the section we were on, not leave the app.
       const state = history.state && typeof history.state === 'object' ? history.state : {};
-      history.replaceState({ ...state, ibtSection: previous }, '', location.href);
-      history.pushState({ ...state, ibtSection: name }, '', location.href);
+      history.replaceState({ ...state, ibtSection: previous }, '', sectionUrl(previous));
+      history.pushState({ ...state, ibtSection: name }, '', sectionUrl(name));
     }
     document.querySelectorAll('.app-view').forEach((view) => view.classList.add('hidden'));
     const target = $(`#${name}View`);
@@ -131,15 +139,28 @@
     link.addEventListener('click', () => show(link.dataset.view));
   });
 
+  // On a page refresh, restore the internal section after role permissions load.
+  window.addEventListener('ibt-role-changed', (event) => {
+    if (!event.detail?.profile) return;
+    const requested = new URL(window.location.href).searchParams.get('ibt_view');
+    if (!requested || !viewAllowed(requested)) return;
+    restoringBrowserView = true;
+    try {
+      navLinkFor(requested).click();
+    } finally {
+      restoringBrowserView = false;
+    }
+  });
+
   window.addEventListener('popstate', (event) => {
-    const name = event.state?.ibtSection;
+    const name = event.state?.ibtSection || new URL(window.location.href).searchParams.get('ibt_view');
     if (!name) return;
     // Auth may have changed since a history entry was created.
     const accessible = viewAllowed(name) ? name : (viewAllowed('historico') ? 'historico' : null);
     if (!accessible) return;
     if (accessible !== name) {
       const state = event.state && typeof event.state === 'object' ? event.state : {};
-      history.replaceState({ ...state, ibtSection: accessible }, '', location.href);
+      history.replaceState({ ...state, ibtSection: accessible }, '', sectionUrl(accessible));
     }
     restoringBrowserView = true;
     try {
