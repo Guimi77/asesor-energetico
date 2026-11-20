@@ -1,40 +1,89 @@
 (()=>{'use strict';
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const compact=s=>norm(s).replace(/[^a-z0-9]/g,'');
 
 function initClientSearch(){
   const input=document.querySelector('#clientSearch'),grid=document.querySelector('#companyGrid');
   if(!input||!grid)return;
+  const message=document.createElement('p');
+  message.id='clientSearchFeedback';
+  message.setAttribute('role','status');
+  message.setAttribute('aria-live','polite');
+  message.style.cssText='margin:12px 0;color:var(--muted,#586a75);font-size:0.9rem';
+  message.hidden=true;
+  grid.insertAdjacentElement('afterend',message);
+
+  const matches=(value,q,compactQuery)=>{
+    const text=norm(value);
+    return text.includes(q)||(compactQuery.length>=3&&compact(text).includes(compactQuery));
+  };
   function apply(){
     const q=norm(input.value).trim();
-    grid.querySelectorAll('.company-card-tree').forEach(card=>{
+    const compactQuery=compact(q);
+    const cards=[...grid.querySelectorAll('.company-card-tree')];
+    let found=0;
+    cards.forEach(card=>{
+      const content=card.querySelector('.client-group-contents');
       if(!q){
         card.hidden=false;
-        card.querySelectorAll('.holder-folder').forEach(f=>{
-          f.hidden=false;
-          f.querySelectorAll('.holder-supply-row').forEach(r=>r.hidden=false);
+        if(content&&content.dataset.searchExpanded==='1'){
+          content.hidden=true;
+          delete content.dataset.searchExpanded;
+        }
+        card.querySelectorAll('.holder-folder').forEach(folder=>{
+          folder.hidden=false;
+          if(folder.dataset.searchOpened==='1'){
+            folder.open=false;
+            delete folder.dataset.searchOpened;
+          }
+          folder.querySelectorAll('.holder-supply-row').forEach(row=>row.hidden=false);
         });
         return;
       }
-      const cardMatch=norm(card.querySelector('.client-tree-title h3')?.textContent).includes(q);
+      // Group/portfolio entries may contain several legal clients, not only the group title.
+      const cardMatch=matches([
+        card.querySelector('.client-tree-title h3')?.textContent,
+        card.dataset.clientPrimary,
+        ...[...card.querySelectorAll('.client-group-member')].map(member=>member.textContent)
+      ].join(' '),q,compactQuery);
       let visibleFolders=0;
       card.querySelectorAll('.holder-folder').forEach(folder=>{
-        const holderMatch=norm(folder.querySelector('summary strong')?.textContent).includes(q);
+        const holderMatch=matches(folder.querySelector('summary')?.textContent,q,compactQuery);
         let visibleRows=0;
         folder.querySelectorAll('.holder-supply-row').forEach(row=>{
-          const rowMatch=norm(row.textContent).includes(q);
+          // data-cups is authoritative even if the displayed CUPS is abbreviated/styled.
+          const rowMatch=matches([row.dataset.cups,row.textContent].join(' '),q,compactQuery);
           row.hidden=!(cardMatch||holderMatch||rowMatch);
           if(!row.hidden)visibleRows++;
         });
         const show=cardMatch||holderMatch||visibleRows>0;
         folder.hidden=!show;
-        if(show){visibleFolders++;folder.open=true;}
+        if(show){
+          visibleFolders++;
+          if(!folder.open){
+            folder.open=true;
+            folder.dataset.searchOpened='1';
+          }
+        }
       });
-      card.hidden=!(cardMatch||visibleFolders>0);
+      const visible=cardMatch||visibleFolders>0;
+      card.hidden=!visible;
+      if(visible){
+        found++;
+        if(content&&content.hidden){
+          content.hidden=false;
+          content.dataset.searchExpanded='1';
+        }
+      }
     });
+    message.hidden=!q||!cards.length||found>0;
+    if(!message.hidden)message.textContent='No hay clientes ni suministros que coincidan con la búsqueda.';
   }
   input.addEventListener('input',apply);
+  // Master data arrives asynchronously. Reapply current search on every redraw.
   const observer=new MutationObserver(apply);
   observer.observe(grid,{childList:true,subtree:true});
+  apply();
 }
 
 function setupAssignmentPicker(select){
