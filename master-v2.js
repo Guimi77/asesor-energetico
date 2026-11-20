@@ -99,14 +99,13 @@
   );
   const viewAllowed = (name) => {
     const link = navLinkFor(name);
-    return Boolean(link && document.getElementById(name + 'View') &&
+    return Boolean(link && $(\`#\${name}View\`) &&
       !link.classList.contains('hidden') &&
       link.getAttribute('aria-hidden') !== 'true' &&
-      getComputedStyle(link).display !== 'none');
+      (typeof getComputedStyle !== 'function' || getComputedStyle(link).display !== 'none'));
   };
 
   function show(name) {
-    if (!viewAllowed(name)) return;
     const previous = document.querySelector('.sidebar [data-view].active')?.dataset.view;
     if (!restoringBrowserView && previous && name !== previous) {
       // The first Back must return to the section we were on, not leave the app.
