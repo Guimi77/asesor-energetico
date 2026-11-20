@@ -25,6 +25,7 @@ const migration = 'supabase/migrations/20261119114837_explicit_empty_supply_and_
     for (const filename of [
       'tests/holder-portfolio-fixture.sql',
       'tests/master-supply-edit-fixture.sql',
+      'supabase/migrations/20260918123000_add_client_supply_aliases.sql',
       'supabase/migrations/20260929093000_safe_holder_reassignment.sql',
       'supabase/migrations/20260925094000_central_master_writes.sql',
       'supabase/migrations/20261001071500_persist_client_type.sql',
@@ -65,6 +66,31 @@ const migration = 'supabase/migrations/20261119114837_explicit_empty_supply_and_
     await db.query(fs.readFileSync(path.join(root, migration), 'utf8'));
     await db.query(fs.readFileSync(path.join(root, 'tests/master-supply-edit-regression.sql'), 'utf8'));
     console.log('PASS explicit clearing, partial updates, fill-only preservation, private contacts, authorization and history regression');
+
+    // Reproduce the single-editor bug: the old alias writer removes an empty
+    // alias row, so the legacy supply name becomes visible again after reload.
+    await assert.rejects(async () => {
+      await db.query('begin');
+      try {
+        const row = (await db.query('select id, cups from public.supplies order by id limit 1')).rows[0];
+        const result = (await db.query('select public.set_internal_aliases($1,null,null,null,$2) as data', [row.cups, ''])).rows[0].data;
+        assert.equal(result.ok, true, 'old alias writer accepts the operation');
+        const explicit = await db.query("select 1 from private.supply_aliases where supply_id=$1 and alias=''", [row.id]);
+        assert.equal(explicit.rowCount, 1, 'explicit empty alias must survive as a private override');
+      } finally {
+        await db.query('rollback');
+      }
+    }, error => error.code === 'ERR_ASSERTION' && error.message.includes('explicit empty alias must survive'));
+    console.log('PASS old alias writer reproduces the lost explicit-empty override');
+
+    const aliasMigrations = fs.readdirSync(path.join(root, 'supabase', 'migrations'))
+      .filter(filename => /^\d+_explicit_empty_supply_alias\.sql$/.test(filename)).sort();
+    assert.ok(aliasMigrations.length, 'the reviewed versioned supply-alias migration must be present');
+    for (const filename of aliasMigrations) {
+      await db.query(fs.readFileSync(path.join(root, 'supabase', 'migrations', filename), 'utf8'));
+    }
+    await db.query(fs.readFileSync(path.join(root, 'tests/supply-alias-clear-regression.sql'), 'utf8'));
+    console.log('PASS private alias absent/text/empty/reset states, reload/import persistence, authorization and preserved legacy names');
   } finally {
     await db.end();
   }

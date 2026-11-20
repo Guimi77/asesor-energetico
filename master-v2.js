@@ -82,6 +82,15 @@
     bankAccount: norm(supply.holderBankAccount),
   });
 
+  // A stored empty alias is an explicit choice, not a missing value.
+  const hasSupplyAliasOverride = (supply = {}) => supply.aliasSet === true || Boolean(norm(supply.alias));
+  const editableSupplyName = (supply = {}) => hasSupplyAliasOverride(supply)
+    ? norm(supply.alias)
+    : norm(supply.name);
+  const supplyTitle = (supply, internal) => internal && hasSupplyAliasOverride(supply)
+    ? [norm(supply.alias), norm(supply.address)].filter(Boolean).join(' - ') || supply.cups || 'Suministro'
+    : supply.name || supply.address || 'Suministro';
+
   function show(name) {
     document.querySelectorAll('.app-view').forEach((view) => view.classList.add('hidden'));
     const target = $(`#${name}View`);
@@ -285,6 +294,7 @@
         effectivePhone,
         effectiveBankAccount,
         alias,
+        aliasSet,
         supplyAlias,
         ...supply
       }) => supply);
@@ -414,9 +424,7 @@
 
         const folders = holders.map((holder) => {
           const rows = holder.list.map((supply) => {
-            const title = internal && supply.alias
-              ? [supply.alias, supply.address || supply.name].filter(Boolean).join(' - ')
-              : supply.name || supply.address || 'Suministro';
+            const title = supplyTitle(supply, internal);
             const city = displaySupplyCity(supply) || 'Localidad pendiente';
             const tariff = supply.tariff || 'Tarifa pendiente';
             const contract = supply.contract || 'Contrato pendiente';
@@ -534,11 +542,12 @@
   function renderCups(query = '') {
     const body = $('#cupsBody');
     if (!body) return;
+    const internal = ['admin', 'staff'].includes(window.ibtCurrentProfile?.role);
     const needle = norm(query).toLowerCase();
     const list = supplies.filter((supply) => Object.values(supply).join(' ').toLowerCase().includes(needle));
 
     body.innerHTML = list.length
-      ? list.map((supply) => `<tr><td><span class="status ${String(supply.status).toUpperCase() === 'ACTIVO' ? 'ok' : 'review'}">${esc(supply.status)}</span></td><td><strong>${esc(supply.client)}</strong></td><td>${esc(supply.holder || '—')}</td><td>${esc(supply.cups)}</td><td>${esc(supply.address || supply.name || '—')}</td><td>${esc(displaySupplyCity(supply) || '—')}</td><td>${esc(supply.tariff || '—')}</td><td>${esc(supply.contract || '—')}</td><td><button class="secondary edit-supply" data-cups="${esc(supply.cups)}">Editar</button></td></tr>`).join('')
+      ? list.map((supply) => `<tr><td><span class="status ${String(supply.status).toUpperCase() === 'ACTIVO' ? 'ok' : 'review'}">${esc(supply.status)}</span></td><td><strong>${esc(supply.client)}</strong></td><td>${esc(supply.holder || '—')}</td><td>${esc(supply.cups)}</td><td>${esc(supply.address || (internal ? editableSupplyName(supply) : supply.name) || '—')}</td><td>${esc(displaySupplyCity(supply) || '—')}</td><td>${esc(supply.tariff || '—')}</td><td>${esc(supply.contract || '—')}</td><td><button class="secondary edit-supply" data-cups="${esc(supply.cups)}">Editar</button></td></tr>`).join('')
       : `<tr class="empty"><td colspan="9">${supplies.length ? 'No hay suministros que coincidan con la búsqueda.' : 'Añade un cliente o importa el maestro.'}</td></tr>`;
 
     body.querySelectorAll('.edit-supply').forEach((button) => {
@@ -998,7 +1007,7 @@
     $('#clientBankAccount').value = supply.supplyBankAccountOverride || holderDefaults.bankAccount || '';
     $('#holderName').value = supply.holder || supply.company || '';
     $('#clientCups').value = supply.cups || '';
-    if ($('#supplyAlias')) $('#supplyAlias').value = supply.alias || '';
+    if ($('#supplyAlias')) $('#supplyAlias').value = editableSupplyName(supply);
     $('#supplyAddress').value = supply.address || '';
     $('#supplyCity').value = supply.city || '';
     $('#supplyProvince').value = supply.province || '';
@@ -1143,11 +1152,14 @@
         p_client_name: client || null,
         p_client_tax_id: clientTaxId || null,
         p_client_alias: norm(clientAlias) || null,
-        p_supply_alias: norm(supplyAlias) || null,
+        p_supply_alias: norm(supplyAlias),
       });
       if (error) throw error;
+      if (data?.ok !== true || !data.supply_id || data.supply_alias_set !== true) {
+        return { ok: false, data };
+      }
       window.dispatchEvent(new CustomEvent('ibt-aliases-changed', { detail: data || {} }));
-      return { ok: data?.ok !== false, data };
+      return { ok: true, data };
     } catch (error) {
       console.warn('No se pudieron guardar los alias internos', error);
       return { ok: false, error };
@@ -1396,6 +1408,20 @@
         data.manualRetailer = requestedRetailer;
       }
 
+      const aliasSave = await persistAliases({
+        cups,
+        client,
+        clientTaxId: data.clientTaxId,
+        clientAlias: data.clientAlias,
+        supplyAlias: data.alias,
+      });
+      if (!aliasSave.ok) {
+        $('#clientFormMsg').textContent = 'Los datos principales están guardados; los alias internos quedan pendientes.';
+        await window.CentralSupabaseMaster?.reload?.();
+        return;
+      }
+      data.aliasSet = true;
+
       let result;
       if (editingCups) {
         const idx = supplies.findIndex((supply) => cupsKey(supply.cups) === cupsKey(editingCups));
@@ -1426,16 +1452,9 @@
         }
       });
 
-      const aliasSave = await persistAliases({
-        cups,
-        client,
-        clientTaxId: data.clientTaxId,
-        clientAlias: data.clientAlias,
-        supplyAlias: data.alias,
-      });
       closeForm();
       refresh({
-        message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'} en Supabase.</strong> ${aliasSave.ok ? 'Alias centrales guardados.' : 'Los datos principales están guardados; los alias internos quedan pendientes.'}`,
+        message: `<strong>${wasEditing ? 'Suministro actualizado' : 'Cliente/suministro añadido'} en Supabase.</strong> Alias centrales guardados.`,
       });
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed', {
         detail: { action: wasEditing ? 'master_supply_updated' : 'master_supply_inserted', cups },
