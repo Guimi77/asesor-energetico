@@ -99,7 +99,7 @@
   );
   const viewAllowed = (name) => {
     const link = navLinkFor(name);
-    return Boolean(link && $(\`#\${name}View\`) &&
+    return Boolean(link && $('#' + name + 'View') &&
       !link.classList.contains('hidden') &&
       link.getAttribute('aria-hidden') !== 'true' &&
       (typeof getComputedStyle !== 'function' || getComputedStyle(link).display !== 'none'));
