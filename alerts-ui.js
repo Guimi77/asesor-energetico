@@ -177,37 +177,65 @@
   // loaded alert records. The customer does not gain access to the internal page.
   function buildClientAlertReport(client, entries, reportDate) {
     const clean = (value) => esc(value === null || value === undefined ? '' : String(value));
-    const statusText = (value) => statusLabel(value);
     const count = entries.length;
-    const rows = entries.map(({incident, supply, holder}, index) => {
+    // The name comes solely from the client master record. Internal aliases are excluded.
+    const clientName = clean(client.name);
+    const safeFilenameName = String(client.name || 'Cliente').replace(/[^a-zA-Z0-9À-ÿ ._-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Cliente';
+    const fileTitle = clean('BT Energía - Informe de alertas - ' + safeFilenameName + ' - ' + String(reportDate).replace(/\//g, '-'));
+    const cards = entries.map(({incident, supply, holder}, index) => {
       const supplyName = supply?.supply_name || supply?.address || 'Suministro sin nombre';
-      return '<section class="alert">'
-        + '<div class="alert-num">' + (index + 1) + '. ' + clean(incident.title) + '</div>'
-        + '<p class="meta"><strong>Suministro:</strong> ' + clean(supplyName)
-        + ' | <strong>CUPS:</strong> ' + clean(supply?.cups || 'No disponible') + '</p>'
+      const severity = Math.max(1, Math.min(5, Number(incident.severity) || 1));
+      return '<section class="alert severity-' + severity + '">'
+        + '<div class="alert-heading"><div class="alert-num">' + (index + 1) + '. ' + clean(incident.title) + '</div>'
+        + '<span class="priority">' + clean(priorityLabel(incident.severity)) + '</span></div>'
+        + '<div class="alert-info"><div><span class="field-label">SUMINISTRO</span><strong>' + clean(supplyName) + '</strong></div>'
+        + '<div><span class="field-label">CUPS</span><strong class="cups">' + clean(supply?.cups || 'No disponible') + '</strong></div></div>'
         + '<p class="meta"><strong>Titular:</strong> ' + clean(holder?.legal_name || 'No disponible') + '</p>'
-        + '<p class="meta"><strong>Prioridad:</strong> ' + clean(priorityLabel(incident.severity))
-        + ' | <strong>Estado:</strong> ' + clean(statusText(incident.status))
-        + ' | <strong>Detección:</strong> ' + clean(dateES(incident.detected_at)) + '</p>'
+        + '<p class="meta"><strong>Estado:</strong> ' + clean(statusLabel(incident.status))
+        + ' <span class="sep">|</span> <strong>Detectada:</strong> ' + clean(dateES(incident.detected_at)) + '</p>'
         + '<p class="detail">' + clean(incident.description || 'Pendiente de revisar.') + '</p>'
         + '</section>';
     }).join('');
     return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
-      + '<title>Informe de alertas energéticas</title><style>'
-      + '@page{size:A4;margin:16mm 15mm}body{font:12px/1.5 Arial,Helvetica,sans-serif;color:#17263e;margin:0}'
-      + 'h1{font-size:22px;margin:0 0 6px;color:#142d53}h2{font-size:15px;margin:0 0 8px}'
-      + '.intro{border-bottom:2px solid #173b69;padding-bottom:16px;margin-bottom:20px}'
-      + '.muted,.meta{color:#4c5b6c}.meta{font-size:11px;margin:4px 0}.alert{break-inside:avoid;page-break-inside:avoid;border-bottom:1px solid #d6dfea;padding:10px 0 14px}'
-      + '.alert-num{font-weight:bold;font-size:14px}.detail{white-space:pre-wrap;margin:9px 0 0}'
-      + '.summary{padding:10px 12px;background:#eef2f7;margin-bottom:12px}'
-      + '.disclaimer{font-size:10px;color:#56657a;border-top:1px solid #d6dfea;padding-top:12px;margin-top:22px}'
-      + '</style></head><body><header class="intro"><h1>Informe de alertas energéticas</h1>'
-      + '<p class="meta"><strong>ELECTRICA BT MALLORCA S.L.</strong></p>'
-      + '<p><strong>Cliente:</strong> ' + clean(client.name) + '</p>'
-      + '<p class="meta">Fecha del informe: ' + clean(reportDate) + '</p></header>'
-      + '<div class="summary"><strong>' + count + ' alerta' + (count===1?'':'s') + ' incluida' + (count===1?'':'s') + '</strong></div>'
-      + '<main>' + rows + '</main>'
-      + '<p class="disclaimer">Las alertas son observaciones técnicas para revisión. No constituyen una garantía de ahorro, una valoración económica ni una instrucción de cambio de contrato. El contenido refleja las alertas seleccionadas en la fecha del informe.</p>'
+      + '<title>' + fileTitle + '</title><style>'
+      + '@page{size:A4;margin:15mm 14mm}*{box-sizing:border-box}'
+      + 'body{font:12px/1.5 Arial,Helvetica,sans-serif;color:#263b43;margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+      + '.brand{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:3px solid #00a99d;padding:0 0 15px;margin:0 0 20px}'
+      + '.brand img{display:block;width:185px;max-height:65px;object-fit:contain;object-position:left center}'
+      + '.brand-legal{text-align:right;color:#607378;font-size:10px;letter-spacing:.04em}'
+      + '.eyebrow{text-transform:uppercase;color:#008e85;font-size:10px;letter-spacing:.13em;font-weight:700;margin:0 0 6px}'
+      + 'h1{font-size:23px;line-height:1.2;margin:0 0 15px;color:#172c32}'
+      + '.client-block{padding:13px 15px;background:#f1f9f8;border-left:4px solid #00a99d;border-radius:0 7px 7px 0;margin-bottom:15px}'
+      + '.field-label{display:block;font-size:9px;font-weight:700;letter-spacing:.08em;color:#54807d;margin-bottom:3px}'
+      + '.client-name{font-size:17px;line-height:1.35;font-weight:700;color:#1b3439;overflow-wrap:anywhere}'
+      + '.report-date{font-size:11px;color:#566e72;margin:5px 0 0}'
+      + '.summary{padding:10px 14px;border:1px solid #c8e7e3;border-radius:7px;margin:0 0 16px;font-weight:700;color:#136c66}'
+      + '.alert{break-inside:avoid;page-break-inside:avoid;border:1px solid #d9e5e6;border-left:4px solid #00a99d;border-radius:7px;padding:13px 15px;margin-bottom:12px}'
+      + '.alert.severity-4,.alert.severity-5{border-left-color:#cc8b39}'
+      + '.alert-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}'
+      + '.alert-num{font-size:14px;line-height:1.4;font-weight:700;color:#193138}'
+      + '.priority{flex-shrink:0;border-radius:15px;border:1px solid #b8dbd7;padding:3px 8px;color:#087a70;font-size:10px;font-weight:700}'
+      + '.severity-4 .priority,.severity-5 .priority{border-color:#ebcb9d;color:#955c17}'
+      + '.alert-info{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:9px 0;border-top:1px solid #edf1f2}'
+      + '.alert-info strong{font-size:11px;overflow-wrap:anywhere}'
+      + '.meta{font-size:11px;color:#596d72;margin:5px 0;overflow-wrap:anywhere}'
+      + '.meta strong{color:#354c52}.cups{word-break:break-all}.sep{margin:0 5px;color:#92a5aa}'
+      + '.detail{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0;line-height:1.55;color:#293b42}'
+      + '.footer{margin-top:20px;padding-top:12px;border-top:2px solid #00a99d;font-size:10px;color:#5a6b70;line-height:1.5}'
+      + '.footer strong{color:#0a6d66}.contact{margin-top:6px}'
+      + '@media print{.alert{box-shadow:none}.brand img{max-width:185px}}'
+      + '</style></head><body>'
+      + '<header class="brand"><img src="assets/energia-bt-lateral.jpg?v=fb457adaa405" alt="Logo Energía BT">'
+      + '<span class="brand-legal">ELECTRICA BT MALLORCA S.L.</span></header>'
+      + '<p class="eyebrow">Asesoramiento energético</p><h1>Informe de alertas energéticas</h1>'
+      + '<section class="client-block"><span class="field-label">CLIENTE</span>'
+      + '<div class="client-name">' + clientName + '</div>'
+      + '<p class="report-date">Fecha del informe: ' + clean(reportDate) + '</p></section>'
+      + '<div class="summary">' + count + ' alerta' + (count===1?'':'s') + ' incluida' + (count===1?'':'s') + ' en este informe</div>'
+      + '<main>' + cards + '</main>'
+      + '<footer class="footer"><strong>Energía BT</strong> · La confianza de siempre, ahora en tu factura.'
+      + '<div class="contact">636 078 960 · energia@electricabt.com</div>'
+      + '<p>Las alertas son observaciones técnicas para revisión. No constituyen una garantía de ahorro, una valoración económica ni una instrucción de cambio de contrato. El contenido refleja las alertas seleccionadas en la fecha del informe.</p></footer>'
       + '</body></html>';
   }
 
