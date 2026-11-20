@@ -18,8 +18,8 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({
 function setup(incidents, opts = {}) {
   const clients = [{id:'client-a', name:'Cliente Uno'}, {id:'client-b', name:'Cliente Dos'}];
   const supplies = [
-    {id:'supply-a', holder_id:'holder-a', cups:'ES111111111111111111', address:'Calle Uno'},
-    {id:'supply-b', holder_id:'holder-b', cups:'ES222222222222222222', address:'Calle Dos'},
+    {id:'supply-a', holder_id:'holder-a', cups:'CUPS_FICTICIO_A', address:'Suministro de prueba A'},
+    {id:'supply-b', holder_id:'holder-b', cups:'CUPS_FICTICIO_B', address:'Suministro de prueba B'},
   ];
   const holders = [
     {id:'holder-a', client_id:'client-a', legal_name:'Titular Uno'},
@@ -72,9 +72,9 @@ test('report contains only selected client alerts and preserves original evidenc
   assert.equal(r.appendCount,1);
   assert.match(r.doc,/Cliente Uno/);
   assert.match(r.doc,/Reactiva elevada/);
-  assert.match(r.doc,/ES111111111111111111/);
+  assert.match(r.doc,/CUPS_FICTICIO_A/);
   assert.match(r.doc,/Revisar compensación P2/);
-  assert.doesNotMatch(r.doc,/Alerta PRIVADA|No mostrar nunca|ES222222222222222222/);
+  assert.doesNotMatch(r.doc,/Alerta PRIVADA|No mostrar nunca|CUPS_FICTICIO_B/);
   assert.match(r.doc,/no constituyen una garantía de ahorro/i);
 });
 
