@@ -175,13 +175,19 @@
   // Safe, client-scoped print report.
   // Printable report is generated entirely in the browser from validated, already
   // loaded alert records. The customer does not gain access to the internal page.
+  function clientAlertPdfTitle(client, reportDate) {
+    // Chromium uses the parent page title for Print > Save as PDF from an iframe.
+    // Only the official client name is used; never internal or commercial aliases.
+    const safeName = String(client.name || 'Cliente').replace(/[^a-zA-Z0-9À-ÿ ._-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Cliente';
+    return 'BT Energía - Informe de alertas - ' + safeName + ' - ' + String(reportDate).replace(/\//g, '-');
+  }
+
   function buildClientAlertReport(client, entries, reportDate) {
     const clean = (value) => esc(value === null || value === undefined ? '' : String(value));
     const count = entries.length;
     // The name comes solely from the client master record. Internal aliases are excluded.
     const clientName = clean(client.name);
-    const safeFilenameName = String(client.name || 'Cliente').replace(/[^a-zA-Z0-9À-ÿ ._-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Cliente';
-    const fileTitle = clean('BT Energía - Informe de alertas - ' + safeFilenameName + ' - ' + String(reportDate).replace(/\//g, '-'));
+    const fileTitle = clean(clientAlertPdfTitle(client, reportDate));
     const cards = entries.map(({incident, supply, holder}, index) => {
       const supplyName = supply?.supply_name || supply?.address || 'Suministro sin nombre';
       const severity = Math.max(1, Math.min(5, Number(incident.severity) || 1));
@@ -256,14 +262,29 @@
     iframe.title = 'Informe imprimible de alertas';
     iframe.setAttribute('aria-hidden', 'true');
     iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-10000px;top:0';
+    const reportDate = new Date().toLocaleDateString('es-ES');
+    const reportTitle = clientAlertPdfTitle(client, reportDate);
     iframe.addEventListener('load', () => {
       const printWindow = iframe.contentWindow;
-      if (!printWindow) return;
-      printWindow.addEventListener('afterprint', () => iframe.remove(), {once:true});
-      printWindow.focus();
-      printWindow.print();
+      if (!printWindow) { iframe.remove(); return; }
+      const previousTitle = document.title;
+      const restore = () => {
+        document.title = previousTitle;
+        iframe.remove();
+      };
+      printWindow.addEventListener('afterprint', restore, {once:true});
+      // Chrome may derive a printed iframe's PDF filename from the top-level
+      // tab title rather than the iframe's <title>. Preserve and restore it.
+      document.title = reportTitle;
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (error) {
+        restore();
+        throw error;
+      }
     }, {once:true});
-    iframe.srcdoc = buildClientAlertReport(client, entries, new Date().toLocaleDateString('es-ES'));
+    iframe.srcdoc = buildClientAlertReport(client, entries, reportDate);
     document.body.appendChild(iframe);
   }
 
