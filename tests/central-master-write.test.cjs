@@ -380,3 +380,15 @@ test('browser Back and Forward restore the previous Asesor section without leavi
   assert.equal(document.querySelector('.sidebar [data-view].active').dataset.view, 'clientes');
   assert.equal(entries.length, 3, 'session restoration must not push a new history entry');
 });
+
+test('client portal invoice ingestion remains restricted to internal users', () => {
+  const sql = fs.readFileSync(
+    path.join(root, 'supabase', 'migrations', '20261120131500_client_portal_readonly_ingest.sql'),
+    'utf8'
+  );
+  assert.match(sql, /create or replace function private\.can_ingest_energy_history_cups\(p_cups text\)/i);
+  assert.match(sql, /security definer/i);
+  assert.match(sql, /select coalesce\(private\.is_internal_user\(\), false\)/i);
+  assert.doesNotMatch(sql, /join public\.client_users\b/i);
+  assert.doesNotMatch(sql, /drop table|delete from|truncate table/i);
+});
