@@ -1,0 +1,27 @@
+name: Client alerts PDF report regression
+
+on:
+  pull_request:
+    paths:
+      - 'alerts-ui.js'
+      - 'tests/client-alerts-pdf-report.test.cjs'
+      - '.github/workflows/client-alerts-pdf-report.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'alerts-ui.js'
+      - 'tests/client-alerts-pdf-report.test.cjs'
+      - '.github/workflows/client-alerts-pdf-report.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check alerts-ui.js
+      - run: node --test tests/client-alerts-pdf-report.test.cjs
