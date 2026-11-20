@@ -387,6 +387,7 @@
           effectiveBankAccount: override.bank_account || holderProfile.bank_account || '',
           cups: supply.cups,
           alias: supplyAliases[supply.id] || '',
+          aliasSet: Object.prototype.hasOwnProperty.call(supplyAliases, supply.id),
           name: supply.supply_name || '',
           address: supply.address || '',
           city: supply.city || '',

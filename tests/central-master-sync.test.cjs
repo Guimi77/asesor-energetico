@@ -98,7 +98,7 @@ function buildHarness(role = 'admin', options = {}) {
       from(table) { calls.push({ table, op: 'from' }); return query(table); },
       async rpc(name, args) {
         calls.push({ op: 'rpc', name, args });
-        if (name === 'get_internal_aliases') return { data: { clients: {}, supplies: {} }, error: null };
+        if (name === 'get_internal_aliases') return { data: options.aliases || { clients: {}, supplies: {} }, error: null };
         if (name === 'get_internal_supply_portfolios') return { data: options.portfolios || { ok: true, groups: [], members: {} }, error: null };
         if (name === 'get_internal_billing_profiles') return {
           data: options.billingProfiles || { holders: {}, supplies: {}, legacy_clients: {} },
@@ -354,6 +354,37 @@ test('holder billing profile is inherited and supply override wins', async () =>
   assert.equal(maria.supplyBankAccountOverride, 'CUENTA-PRUEBA-SUMINISTRO');
   assert.equal(maria.effectiveEmail, 'titular@example.com');
   assert.equal(maria.effectiveBankAccount, 'CUENTA-PRUEBA-SUMINISTRO');
+});
+
+test('central sync distinguishes missing, named and explicitly empty supply aliases without replacing source names', async () => {
+  const aliases = { clients: {}, supplies: {
+    's-xtra-1': 'ALIAS INTERNO SINTETICO',
+    's-xtra-2': '',
+  } };
+  const { window, replacements, calls, datasets } = buildHarness('admin', { aliases });
+  const originalNames = new Map(datasets.supplies.map(supply => [supply.id, supply.supply_name]));
+  await window.CentralSupabaseMaster.reload();
+  assert.ok(calls.some(call => call.op === 'rpc' && call.name === 'get_internal_aliases'));
+  assert.equal(replacements.length, 1);
+
+  function assertAlias(supplyId, alias, aliasSet) {
+    const row = replacements.at(-1).find(item => item.supplyId === supplyId);
+    assert.ok(row, 'central supply must be rehydrated');
+    assert.equal(row.alias, alias);
+    assert.equal(row.aliasSet, aliasSet);
+    assert.equal(row.name, originalNames.get(supplyId), 'an internal label must not overwrite the imported name');
+  }
+  assertAlias('s-xtra-1', 'ALIAS INTERNO SINTETICO', true);
+  assertAlias('s-xtra-2', '', true);
+  assertAlias('s-guillem', '', false);
+
+  aliases.supplies['s-xtra-1'] = '';
+  delete aliases.supplies['s-xtra-2'];
+  await window.CentralSupabaseMaster.reload();
+  assert.equal(replacements.length, 2);
+  assertAlias('s-xtra-1', '', true);
+  assertAlias('s-xtra-2', '', false);
+  assertAlias('s-guillem', '', false);
 });
 
 test('CUPS extensions share the same canonical supply identity', async () => {
