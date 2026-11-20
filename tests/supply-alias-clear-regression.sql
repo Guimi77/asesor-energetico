@@ -100,7 +100,7 @@ begin
     'empty client alias retains its existing delete semantics');
   perform set_config('request.jwt.claim.sub', admin_id::text, false);
 
-  r := public.set_internal_aliases('ES0000000000000099AA0F', null, null, null, '');
+  r := public.set_internal_aliases('ES0000000000000009AA0F', null, null, null, '');
   perform pg_temp.assert_true(r->'supply_id'='null'::jsonb and r->'supply_alias_set'='false'::jsonb,
     'an unresolved supply cannot acknowledge an explicit alias save');
 
