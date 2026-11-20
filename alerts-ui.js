@@ -180,7 +180,7 @@
     const count = entries.length;
     // The name comes solely from the client master record. Internal aliases are excluded.
     const clientName = clean(client.name);
-    const safeFilenameName = String(client.name || 'Cliente').replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Cliente';
+    const safeFilenameName = String(client.name || 'Cliente').replace(/[^a-zA-Z0-9À-ÿ ._-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Cliente';
     const fileTitle = clean('BT Energía - Informe de alertas - ' + safeFilenameName + ' - ' + String(reportDate).replace(/\//g, '-'));
     const cards = entries.map(({incident, supply, holder}, index) => {
       const supplyName = supply?.supply_name || supply?.address || 'Suministro sin nombre';
