@@ -40,7 +40,7 @@ function initClientSearch(){
       card.hidden=!(cardMatch||visibleFolders>0);
     });
     const cards=grid.querySelectorAll('.company-card-tree');
-    emptyMessage.hidden=!q||!cards.length||Array.from(cards).some(card=>!card.hidden);
+    emptyMessage.hidden=!q||Array.from(cards).some(card=>!card.hidden);
   }
   input.addEventListener('input',apply);
   const observer=new MutationObserver(apply);
