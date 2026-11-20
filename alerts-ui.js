@@ -63,14 +63,15 @@
             <div class="alerts-toolbar">
               <label>Cliente<select id="alertsClient"></select></label>
               <label>Estado<select id="alertsStatus"><option value="active">Pendientes y en revisión</option><option value="open">Pendientes</option><option value="reviewing">En revisión</option><option value="resolved">Resueltas</option><option value="dismissed">Descartadas</option><option value="all">Todas</option></select></label>
-              <button type="button" id="alertsPdfReport" class="secondary" disabled title="Selecciona un cliente para crear su informe">Informe PDF</button>
+              <button type="button" id="alertsPdfReport" class="secondary" disabled title="Selecciona un cliente; después elige Guardar como PDF en la impresión">Informe PDF</button>
             </div>
           </section>
           <div id="alertsContent"><div class="alerts-loading">Cargando alertas…</div></div>
         </div>`;
     }
     injectStyles();
-    $('#alertsPdfReport')?.addEventListener('click', printSelectedClientReport);
+    const reportButton = $('#alertsPdfReport');
+    if (reportButton) reportButton.onclick = printSelectedClientReport;
     return view;
   }
 
@@ -218,7 +219,10 @@
       const {client: owner, holder, supply} = incidentContext(incident);
       return owner?.id === client.id && holder && supply ? {incident, holder, supply} : null;
     }).filter(Boolean);
-    if (!entries.length) return;
+    if (!entries.length || entries.length !== filteredIncidents().length) {
+      alert('No se puede generar el informe: alguna alerta carece de una relación de cliente y suministro validada.');
+      return;
+    }
     const iframe = document.createElement('iframe');
     iframe.title = 'Informe imprimible de alertas';
     iframe.setAttribute('aria-hidden', 'true');
@@ -258,7 +262,7 @@
       </section>
       <section class="card" style="padding:18px"><div class="section-head"><div><p class="eyebrow">Bandeja interna</p><h2 style="margin:0">Qué tenemos pendiente</h2></div><span class="history-pill">${list.length} visible${list.length===1?'':'s'}</span></div>${state.focusedCups ? `<div class="alerts-focused-supplies"><span>Mostrando alertas de ${state.focusedCups.size} suministro${state.focusedCups.size===1?'':'s'} seleccionado${state.focusedCups.size===1?'':'s'} en Clientes.</span><button type="button" id="clearAlertsSupplyFocus" class="secondary">Ver todos los suministros</button></div>` : ''}<p class="alerts-note">Las alertas aparecen aquí solo cuando alguien de ELECTRICA BT decide seguirlas desde la pantalla de Análisis. No se crean presupuestos ni cifras de ahorro automáticamente.</p><div class="alerts-list" style="margin-top:12px">${list.length ? list.map(card).join('') : '<div class="alerts-empty">No hay alertas en este estado. Desde <strong>Análisis</strong> puedes añadir un punto que quieras seguir.</div>'}</div></section>`;
     const pdfButton = $('#alertsPdfReport');
-    if (pdfButton) pdfButton.disabled = !isInternal() || state.loading || !state.clientId || !list.length;
+    if (pdfButton) pdfButton.disabled = !isInternal() || !state.clientId || !list.length;
     $('.alert-status', host).forEach(select => select.addEventListener('change', () => updateStatus(select.dataset.id, select.value)));
     $('#clearAlertsSupplyFocus')?.addEventListener('click', () => { state.focusedCups = null; render(); });
   }
