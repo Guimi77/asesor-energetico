@@ -26,16 +26,20 @@ function setup(incidents, opts = {}) {
     {id:'holder-b', client_id:'client-b', legal_name:'Titular Dos'},
   ];
   const state = {clients, supplies, holders, loading:false, clientId:opts.clientId || 'client-a'};
-  let printed = false, doc = '', appendCount = 0;
+  let printed = false, doc = '', appendCount = 0, titleAtPrint = '';
+  let afterprint = null;
   const frame = {
     style:{cssText:''}, setAttribute() {},
     addEventListener(event, fn) {if(event==='load') this.onload = fn;},
     contentWindow: {
-      addEventListener() {}, focus() {}, print() { printed = true; },
+      addEventListener(event, handler) { if (event === 'afterprint') afterprint = handler; },
+      focus() {},
+      print() { printed = true; titleAtPrint = document.title; },
     },
     set srcdoc(value) { doc = value; }, remove() {},
   };
   const document = {
+    title: 'BT Energía · Asesor Energético Alpha',
     createElement(name) { assert.equal(name,'iframe'); return frame; },
     body:{appendChild(node) {appendCount++; node.onload();}},
   };
@@ -59,7 +63,8 @@ function setup(incidents, opts = {}) {
     },
   };
   vm.runInNewContext(reportSource,context);
-  return {context, get printed(){return printed;}, get doc(){return doc;},get appendCount(){return appendCount;}};
+  return {context, document, get printed(){return printed;}, get doc(){return doc;},get appendCount(){return appendCount;},
+    get titleAtPrint(){return titleAtPrint;}, finishPrint(){ afterprint?.(); }};
 }
 
 test('report contains only selected client alerts and preserves original evidence without inventing savings', () => {
@@ -93,6 +98,19 @@ test('corporate design uses the existing Energia BT logo, palette and official c
   assert.doesNotMatch(reportSource,/client\.alias|client\.clientAlias/);
 });
 
+test('PDF filename is derived from the official client name and app title is restored after printing', () => {
+  const r=setup([{id:'a',supply_id:'supply-a',title:'Alerta',description:'Revisar.',severity:4,status:'open'}]);
+  r.context.state.clients[0].alias='ALIAS QUE NO SE IMPRIME';
+  const original = r.document.title;
+  r.context.printSelectedClientReport();
+  assert.match(r.titleAtPrint, /^BT Energía - Informe de alertas - Cliente Uno - /);
+  assert.doesNotMatch(r.titleAtPrint, /ALIAS/);
+  assert.match(r.doc, /<title>BT Energía - Informe de alertas - Cliente Uno - /);
+  assert.equal(r.document.title,r.titleAtPrint,'title remains set while Save as PDF is active');
+  r.finishPrint();
+  assert.equal(r.document.title,original,'restore app title when print dialog closes');
+});
+
 test('report encodes arbitrary text as HTML and cannot include markup from incident descriptions',()=>{
   const r=setup([{id:'a',supply_id:'supply-a',title:'<img src=x onerror=alert(1)>',
     description:'<script>steal()</script> & detalles',severity:1,status:'reviewing'}]);
@@ -118,6 +136,8 @@ test('export uses current filters and does not depend on an external PDF service
   assert.match(source,/state\.clientId/);
   assert.match(source,/filteredIncidents\(\)\.map/);
   assert.match(source,/iframe\.srcdoc = buildClientAlertReport/);
+  assert.match(source,/document\.title = reportTitle/);
+  assert.match(source,/document\.title = previousTitle/);
   assert.match(source,/printWindow\.print\(\)/);
   assert.doesNotMatch(reportSource,/fetch\(|XMLHttpRequest|supabase\.functions\.invoke/);
 });
