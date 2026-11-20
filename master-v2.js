@@ -100,7 +100,7 @@
   };
 
   // Keep browser history in step with the existing single-page sections.
-  // Do not store customer data or change the URL; only the section name.
+  // Store only the section name in browser history; never store customer data.
   let restoringBrowserView = false;
   const navLinkFor = (name) => document.querySelector(
     '.sidebar [data-view="' + String(name).replace(/[^a-z]/g, '') + '"]'
