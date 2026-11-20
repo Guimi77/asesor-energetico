@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'alerts-ui.js'), 'utf8');
-const start = source.indexOf('  function buildClientAlertReport(');
+const start = source.indexOf('  function clientAlertPdfTitle(');
 const end = source.indexOf('  function render() {', start);
 assert.ok(start >= 0 && end > start, 'report source must exist and be extractable');
 const reportSource = source.slice(start, end);
