@@ -269,3 +269,114 @@ test('group disclosure is a tiny triangle beside the title, not a separate actio
   assert.match(theme,/background: transparent !important/);
   assert.match(theme,/body button\.client-group-toggle:focus-visible/);
 });
+
+
+test('browser Back and Forward restore the previous Asesor section without leaving the app', () => {
+  const vm = require('node:vm');
+  const start = master.indexOf('  const sectionUrl = (name) => {');
+  const end = master.indexOf('  function pick(row, names) {', start);
+  assert.ok(start >= 0 && end > start, 'section navigation controller must exist');
+  const code = master.slice(start, end);
+  const handlers = {};
+  const names = ['facturas', 'clientes', 'historico'];
+  const classes = (initial = []) => {
+    const set = new Set(initial);
+    return {
+      contains: (name) => set.has(name),
+      add: (name) => set.add(name),
+      remove: (name) => set.delete(name),
+      toggle: (name, enabled) => {
+        if (enabled === undefined ? !set.has(name) : enabled) set.add(name);
+        else set.delete(name);
+      },
+    };
+  };
+  const links = Object.fromEntries(names.map((name, i) => {
+    const listeners = {};
+    return [name, {
+      dataset: { view: name },
+      classList: classes(i === 0 ? ['active'] : []),
+      getAttribute: () => null,
+      addEventListener: (event, fn) => { listeners[event] = fn; },
+      click: () => listeners.click?.(),
+    }];
+  }));
+  const views = Object.fromEntries(names.map(name => [name + 'View', {
+    classList: classes(name === 'facturas' ? [] : ['hidden']),
+  }]));
+  const labels = Object.fromEntries(['pageTitle', 'pageSubtitle', 'pageEyebrow'].map(id => [id, { textContent: '' }]));
+  const document = {
+    querySelector(selector) {
+      if (selector === '.sidebar [data-view].active') return names.map(name => links[name]).find(link => link.classList.contains('active')) || null;
+      const matched = selector.match(/\.sidebar \[data-view="([^"]+)"\]/);
+      if (matched) return links[matched[1]] || null;
+      if (selector.startsWith('#')) return views[selector.slice(1)] || labels[selector.slice(1)] || null;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.sidebar [data-view]' || selector === '.sidebar nav a') return names.map(name => links[name]);
+      if (selector === '.app-view') return Object.values(views);
+      return [];
+    },
+  };
+  const location = { href: 'https://example.invalid/asesor-energetico/?origin=test' };
+  const entries = [{ url: location.href, state: null }];
+  let index = 0;
+  const history = {
+    state: null,
+    replaceState(state, unused, relativeUrl) {
+      const url = new URL(relativeUrl, location.href).href;
+      entries[index] = { url, state };
+      location.href = url;
+      this.state = state;
+    },
+    pushState(state, unused, relativeUrl) {
+      const url = new URL(relativeUrl, location.href).href;
+      entries.splice(index + 1);
+      entries.push({ url, state });
+      index += 1;
+      location.href = url;
+      this.state = state;
+    },
+    go(delta) {
+      index += delta;
+      assert.ok(index >= 0 && index < entries.length, 'navigation must stay inside the app history');
+      location.href = entries[index].url;
+      this.state = entries[index].state;
+      handlers.popstate({ state: this.state });
+    },
+  };
+  const window = {
+    location,
+    addEventListener(event, handler) { handlers[event] = handler; },
+  };
+  vm.runInNewContext(code, {
+    window, document, history, URL,
+    $: selector => document.querySelector(selector),
+    views: {
+      facturas: ['Facturas', 'Descripción', 'Panel'],
+      clientes: ['Clientes', 'Descripción', 'Cartera'],
+      historico: ['Histórico', 'Descripción', 'Memoria'],
+    },
+    getComputedStyle: () => ({ display: 'block' }),
+  }, { filename: 'client-navigation-under-test.js' });
+
+  links.clientes.click();
+  assert.equal(entries.length, 2);
+  assert.match(location.href, /ibt_view=clientes/);
+  assert.match(entries[0].url, /ibt_view=facturas/);
+  links.historico.click();
+  assert.equal(entries.length, 3);
+  assert.match(location.href, /ibt_view=historico/);
+  history.go(-1);
+  assert.equal(document.querySelector('.sidebar [data-view].active').dataset.view, 'clientes');
+  history.go(-1);
+  assert.equal(document.querySelector('.sidebar [data-view].active').dataset.view, 'facturas');
+  history.go(1);
+  assert.equal(document.querySelector('.sidebar [data-view].active').dataset.view, 'clientes');
+  assert.equal(entries.length, 3, 'Back and Forward must not push new entries');
+  assert.match(location.href, /origin=test/, 'existing URL parameters must survive navigation');
+  handlers['ibt-role-changed']({ detail: { profile: { role: 'admin' } } });
+  assert.equal(document.querySelector('.sidebar [data-view].active').dataset.view, 'clientes');
+  assert.equal(entries.length, 3, 'session restoration must not push a new history entry');
+});
