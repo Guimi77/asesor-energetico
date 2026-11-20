@@ -172,6 +172,7 @@
     return `<article class="alert-card" data-id="${esc(incident.id)}" data-severity="${Number(incident.severity)||1}"><div><h3>${esc(incident.title)}</h3><span class="alert-identity">${esc(name)}${identity?` · ${esc(identity)}`:''}</span><p class="alert-description">${esc(incident.description || 'Pendiente de revisar.')}</p><div class="alert-meta"><span class="alert-priority">${esc(priorityLabel(incident.severity))}</span><span>Detectada ${esc(dateES(incident.detected_at))}</span></div></div><div class="alert-status-box"><label>Seguimiento<select class="alert-status" data-id="${esc(incident.id)}"><option value="open" ${incident.status==='open'?'selected':''}>Pendiente</option><option value="reviewing" ${incident.status==='reviewing'?'selected':''}>En revisión</option><option value="resolved" ${incident.status==='resolved'?'selected':''}>Resuelta</option><option value="dismissed" ${incident.status==='dismissed'?'selected':''}>Descartada</option></select></label></div></article>`;
   }
 
+  // Safe, client-scoped print report.
   // Printable report is generated entirely in the browser from validated, already
   // loaded alert records. The customer does not gain access to the internal page.
   function buildClientAlertReport(client, entries, reportDate) {
