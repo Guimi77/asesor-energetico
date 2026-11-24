@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='naturgy-2026.09.25.1';
+  const REVISION='naturgy-2026.11.24.1';
   const RETAILER='Naturgy Clientes, S.A.U.';
   const clean=v=>String(v??'').replace(/\u00a0/g,' ').replace(/[ \t]+/g,' ').trim();
   const round2=n=>Math.round((Number(n)||0)*100)/100;
@@ -23,6 +23,7 @@
     if(clean(d?.text))return String(d.text);
     return pagesOf(d).flat().join('\n');
   };
+  const quantityNum=v=>{const s=String(v??'').trim().replace(/\s/g,'');return /^-?\d{1,3}(?:\.\d{3})+$/.test(s)?Number(s.replace(/\./g,'')):num(s);};
   const normalizeCups=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const tariffOf=s=>((String(s||'').match(/\b(2\.0\s*TD|3\.0\s*TD|6\.[1-4]\s*TD)\b/i)||[])[1]||'—').replace(/\s+/g,'').toUpperCase();
   const toIso=value=>{const m=String(value||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0'):'';};
@@ -33,8 +34,46 @@
   const lineMatch=(s,re)=>linesOf(s).find(line=>re.test(line))||'';
   const lineAmount=(s,re)=>{for(const line of linesOf(s)){if(re.test(line)){const v=lastMoney(line);if(v!=null)return v;}}return null;};
 
+  function canonicalText(value){
+    return textOf(value)
+      .replace(/\bDetall\s*:\s*com\s+calculem\s+la\s+teva\s+factura\b/gi,'Detalle: cómo calculamos tu factura')
+      .replace(/\bPer[ií]ode\s+electricitat\b/gi,'Período electricidad')
+      .replace(/\bConsum\s+electricitat\b/gi,'Consumo electricidad')
+      .replace(/\bConsumo\s+electricidad\s+pla\b/gi,'Consumo electricidad llano')
+      .replace(/\bConsumo\s+electricidad\s+vall\b/gi,'Consumo electricidad valle')
+      .replace(/\bConsum\s+punta\b/gi,'Consumo punta')
+      .replace(/\bConsum\s+pla\b/gi,'Consumo llano')
+      .replace(/\bConsum\s+vall\b/gi,'Consumo valle')
+      .replace(/\bPla\s+real\b/gi,'Llano real')
+      .replace(/\bVall\s+real\b/gi,'Valle real')
+      .replace(/\bTerme\s+de\s+pot[eè]ncia\b/gi,'Término potencia')
+      .replace(/\bFinan[cç]ament\s+de\s+Bo\s+Social\b/gi,'Financiación de Bono Social')
+      .replace(/\bImpost\s+electricitat\b/gi,'Impuesto electricidad')
+      .replace(/\bAltres\s+conceptes\b/gi,'Otros conceptos')
+      .replace(/\bLloguer\s+de\s+comptador\b/gi,'Alquiler de contador')
+      .replace(/\bTotal\s+Electricitat\b/gi,'Total electricidad')
+      .replace(/\bTotal\s+base\s+imposable\b/gi,'Total base imponible')
+      .replace(/\bN[uú]m\.\s+de\s+factura\b/gi,'N.º de factura')
+      .replace(/\bData\s+d['’]emissi[oó]\b/gi,'Fecha de emisión')
+      .replace(/\bN[uú]m\.\s+de\s+refer[eè]ncia\b/gi,'N.º de referencia')
+      .replace(/\bNom\s*:/gi,'Nombre:')
+      .replace(/\bDoc\.\s*Identitat\s*:/gi,'Doc. Identidad:')
+      .replace(/\bAdre[cç]a\s+de\s+subministrament\s*:/gi,'Dirección de suministro:')
+      .replace(/\bCodi\s+CUPS\s*:/gi,'Código CUPS:')
+      .replace(/\bDistribu[iï]dora\s*:/gi,'Distribuidora:')
+      .replace(/\bN[uú]m\.\s+contracte\s+d['’]acc[eé]s\s*:/gi,'N.º contrato de acceso:')
+      .replace(/\bPot[eè]ncia\s+contractada\s+P/gi,'Potencia contratada P')
+      .replace(/\bImport\s+de\s+peatges\s*:/gi,'Cuantía de peajes:')
+      .replace(/\bImport\s+de\s+c[aà]rrecs\s*:/gi,'Cuantía de cargos:')
+      .replace(/\bData\s+final\s+de\s+contracte\s*:/gi,'Fecha final de contrato:')
+      .replace(/\bN[uú]m\.\s+de\s+comptador\b/gi,'N.º de contador')
+      .replace(/\bContracte\s*:/gi,'Contrato:')
+      .replace(/\bdies\b/gi,'días')
+      .replace(/\bdia\b/gi,'día');
+  }
+
   function detect(value){
-    const s=textOf(value);
+    const s=canonicalText(value);
     return /Naturgy\s+Clientes\s*,?\s*S\.?\s*A\.?\s*U\.?/i.test(s)
       && /Detalle\s*:\s*c[oó]mo\s+calculamos\s+tu\s+factura/i.test(s)
       && /C[oó]digo\s+CUPS\s*:/i.test(s)
@@ -102,7 +141,7 @@
     return{tariff,contract,accessContract,distributor,renewalDate,meterNumber,product,tolls,charges};
   }
 
-  function parseConsumption(text,totalKwh,rate){
+  function parseConsumption(text,totalKwh,rate,energyPeriods={}){
     const labels=[['P1','Punta'],['P2','Llano'],['P3','Valle']],periods={};
     const lines=linesOf(text);
     for(const [key,label] of labels){
@@ -112,7 +151,10 @@
       const re=new RegExp('\\b'+label+'\\s+real\\b[^\\n]{0,120}?(-?[\\d.]+(?:,\\d+)?)\\s*kWh\\b','i');
       const line=lines.find(value=>re.test(value));
       const m=line?.match(re);
-      if(m)periods[key]={consumption:num(m[1]),cost:null,price:rate};
+      if(m){
+        const pricing=energyPeriods[key]||{};
+        periods[key]={consumption:quantityNum(m[1]),cost:pricing.cost??null,price:pricing.price??rate};
+      }
     }
     const sum=round2(Object.values(periods).reduce((s,p)=>s+Number(p.consumption||0),0));
     return{periods,reliable:totalKwh!=null&&Object.keys(periods).length===3&&Math.abs(sum-totalKwh)<=.1,sum};
@@ -151,28 +193,48 @@
   }
 
   function parseFinancials(text){
-    const energyLine=lineMatch(text,/^Consumo\s+electricidad\b/i);
-    const energyMatch=energyLine.match(/Consumo\s+electricidad\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*€\/kWh[\s\S]*?(-?[\d.]+,\d{2})\s*€/i);
-    const kwh=energyMatch?num(energyMatch[1]):null,rate=energyMatch?num(energyMatch[2]):null,energy=energyMatch?num(energyMatch[3]):null;
+    const lines=linesOf(text),energyRows=[],energyPeriods={};
+    const re=/\bConsumo\s+electricidad(?:\s+(punta|llano|valle))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*€\/kWh[\s\S]*?(-?[\d.]+,\d{2})\s*€/i;
+    for(const line of lines){
+      const m=line.match(re);if(!m)continue;
+      const row={label:(m[1]||'').toLowerCase(),kwh:quantityNum(m[2]),price:num(m[3]),cost:num(m[4])};
+      energyRows.push(row);
+      const key=row.label==='punta'?'P1':row.label==='llano'?'P2':row.label==='valle'?'P3':'';
+      if(key)energyPeriods[key]={consumption:row.kwh,price:row.price,cost:row.cost};
+    }
+    const kwh=energyRows.length?round2(energyRows.reduce((s,r)=>s+Number(r.kwh||0),0)):null;
+    const energy=energyRows.length?round2(energyRows.reduce((s,r)=>s+Number(r.cost||0),0)):null;
+    const rate=energyRows.length===1?energyRows[0].price:null;
+    const energyReliable=energyRows.length>0&&energyRows.every(r=>r.kwh!=null&&r.price!=null&&r.cost!=null&&Math.abs(round2(r.kwh*r.price)-r.cost)<=.02);
     const social=lineAmount(text,/^Financiaci[oó]n\s+de\s+Bono\s+Social\b/i)??0;
     const tax=lineAmount(text,/^Impuesto\s+electricidad\b/i)??0;
     const rental=lineAmount(text,/^Alquiler\s+de\s+contador\b/i)??0;
+    let additionalOther=0;
+    const otherStart=lines.findIndex(line=>/^Otros\s+conceptos\b/i.test(line));
+    if(otherStart>=0){
+      for(let i=otherStart+1;i<lines.length;i++){
+        if(/^Total\s+electricidad\b/i.test(lines[i]))break;
+        if(/^Alquiler\s+de\s+contador\b/i.test(lines[i]))continue;
+        const v=lastMoney(lines[i]);if(v!=null)additionalOther+=v;
+      }
+    }
+    additionalOther=round2(additionalOther);
     const electricityTotal=lineAmount(text,/^Total\s+electricidad\b/i);
     const vatLine=lineMatch(text,/^IVA\s*\(/i),vat=lastMoney(vatLine)??0;
     const vatBase=num((vatLine.match(/IVA\s*\([^)]*\)\s+(-?[\d.]+,\d{2})\s*€/i)||[])[1])??electricityTotal;
     const vatRate=num((vatLine.match(/[x×]\s*([\d.]+(?:,\d+)?)\s*%/i)||[])[1]);
     const total=lineAmount(text,/^Total\s+a\s+pagar\b/i);
-    const other=round2(social+rental);
-    return{kwh,rate,energy,social,tax,rental,electricityTotal,vat,vatRate,vatBase,total,other};
+    const other=round2(social+rental+additionalOther);
+    return{kwh,rate,energy,energyRows,energyPeriods,energyReliable,social,tax,rental,additionalOther,electricityTotal,vat,vatRate,vatBase,total,other};
   }
 
   function parse(d,file,options={}){
-    const text=textOf(d);if(!detect(text))return null;
-    const identity=parseIdentity(text),meta=parseContractMeta(text),period=parsePeriod(text),fin=parseFinancials(text),powerDetail=parsePower(text,meta.tariff),consumption=parseConsumption(text,fin.kwh,fin.rate),maximeters=parseMaximeters(text);
-    const power=powerDetail.value,accounted=round2((fin.energy||0)+(power||0)+(fin.social||0)+(fin.rental||0)+(fin.tax||0)+(fin.vat||0));
+    const text=canonicalText(d);if(!detect(text))return null;
+    const identity=parseIdentity(text),meta=parseContractMeta(text),period=parsePeriod(text),fin=parseFinancials(text),powerDetail=parsePower(text,meta.tariff),consumption=parseConsumption(text,fin.kwh,fin.rate,fin.energyPeriods),maximeters=parseMaximeters(text);
+    const power=powerDetail.value,accounted=round2((fin.energy||0)+(power||0)+(fin.social||0)+(fin.rental||0)+(fin.additionalOther||0)+(fin.tax||0)+(fin.vat||0));
     const diff=fin.total==null?null:round2(fin.total-accounted),balanced=fin.total!=null&&Math.abs(diff)<=.05;
-    const energyCostReliable=fin.kwh!=null&&fin.rate!=null&&fin.energy!=null&&Math.abs(round2(fin.kwh*fin.rate)-fin.energy)<=.02;
-    const electricitySubtotalReliable=fin.electricityTotal!=null&&Math.abs(round2((fin.energy||0)+(power||0)+(fin.social||0)+(fin.tax||0)+(fin.rental||0))-fin.electricityTotal)<=.05;
+    const energyCostReliable=fin.energyReliable;
+    const electricitySubtotalReliable=fin.electricityTotal!=null&&Math.abs(round2((fin.energy||0)+(power||0)+(fin.social||0)+(fin.tax||0)+(fin.rental||0)+(fin.additionalOther||0))-fin.electricityTotal)<=.05;
     const missing=[];
     if(!identity.holder)missing.push('titular');
     if(!identity.taxId)missing.push('documento identidad');
@@ -193,11 +255,11 @@
     const annual=maximeters._annualMax||{};const usable=Object.keys(annual).filter(k=>contractedValue(powerDetail.contracted,k)>0&&Number(annual[k])>0);
     if(usable.length){const mc=Math.max(...usable.map(k=>Number(powerDetail.contracted[k])||0)),md=Math.max(...usable.map(k=>Number(annual[k])||0)),ratio=mc?md/mc:1;if(mc>=10&&ratio<=.5)alerts.push('Posible potencia sobredimensionada: revisar máximas demandadas del último año');}
     return{
-      file:file?.name||'',invoiceNumber:identity.invoiceNumber,company:identity.holder||'Por identificar',taxId:identity.taxId,cups:identity.cups,period:period.label,tariff:meta.tariff,kwh:fin.kwh,energy:fin.energy,power,excess:0,reactive:0,compensation:0,social:fin.social,rental:fin.rental,integratorAdjustment:0,regularizationReactive:0,other:fin.other,tax:fin.tax,vat:fin.vat,igic:0,distributorCharges:0,total:fin.total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':'Falta o revisar: '+missing.join(', '),readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:fin.kwh&&fin.total?fin.total/fin.kwh:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods:consumption.periods,contracted:powerDetail.contracted,maximeters,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail,energyPricingMode:'single_rate',sourceFormat:'naturgy',supplier:RETAILER,retailer:RETAILER,commercializer:RETAILER,supplyAddress:identity.supplyAddress,supplyCity:identity.supplyCity,supplyProvince:identity.supplyProvince,postalCode:identity.postalCode,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.product||'Mercado libre',renewalDate:meta.renewalDate,meterNumber:meta.meterNumber,issueDate:identity.issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,referenceNumber:identity.reference,cnae:identity.cnae,discounts:0,serviceTotal:0,paymentTotal:fin.total,adjustments:[],regulatedBreakdown:{tolls_eur:meta.tolls,charges_eur:meta.charges},validation:{consumptionPeriods:consumption.reliable,energyCost:energyCostReliable,power:powerDetail.reliable,electricitySubtotal:electricitySubtotalReliable,economicBalance:balanced,vatBase:fin.vatBase,vatRate:fin.vatRate}
+      file:file?.name||'',invoiceNumber:identity.invoiceNumber,company:identity.holder||'Por identificar',taxId:identity.taxId,cups:identity.cups,period:period.label,tariff:meta.tariff,kwh:fin.kwh,energy:fin.energy,power,excess:0,reactive:0,compensation:0,social:fin.social,rental:fin.rental,integratorAdjustment:0,regularizationReactive:0,other:fin.other,tax:fin.tax,vat:fin.vat,igic:0,distributorCharges:0,total:fin.total,accounted,diff,balanced,readOk,readMessage:readOk?'Lectura correcta':'Falta o revisar: '+missing.join(', '),readingStatus:reading.status||'unknown',readingSourceLabel:reading.sourceLabel||'',avg:fin.kwh&&fin.total?fin.total/fin.kwh:0,opportunity:alerts.length?alerts.join(' · '):'Sin alertas',periods:consumption.periods,contracted:powerDetail.contracted,maximeters,parserVersion:options.parserVersion||'',parserRevision:REVISION,powerDetail,energyPricingMode:fin.energyRows.length>1?'period_rates':'single_rate',sourceFormat:'naturgy',supplier:RETAILER,retailer:RETAILER,commercializer:RETAILER,supplyAddress:identity.supplyAddress,supplyCity:identity.supplyCity,supplyProvince:identity.supplyProvince,postalCode:identity.postalCode,contract:meta.contract,contractNumber:meta.contract,accessContract:meta.accessContract,distributor:meta.distributor,contractType:meta.product||'Mercado libre',renewalDate:meta.renewalDate,meterNumber:meta.meterNumber,issueDate:identity.issueDate,billingStart:period.start,billingEnd:period.end,billingDays:period.days,referenceNumber:identity.reference,cnae:identity.cnae,discounts:0,serviceTotal:0,paymentTotal:fin.total,adjustments:[],regulatedBreakdown:{tolls_eur:meta.tolls,charges_eur:meta.charges},validation:{consumptionPeriods:consumption.reliable,energyCost:energyCostReliable,power:powerDetail.reliable,electricitySubtotal:electricitySubtotalReliable,economicBalance:balanced,vatBase:fin.vatBase,vatRate:fin.vatRate}
     };
   }
 
   function contractedValue(contracted,key){return Number(contracted?.[key])||0;}
 
-  return Object.freeze({detect,parse,revision:REVISION,_test:{parsePeriod,parseIdentity,parseContractMeta,parseFinancials,parseConsumption,parsePower,parseMaximeters}});
+  return Object.freeze({detect,parse,revision:REVISION,_test:{canonicalText,parsePeriod,parseIdentity,parseContractMeta,parseFinancials,parseConsumption,parsePower,parseMaximeters}});
 });

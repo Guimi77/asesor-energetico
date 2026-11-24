@@ -105,3 +105,100 @@ test('Naturgy fails closed when the invoice no longer balances',()=>{
   assert.equal(r.readOk,false);
   assert.match(r.readMessage,/cuadre econ/i);
 });
+
+
+const catalanThreePeriod=`Naturgy Clientes, S.A.U.- Estàs al mercat lliure.
+Adreça de subministrament: C. DEMO 12
+2 A 07001 Palma Baleares
+Núm. de factura:
+FE26000000000002
+Data d'emissió: 16/10/2026
+Període electricitat:
+del 10/09/2026 al 13/10/2026
+Núm. de referència: 600000001
+Nom: CLIENTE DEMO CATALA CNAE: 9820
+Doc. Identitat: 00000000T
+3. Detall: com calculem la teva factura
+Període electricitat del 10/09/2026 al 13/10/2026
+Consum electricitat punta 1.296 kWh x 0,206464 €/kWh 267,58 €
+Plan Fijo Luz
+Contracte: Consum electricitat pla 1.018 kWh x 0,133311 €/kWh 135,71 €
+600000002 Consum electricitat vall 1.945 kWh x 0,097973 €/kWh 190,56 €
+34 dies
+Terme de potència P1 13,200 kW x 34 dies x 0,122973 €/kW dia 55,19 €
+Terme de potència P2 13,200 kW x 34 dies x 0,043976 €/kW dia 19,74 €
+Finançament de Bo Social 34 dies x 0,024688 €/dia 0,84 €
+Subtotal 669,62 €
+Impost electricitat 669,62 € x 5,112696 % 34,24 €
+Altres conceptes
+Lloguer de comptador 34 dies x 0,044712 €/dia 1,52 €
+Total Electricitat 705,38 €
+IVA (21%) 705,38 € x 21% 148,13 €
+Total a pagar 853,51 €
+13/10/2026 Punta real 231.814 1.296 kWh
+13/10/2026 Pla real 52.695 1.018 kWh
+13/10/2026 Vall real 105.340 1.945 kWh
+Codi CUPS: ES0000000000000002AA Potència contractada P1:13,200 kW
+Distribuïdora: EDISTRIBUCIÓN REDES DIGITALES, S.L.U. Potència contractada P2:13,200 kW
+Núm. contracte d'accés: 600000004
+Peatge de transport i distribució: 2.0TD
+Import de peatges: 89,19 €
+Import de càrrecs: 108,39 €
+Data final de contracte: 13/10/2027`;
+
+test('Naturgy Catalan 2.0TD variant is detected and fully parsed',()=>{
+  assert.equal(parser.detect(catalanThreePeriod),true);
+  const r=parser.parse({text:catalanThreePeriod},{name:'naturgy-catala.pdf'});
+  assert.equal(r.sourceFormat,'naturgy');
+  assert.equal(r.invoiceNumber,'FE26000000000002');
+  assert.equal(r.company,'CLIENTE DEMO CATALA');
+  assert.equal(r.cups,'ES0000000000000002AA');
+  assert.equal(r.kwh,4259);
+  assert.equal(r.energy,593.85);
+  assert.equal(r.power,74.93);
+  assert.equal(r.tax,34.24);
+  assert.equal(r.rental,1.52);
+  assert.equal(r.total,853.51);
+  assert.equal(r.diff,0);
+  assert.equal(r.balanced,true);
+  assert.equal(r.readOk,true);
+  assert.equal(r.energyPricingMode,'period_rates');
+  assert.deepEqual(Object.fromEntries(Object.entries(r.periods).map(([k,v])=>[k,[v.consumption,v.price,v.cost]])),{
+    P1:[1296,0.206464,267.58],
+    P2:[1018,0.133311,135.71],
+    P3:[1945,0.097973,190.56]
+  });
+  assert.deepEqual(r.contracted,{P1:13.2,P2:13.2});
+  assert.equal(r.regulatedBreakdown.tolls_eur,89.19);
+  assert.equal(r.regulatedBreakdown.charges_eur,108.39);
+});
+
+test('Naturgy Catalan extra concepts remain auditable and balance',()=>{
+  const text=catalanThreePeriod
+    .replace('34 dies','30 dies')
+    .replace(/13\/10\/2026/g,'09/09/2026')
+    .replace('1.296 kWh x 0,206464 €/kWh 267,58 €','1.205 kWh x 0,206464 €/kWh 248,79 €')
+    .replace('1.018 kWh x 0,133311 €/kWh 135,71 €','1.100 kWh x 0,133311 €/kWh 146,64 €')
+    .replace('1.945 kWh x 0,097973 €/kWh 190,56 €','1.719 kWh x 0,097973 €/kWh 168,42 €')
+    .replace('13,200 kW x 34 dies x 0,122973 €/kW dia 55,19 €','13,200 kW x 30 dies x 0,122973 €/kW dia 48,70 €')
+    .replace('13,200 kW x 34 dies x 0,043976 €/kW dia 19,74 €','13,200 kW x 30 dies x 0,043976 €/kW dia 17,41 €')
+    .replace('34 dies x 0,024688 €/dia 0,84 €','30 dies x 0,024688 €/dia 0,74 €')
+    .replace('Subtotal 669,62 €','Subtotal 630,70 €')
+    .replace('Impost electricitat 669,62 € x 5,112696 % 34,24 €','Impost electricitat 630,70 € x 5,112696 % 32,25 €')
+    .replace('Lloguer de comptador 34 dies x 0,044712 €/dia 1,52 €','Lloguer de comptador 30 dies x 0,044712 €/dia 1,34 €\nCost de reconnexió a petició del\n18,09 €\ncomercialitzador')
+    .replace('Total Electricitat 705,38 €','Total Electricitat 682,38 €')
+    .replace('IVA (21%) 705,38 € x 21% 148,13 €','IVA (21%) 682,38 € x 21% 143,30 €')
+    .replace('Total a pagar 853,51 €','Total a pagar 825,68 €')
+    .replace('231.814 1.296 kWh','230.517 1.205 kWh')
+    .replace('52.695 1.018 kWh','51.677 1.100 kWh')
+    .replace('105.340 1.945 kWh','103.395 1.719 kWh');
+  const r=parser.parse({text},{name:'naturgy-catala-reconnexio.pdf'});
+  assert.equal(r.kwh,4024);
+  assert.equal(r.energy,563.85);
+  assert.equal(r.power,66.11);
+  assert.equal(r.other,20.17);
+  assert.equal(r.accounted,825.68);
+  assert.equal(r.total,825.68);
+  assert.equal(r.balanced,true);
+  assert.equal(r.readOk,true);
+});
