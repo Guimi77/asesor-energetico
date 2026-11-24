@@ -189,7 +189,7 @@
 
   function parseFinancials(text){
     const lines=linesOf(text),energyRows=[],energyPeriods={};
-    const re=/^Consumo\s+electricidad(?:\s+(punta|llano|valle))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*€\/kWh[\s\S]*?(-?[\d.]+,\d{2})\s*€/i;
+    const re=/\bConsumo\s+electricidad(?:\s+(punta|llano|valle))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*€\/kWh[\s\S]*?(-?[\d.]+,\d{2})\s*€/i;
     for(const line of lines){
       const m=line.match(re);if(!m)continue;
       const row={label:(m[1]||'').toLowerCase(),kwh:num(m[2]),price:num(m[3]),cost:num(m[4])};
