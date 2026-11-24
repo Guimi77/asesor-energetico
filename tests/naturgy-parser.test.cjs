@@ -108,22 +108,22 @@ test('Naturgy fails closed when the invoice no longer balances',()=>{
 
 
 const catalanThreePeriod=`Naturgy Clientes, S.A.U.- Estàs al mercat lliure.
-Adreça de subministrament: PSO. REI 4
-BJ 07190 Esporles Baleares
+Adreça de subministrament: C. DEMO 12
+2 A 07001 Palma Baleares
 Núm. de factura:
-FE26390039376943
+FE26000000000002
 Data d'emissió: 16/10/2026
 Període electricitat:
 del 10/09/2026 al 13/10/2026
-Núm. de referència: 2005195727
-Nom: SA MOLETA CB CNAE: 9820
-Doc. Identitat: E56941875
+Núm. de referència: 600000001
+Nom: CLIENTE DEMO CATALA CNAE: 9820
+Doc. Identitat: 00000000T
 3. Detall: com calculem la teva factura
 Període electricitat del 10/09/2026 al 13/10/2026
 Consum electricitat punta 1.296 kWh x 0,206464 €/kWh 267,58 €
 Plan Fijo Luz
 Contracte: Consum electricitat pla 1.018 kWh x 0,133311 €/kWh 135,71 €
-3009841506 Consum electricitat vall 1.945 kWh x 0,097973 €/kWh 190,56 €
+600000002 Consum electricitat vall 1.945 kWh x 0,097973 €/kWh 190,56 €
 34 dies
 Terme de potència P1 13,200 kW x 34 dies x 0,122973 €/kW dia 55,19 €
 Terme de potència P2 13,200 kW x 34 dies x 0,043976 €/kW dia 19,74 €
@@ -138,9 +138,9 @@ Total a pagar 853,51 €
 13/10/2026 Punta real 231.814 1.296 kWh
 13/10/2026 Pla real 52.695 1.018 kWh
 13/10/2026 Vall real 105.340 1.945 kWh
-Codi CUPS: ES0031500565852001AM Potència contractada P1:13,200 kW
+Codi CUPS: ES0000000000000002AA Potència contractada P1:13,200 kW
 Distribuïdora: EDISTRIBUCIÓN REDES DIGITALES, S.L.U. Potència contractada P2:13,200 kW
-Núm. contracte d'accés: 500022126636
+Núm. contracte d'accés: 600000004
 Peatge de transport i distribució: 2.0TD
 Import de peatges: 89,19 €
 Import de càrrecs: 108,39 €
@@ -150,9 +150,9 @@ test('Naturgy Catalan 2.0TD variant is detected and fully parsed',()=>{
   assert.equal(parser.detect(catalanThreePeriod),true);
   const r=parser.parse({text:catalanThreePeriod},{name:'naturgy-catala.pdf'});
   assert.equal(r.sourceFormat,'naturgy');
-  assert.equal(r.invoiceNumber,'FE26390039376943');
-  assert.equal(r.company,'SA MOLETA CB');
-  assert.equal(r.cups,'ES0031500565852001AM');
+  assert.equal(r.invoiceNumber,'FE26000000000002');
+  assert.equal(r.company,'CLIENTE DEMO CATALA');
+  assert.equal(r.cups,'ES0000000000000002AA');
   assert.equal(r.kwh,4259);
   assert.equal(r.energy,593.85);
   assert.equal(r.power,74.93);
