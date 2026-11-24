@@ -23,6 +23,7 @@
     if(clean(d?.text))return String(d.text);
     return pagesOf(d).flat().join('\n');
   };
+  const quantityNum=v=>{const s=String(v??'').trim().replace(/\s/g,'');return /^-?\d{1,3}(?:\.\d{3})+$/.test(s)?Number(s.replace(/\./g,'')):num(s);};
   const normalizeCups=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const tariffOf=s=>((String(s||'').match(/\b(2\.0\s*TD|3\.0\s*TD|6\.[1-4]\s*TD)\b/i)||[])[1]||'—').replace(/\s+/g,'').toUpperCase();
   const toIso=value=>{const m=String(value||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0'):'';};
@@ -148,7 +149,7 @@
       const m=line?.match(re);
       if(m){
         const pricing=energyPeriods[key]||{};
-        periods[key]={consumption:num(m[1]),cost:pricing.cost??null,price:pricing.price??rate};
+        periods[key]={consumption:quantityNum(m[1]),cost:pricing.cost??null,price:pricing.price??rate};
       }
     }
     const sum=round2(Object.values(periods).reduce((s,p)=>s+Number(p.consumption||0),0));
@@ -192,7 +193,7 @@
     const re=/\bConsumo\s+electricidad(?:\s+(punta|llano|valle))?\s+([\d.]+(?:,\d+)?)\s*kWh\s*[x×]\s*([\d.]+,\d+)\s*€\/kWh[\s\S]*?(-?[\d.]+,\d{2})\s*€/i;
     for(const line of lines){
       const m=line.match(re);if(!m)continue;
-      const row={label:(m[1]||'').toLowerCase(),kwh:num(m[2]),price:num(m[3]),cost:num(m[4])};
+      const row={label:(m[1]||'').toLowerCase(),kwh:quantityNum(m[2]),price:num(m[3]),cost:num(m[4])};
       energyRows.push(row);
       const key=row.label==='punta'?'P1':row.label==='llano'?'P2':row.label==='valle'?'P3':'';
       if(key)energyPeriods[key]={consumption:row.kwh,price:row.price,cost:row.cost};
