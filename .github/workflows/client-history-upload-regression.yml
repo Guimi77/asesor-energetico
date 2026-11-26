@@ -8,6 +8,8 @@ on:
       - 'xtra-history.js'
       - 'supabase/migrations/20260915123000_allow_client_uploads_to_assigned_energy_history.sql'
       - 'tests/client-history-upload.test.cjs'
+      - 'tests/client-unified-history-ingest.test.cjs'
+      - 'docs/sql-proposals/submit_client_energy_invoice_v1.sql'
       - '.github/workflows/client-history-upload-regression.yml'
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - 'xtra-history.js'
       - 'supabase/migrations/20260915123000_allow_client_uploads_to_assigned_energy_history.sql'
       - 'tests/client-history-upload.test.cjs'
+      - 'tests/client-unified-history-ingest.test.cjs'
+      - 'docs/sql-proposals/submit_client_energy_invoice_v1.sql'
       - '.github/workflows/client-history-upload-regression.yml'
   workflow_dispatch:
 
@@ -35,4 +39,5 @@ jobs:
         run: |
           node --check client-upload-access.js
           node --check auth-bootstrap.js
-          node --test tests/client-history-upload.test.cjs
+          node --check xtra-history.js
+          node --test tests/client-history-upload.test.cjs tests/client-unified-history-ingest.test.cjs
