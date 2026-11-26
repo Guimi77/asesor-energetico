@@ -482,7 +482,7 @@ for(const tr of document.querySelectorAll('#resultsBody tr')){
 return null;
 }
 async function waitForMainRow(cups,periodText){for(let i=0;i<600;i++){const r=rowSnapshot(cups,periodText);if(r)return r;await new Promise(r=>setTimeout(r,100))}return null}
-const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente',existing_invoice_differs:'diferencias con el histórico que requieren revisión'};
+const HISTORY_SKIP_LABELS={no_internal_session:'sin sesión interna',fenie_ocr_failed:'OCR FENIE fallido',cups_missing:'CUPS ausente',invoice_number_missing:'nº factura ausente',billing_period_missing:'periodo ausente',power_detail_unreliable:'detalle potencia no fiable',main_parser_not_found:'fila principal no localizada',crosscheck_failed:'no coincide con parser principal',user_excluded_invoice:'factura excluida expresamente',existing_invoice_differs:'diferencias con el histórico que requieren revisión',cups_not_assigned_to_account:'CUPS no autorizado para esta cuenta',client_session_required:'sesión de cliente no autorizada',holder_identity_mismatch:'identidad del titular distinta de la ficha',required_fields_missing:'faltan datos esenciales',invalid_validation:'validación inválida',invalid_invoice_identity:'identificación de factura inválida',invalid_billing_values:'periodo o valores inválidos',economic_validation_failed:'importes no coherentes',invalid_detail:'detalle por periodos inválido',period_details_missing:'faltan periodos de consumo',energy_periods_mismatch:'consumo por periodos no cuadra',possible_refacturation_ambiguous:'posible rectificativa: revisión necesaria'};
 const HISTORY_EXCLUSIONS=[{source:'uenergia',billingStart:'2026-07-04',billingEnd:'2026-08-04',kwh:83,power:11.88,total:52.73,reason:'Cambio de titular · factura anterior no deseada en histórico'}];
 function excludedHistoryInvoice(x){return HISTORY_EXCLUSIONS.find(item=>item.source==='uenergia'&&item.billingStart===x?.period?.start&&item.billingEnd===x?.period?.end&&same(item.kwh,x?.kwh,.02)&&same(item.power,x?.power,.02)&&same(item.total,x?.total,.02))||null;}
 function skipSummary(reasons){
@@ -518,7 +518,7 @@ function historyReviewDetails(items){
 }
 async function persistOne(file){
 const profile=window.ibtCurrentProfile,supabase=window.ibtSupabase;
-if(!supabase||!['admin','staff'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
+if(!supabase||!['admin','staff','client'].includes(profile?.role))return {skipped:true,reason:'no_internal_session'};
 const source=await readPdf(file),uenergia=window.IBTUenergiaParser,iberdrola=window.IBTIberdrolaParser,repsol=window.IBTRepsolParser,naturgy=window.IBTNaturgyParser,sea=window.IBTSeaParser,som=window.IBTSomEnergiaParser,fallback=window.IBTFenieOcrFallback;let prepared;if(uenergia?.detect?.(source))prepared={data:source,attempted:false,error:null};else prepared=(iberdrola?.detect?.(source)||repsol?.detect?.(source)||naturgy?.detect?.(source)||sea?.detect?.(source)||som?.detect?.(source))?{data:source,attempted:false,error:null}:fallback?.prepare?await fallback.prepare(file,source,pdfjsLib):{data:source,attempted:false,error:null};
 if(prepared.error)return {skipped:true,reason:'fenie_ocr_failed'};
 const x=extractHistory(prepared.data,file);
@@ -536,7 +536,12 @@ consumption_kwh:x.kwh,energy_cost_eur:x.energy,power_cost_eur:x.power,excess_cos
 parser_version:x.parserVersion||window.IBT_PARSER_VERSION||'FENIE',validation_message:'Validado contra parser principal antes de guardar histórico',completeness_assessment_status:x.assessment,source_completeness:x.completeness,
 energy_periods:x.energyPeriods,power_periods:x.powerPeriods,maximeters:x.maximeterRows,excess_periods:x.excessPeriods,reactive_periods:x.reactivePeriods,tax_lines:x.taxLines,distributor_rights:x.distributorRights,adjustments:x.adjustments};
 if(Array.isArray(x.compensationPeriods)){payload.compensation_periods=x.compensationPeriods;payload.exported_kwh=x.exportedKwh}
-const {data,error}=await supabase.rpc('upsert_xtra_energy_history_v3',{p_payload:payload});if(error)throw error;
+if(profile.role==='client'){
+  const {data:clientData,error:clientError}=await supabase.rpc('submit_client_energy_invoice_v1',{p_payload:payload});
+  if(clientError)throw clientError;
+  return clientData||{ok:false,reason:'save_without_result'};
+ }
+ const {data,error}=await supabase.rpc('upsert_xtra_energy_history_v3',{p_payload:payload});if(error)throw error;
 let result=data||{ok:false};
 if(result?.ok){
   try{
@@ -564,21 +569,21 @@ let queue=Promise.resolve();
 function enqueue(files){
 const list=[...files].filter(f=>f.name?.toLowerCase().endsWith('.pdf'));if(!list.length)return;
 queue=queue.then(async()=>{
-let saved=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={},reviewItems=[];
+let saved=0,duplicates=0,skipped=0,failed=0,done=0,complete=0,review=0,skipReasons={},reviewItems=[];
 resetFenieHistoryShadow();resetEndesaHistoryShadow();fenieShadowStatus();endesaShadowStatus();
 historyReviewDetails([]);
 historyStatus(`Histórico: 0/${list.length} · validando y guardando…`,'review');
 for(const file of list){
-try{const r=await persistOne(file);if(r?.ok){saved++;if(r.completeness==='complete')complete++;else{review++;if(r.historyReview)reviewItems.push(r.historyReview)}}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
+try{const r=await persistOne(file);if(r?.ok&&['existing_unchanged','superseded_input_ignored'].includes(r.mode)){duplicates++;}else if(r?.ok){saved++;if(r.completeness==='complete')complete++;else{review++;if(r.historyReview)reviewItems.push(r.historyReview)}}else{skipped++;const reason=r?.reason||'unknown';skipReasons[reason]=(skipReasons[reason]||0)+1;}}
 catch(e){failed++;console.warn('Histórico XTRA:',file.name,e)}
-done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,'review');
+done++;historyStatus(`Histórico: ${done}/${list.length} · ${saved} guardadas · ${duplicates} duplicadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,'review');
 await new Promise(resolve=>setTimeout(resolve,0));
 }
 await renderSummary();
-historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
+historyStatus(`Histórico: ${done}/${list.length} · ✓ ${saved} guardadas · ${duplicates} duplicadas · ${complete} completas · ${review} a revisar · ${failed} errores${skipped?` · ${skipped} no guardadas${skipSummary(skipReasons)}`:''}`,failed||skipped||review?'review':'ok');
 historyReviewDetails(reviewItems);
 fenieShadowStatus();endesaShadowStatus();
-window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary(),endesaShadow:endesaHistoryShadowSummary()}}));
+window.dispatchEvent(new CustomEvent('xtra-history-updated',{detail:{saved,duplicates,skipped,failed,complete,review,reviewItems,fenieShadow:fenieHistoryShadowSummary(),endesaShadow:endesaHistoryShadowSummary()}}));
 if(saved>0)window.dispatchEvent(new CustomEvent('ibt-central-data-changed',{detail:{action:'history_ingest',saved}}));
 }).catch(e=>{console.warn('Cola histórico XTRA',e);historyStatus('No se ha completado el guardado del histórico. Revisa la conexión.','review')});
 }
