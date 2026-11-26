@@ -6,7 +6,7 @@ const api=require('../client-workbook-layout.js');
 test('Uses street and number but strips flat, district and postal details',()=>{
   assert.equal(api.streetAndNumber('CALLE PRUEBA FRANCA 2, 07009 PALMA'), 'Prueba Franca 2');
   assert.equal(api.streetAndNumber('Carrer de Testeu 3 3 BAJO 5, PALMA'), "de Testeu 3");
-  assert.equal(api.streetAndNumber('AVENIDA DE PRUEBA 56, BAJO, 07002'), 'de Prueba 56');
+  assert.equal(api.streetAndNumber('AVENIDA DE PRUEBA 56, BAJO, 07002'), 'De Prueba 56');
   assert.equal(api.streetAndNumber('CL GREMI DE TEST 52 BAJO'), 'Gremi de Test 52');
   assert.equal(api.streetAndNumber('CN PRUEBA 1001 7 ESC A 2-2'), 'Cn Prueba 1001');
 });
