@@ -201,10 +201,10 @@
     const master=sheet(wb,'SUMINISTROS',text(g.holder.legal_name)+' \u00b7 ELECTRICIDAD',range+' Contrato y localizaci\u00f3n: maestro actual. Tarifa: \u00faltimo periodo seleccionado.',['#','CUPS','Suministro','Direcci\u00f3n','Localidad','Provincia','Tarifa en el rango','Contrato actual','Comercializadora en el rango','Distribuidora en el rango','Estado CUPS'],[6,28,32,40,22,20,18,23,27,27,16]);
     let idx=0;for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),latest=[...rows].sort((a,b)=>b.billing_end.localeCompare(a.billing_end)||b.billing_start.localeCompare(a.billing_start))[0];dataRow(master,[++idx,text(s.cups),text(s.supply_name),text(s.address),text(s.city),text(s.province),text(latest.tariff),text(s.current_contract_number),text(latest.retailer),text(latest.distributor),supplyStatusLabel(s.status)]);}
     master.autoFilter={from:'A4',to:'K'+master.rowCount};
-    const detail=addDetails(wb,g,range);idx=0;
-    for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id);monthlySheet(wb,'CUPS '+(++idx),text(s.supply_name)||text(s.address)||text(s.cups),rows,detail.name,detail.rowCount,s.cups,'CUPS '+text(s.cups)+' \u00b7 '+range,1);await pause();}
+    const detail=addDetails(wb,g,range),used=new Set(),supplyNames=[];
+    for(const [id,s] of g.supplies){const rows=g.records.filter(r=>r.supply_id===id),name=root.IBTClientWorkbookLayout.supplySheetName({address:s.address,name:s.supply_name,cups:s.cups},used);supplyNames.push(name);monthlySheet(wb,name,text(s.supply_name)||text(s.address)||text(s.cups),rows,detail.name,detail.rowCount,s.cups,'CUPS '+text(s.cups)+' \u00b7 '+range,1);await pause();}
     monthlySheet(wb,'RESUMEN TOTAL',text(g.holder.legal_name)+' \u00b7 RESUMEN',g.records,detail.name,detail.rowCount,null,range,g.supplies.size);
-    const order=['SUMINISTROS',...Array.from({length:idx},(_,i)=>'CUPS '+(i+1)),'RESUMEN TOTAL','PERIODOS','DETALLE P1-P6','AJUSTES'];order.forEach((name,i)=>{const ws=wb.getWorksheet(name);if(ws)ws.orderNo=i;});
+    root.IBTClientWorkbookLayout.arrange(wb,supplyNames);
     return wb;
   }
   async function exportSelection(input,options={}){
