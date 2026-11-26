@@ -73,6 +73,18 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'required_fields_missing');
   end if;
 
+  -- Missing and null financial concepts must never be silently treated as real zero.
+  for v_key in select unnest(array[
+    'consumption_kwh','energy_cost_eur','power_cost_eur','excess_cost_eur',
+    'reactive_cost_eur','compensation_eur','social_bonus_eur',
+    'meter_rental_eur','distributor_charges_eur','electricity_tax_eur',
+    'vat_eur','igic_eur','other_cost_eur','total_eur','accounted_eur','difference_eur'
+  ]) loop
+    if not (p_payload ? v_key) or jsonb_typeof(p_payload->v_key) <> 'number' then
+      return jsonb_build_object('ok',false,'reason','required_fields_missing','field',v_key);
+    end if;
+  end loop;
+
   -- Invalid dates/numbers raise and roll back the whole RPC: fail closed.
   v_start := (p_payload->>'billing_start')::date;
   v_end := (p_payload->>'billing_end')::date;
@@ -121,6 +133,10 @@ begin
      or jsonb_array_length(coalesce(p_payload->'power_periods','[]'::jsonb)) > 6 then
     return jsonb_build_object('ok', false, 'reason', 'period_details_missing');
   end if;
+  if (p_payload->>'power_cost_eur')::numeric <> 0
+     and jsonb_array_length(coalesce(p_payload->'power_periods','[]'::jsonb)) = 0 then
+    return jsonb_build_object('ok', false, 'reason', 'period_details_missing');
+  end if;
   select sum(e.consumption_kwh) into v_energy_kwh
   from jsonb_to_recordset(p_payload->'energy_periods')
     as e(period smallint, consumption_kwh numeric);
@@ -139,6 +155,17 @@ begin
        and abs(v_existing.total_eur-v_total) <= 0.01
        and abs(v_existing.energy_cost_eur-(p_payload->>'energy_cost_eur')::numeric) <= 0.01
        and abs(v_existing.power_cost_eur-(p_payload->>'power_cost_eur')::numeric) <= 0.01
+       and abs(v_existing.excess_cost_eur-(p_payload->>'excess_cost_eur')::numeric) <= 0.01
+       and abs(v_existing.reactive_cost_eur-(p_payload->>'reactive_cost_eur')::numeric) <= 0.01
+       and abs(v_existing.compensation_eur-(p_payload->>'compensation_eur')::numeric) <= 0.01
+       and abs(v_existing.social_bonus_eur-(p_payload->>'social_bonus_eur')::numeric) <= 0.01
+       and abs(v_existing.meter_rental_eur-(p_payload->>'meter_rental_eur')::numeric) <= 0.01
+       and abs(v_existing.distributor_charges_eur-(p_payload->>'distributor_charges_eur')::numeric) <= 0.01
+       and abs(v_existing.electricity_tax_eur-(p_payload->>'electricity_tax_eur')::numeric) <= 0.01
+       and abs(v_existing.vat_eur-(p_payload->>'vat_eur')::numeric) <= 0.01
+       and abs(v_existing.igic_eur-(p_payload->>'igic_eur')::numeric) <= 0.01
+       and abs(v_existing.other_cost_eur-(p_payload->>'other_cost_eur')::numeric) <= 0.01
+       and (v_existing.issue_date is not distinct from nullif(p_payload->>'issue_date','')::date)
        and v_existing.superseded_by is null then
       return jsonb_build_object('ok', true, 'mode', 'existing_unchanged', 'invoice_id', v_existing.id);
     end if;
