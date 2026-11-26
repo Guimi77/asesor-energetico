@@ -13,14 +13,20 @@ test('signup requests the branded confirmation destination',()=>{
 
 test('confirmation page verifies the authenticated user before claiming success',()=>{
   assert(confirmation.includes('supabase.auth.getUser()'));
-  assert(confirmation.includes("render('ok','Registro completado'"));
+  assert(confirmation.includes("render('ok','Correo confirmado'"));
   assert(confirmation.includes('No mostramos “registro completado” por suposición.'));
-  assert(confirmation.includes('assets/bt-energia-logo.png?v=186342746abb')); // Transparent source requested on 2026-10-08.
+  assert(confirmation.includes('assets/energia-bt-inferior.jpg?v=628006832ae8')); // Reuses the current login brand.
 });
 
 test('confirmation page leaves the user signed out after verification',()=>{
   assert(confirmation.includes("supabase.auth.signOut({scope:'local'})"));
   assert(confirmation.includes('Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS'));
+  assert(confirmation.includes("profile?.role==='client'&&profile.active===false"));
+  assert(confirmation.includes('Ya puedes volver al acceso e iniciar sesión'));
+  assert(confirmation.includes('auth.css?v=7e6a616f7cd6'));
+  assert(confirmation.includes('bt-action-theme.css?v=93d27f214ea0'));
+  assert(confirmation.includes('auth-result-icon'));
+  assert(!confirmation.includes('assets/bt-energia-logo.png'));
 });
 
 test('GitHub Pages 404 rescues auth callbacks instead of showing a dead end',()=>{
