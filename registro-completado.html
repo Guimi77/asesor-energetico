@@ -3,38 +3,43 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Instal·lacions BT · Confirmación de correo</title>
+  <title>Energia BT · Confirmación de correo</title>
+  <link rel="stylesheet" href="styles.css?v=8095d3a666fd"/>
+  <link rel="stylesheet" href="auth.css?v=7e6a616f7cd6"/>
+  <link rel="stylesheet" href="bt-action-theme.css?v=93d27f214ea0"/>
   <style>
-    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0b2447;background:#f4f7fb}
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#edf3fb 0%,#f8fafc 100%)}
-    .card{width:min(620px,100%);background:#fff;border:1px solid #d8e2ef;border-radius:18px;box-shadow:0 18px 55px rgba(12,42,83,.12);padding:36px;text-align:center}
-    .logo{display:block;width:min(440px,100%);height:auto;margin:0 auto 26px}
-    .eyebrow{margin:0 0 8px;color:#2442c4;font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
-    h1{margin:0;color:#102746;font-size:clamp(1.8rem,5vw,2.5rem)}
-    .copy{margin:16px auto 0;max-width:520px;color:#5e718a;line-height:1.65;font-size:1rem}
-    .state{width:72px;height:72px;margin:24px auto 18px;border-radius:50%;display:grid;place-items:center;font-size:2rem;font-weight:900;background:#e9eef8;color:#2442c4}
-    .state.ok{background:#e6f7ed;color:#11743a}
-    .state.error{background:#fff0ed;color:#b42318}
-    .notice{margin:22px 0 0;padding:15px 16px;border-radius:12px;background:#f7f9fc;color:#52647b;text-align:left;line-height:1.5}
-    .notice strong{color:#102746}
-    .actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:26px}
-    .button{display:inline-block;text-decoration:none;border-radius:10px;padding:12px 18px;font-weight:800;border:1px solid #2442c4;background:#2442c4;color:#fff}
-    .small{margin-top:18px;color:#7a8ba2;font-size:.86rem}
+    .confirmation-shell{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:32px 16px;background:radial-gradient(circle at top,#e6fbf7 0,#f5f8f8 44%,#e8efef 100%)}
+    .confirmation-shell .auth-card{width:min(520px,100%);padding:32px;text-align:center}
+    .confirmation-shell .auth-logo{width:min(210px,70%);max-height:205px;margin:0 auto 18px;object-fit:contain}
+    .confirmation-shell .eyebrow{margin:0 0 8px}
+    .confirmation-shell h1{color:#1d292d;font-size:clamp(1.5rem,4.5vw,1.9rem);line-height:1.2}
+    .confirmation-shell .auth-copy{max-width:425px;margin:12px auto 0;font-size:.88rem;line-height:1.55;overflow-wrap:anywhere}
+    .confirmation-shell .auth-result-icon{margin:18px auto 16px;background:#e8faf7;color:#007d78}
+    .confirmation-shell .auth-result-icon.ok{background:#e7f7ed;color:#16713b}
+    .confirmation-shell .auth-result-icon.error{background:#fff0ed;color:#b42318}
+    .confirmation-shell .confirmation-notice{margin:20px 0 0;padding:15px 16px;border:1px solid #d7e4e2;border-radius:9px;background:#f3faf8;color:#40565a;text-align:left;font-size:.82rem;line-height:1.55;overflow-wrap:anywhere}
+    .confirmation-shell .confirmation-notice strong{color:#1d292d}
+    .confirmation-shell .confirmation-actions{margin-top:22px}
+    .confirmation-shell .confirmation-button{display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:10px 17px;border:1px solid #007b73;border-radius:7px;background:#008b83;color:#fff;font-weight:800;text-decoration:none}
+    .confirmation-shell .confirmation-button:hover{background:#006b66}
+    .confirmation-shell .confirmation-button:focus-visible{outline:3px solid rgba(0,139,131,.30);outline-offset:3px}
+    .confirmation-shell .confirmation-footnote{margin:18px auto 0;max-width:430px;font-size:.72rem;line-height:1.5;color:#65758a}
+    @media(max-width:600px){.confirmation-shell{padding:18px 12px}.confirmation-shell .auth-card{padding:24px 20px}.confirmation-shell .auth-logo{width:min(190px,68%)}}
   </style>
 </head>
 <body>
-  <main class="card" aria-live="polite">
-    <img class="logo" src="assets/bt-energia-logo.png?v=186342746abb" alt="BT Energía"/>
-    <p class="eyebrow">Confirmación de correo</p>
-    <div id="stateIcon" class="state">…</div>
-    <h1 id="title">Comprobando el registro…</h1>
-    <p id="message" class="copy">Estamos verificando que el correo haya quedado confirmado correctamente.</p>
-    <div id="notice" class="notice" hidden></div>
-    <div class="actions"><a class="button" href="./">Volver al acceso</a></div>
-    <p class="small">Por seguridad, un cliente nuevo no verá ningún suministro hasta que Instal·lacions BT vincule manualmente su cuenta.</p>
+  <main class="confirmation-shell">
+    <section class="auth-card auth-result" aria-live="polite" aria-atomic="true">
+      <img class="auth-logo" src="assets/energia-bt-inferior.jpg?v=628006832ae8" alt="Energia BT"/>
+      <p class="eyebrow">Acceso privado · Asesor Energético</p>
+      <div id="stateIcon" class="auth-result-icon" aria-hidden="true">…</div>
+      <h1 id="title">Comprobando el registro…</h1>
+      <p id="message" class="auth-copy">Estamos verificando la confirmación de tu correo electrónico.</p>
+      <div id="notice" class="confirmation-notice" hidden></div>
+      <div class="confirmation-actions"><a class="confirmation-button" href="./">Volver al acceso</a></div>
+      <p class="confirmation-footnote">El acceso a los datos energéticos está protegido y depende de los permisos asignados a cada cuenta.</p>
+    </section>
   </main>
-
   <script type="module" src="auth.js?v=20260915-confirm1"></script>
   <script type="module">
     const $=id=>document.getElementById(id);
@@ -53,7 +58,7 @@
     }
     function render(kind,title,message,notice){
       const icon=$('stateIcon');
-      icon.className=`state ${kind}`;
+      icon.className=`auth-result-icon ${kind}`;
       icon.textContent=kind==='ok'?'✓':'!';
       $('title').textContent=title;
       $('message').textContent=message;
@@ -96,13 +101,20 @@
         return;
       }
       const email=data.user.email||'tu correo';
-      const notified=await notifyAdmin(supabase);
+      const {data:profile, error:profileError}=await supabase.from('profiles')
+        .select('role,active').eq('id',data.user.id).maybeSingle();
+      if(profileError)console.warn('No se pudo comprobar el perfil tras confirmar el correo',profileError);
+      if(profile?.role==='client'&&profile.active===false)await notifyAdmin(supabase);
       cleanAddress();
       await supabase.auth.signOut({scope:'local'}).catch(()=>{});
-      const notice=notified
-        ? '<strong>Siguiente paso:</strong> Instal·lacions BT ya ha recibido tu solicitud. Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Te avisaremos cuando puedas entrar.'
-        : '<strong>Siguiente paso:</strong> tu correo está confirmado, pero tu solicitud sigue pendiente. Contacta con Instal·lacions BT si necesitas comprobar su estado.';
-      render('ok','Registro completado','El correo '+email+' ha quedado confirmado correctamente. Tu solicitud de acceso sigue pendiente de aprobación.',notice);
+      const pending=profile?.role==='client'&&profile.active===false;
+      const enabled=profile?.active===true;
+      const notice=pending
+        ? '<strong>Siguiente paso:</strong> Un administrador vinculará manualmente tu cuenta con tu ficha y tus CUPS. Te avisaremos cuando tengas acceso.'
+        : enabled
+          ? '<strong>Siguiente paso:</strong> Ya puedes volver al acceso e iniciar sesión con tu correo y contraseña.'
+          : '<strong>Siguiente paso:</strong> Tu correo está confirmado. Si aún no puedes acceder, consulta al administrador para comprobar los permisos de tu cuenta.';
+      render('ok','Correo confirmado','El correo '+email+' se ha confirmado correctamente.',notice);
     }
     verifyConfirmation().catch(err=>{
       console.error(err);
