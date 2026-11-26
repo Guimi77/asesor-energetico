@@ -30,10 +30,11 @@ jobs:
       - name: Syntax and regression tests
         run: |
           node --check history-ui.js
+          node --check client-workbook-layout.js
           node --check history-client-export.js
           node --check client-report-export.js
           node --check historical-export-enrichment.js
-          node --test tests/history-client-export.test.cjs tests/client-report-export.test.cjs tests/historical-export-enrichment.test.cjs
+          node --test tests/history-client-export.test.cjs tests/client-report-export.test.cjs tests/client-workbook-layout.test.cjs tests/historical-export-enrichment.test.cjs
       - name: Install browser and workbook test dependencies
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1 exceljs@4.4.0 jszip@3.10.1

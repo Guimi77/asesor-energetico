@@ -12,6 +12,7 @@ const ExcelJS = require('exceljs');
     page.on('pageerror', error => errors.push(error.message));
     await page.setContent('<main><div id="historicoView"></div></main>');
     await page.addScriptTag({ path: require.resolve('exceljs/dist/exceljs.min.js') });
+    await page.addScriptTag({ path: 'client-workbook-layout.js' });
     await page.addScriptTag({ path: 'history-client-export.js' });
     await page.evaluate(() => {
       const row = (id, month, source) => ({
