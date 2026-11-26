@@ -17,7 +17,7 @@ const {chromium}=require('playwright');
    window.ibtCurrentProfile={id:'test-user',role:'staff'};window.mockQueries=0;
    window.ibtSupabase={from(table){window.mockQueries++;let rows=window.db[table]||[];const q={select(){return q},order(){return q},eq(k,v){rows=rows.filter(r=>r[k]===v);return q},in(k,values){rows=rows.filter(r=>values.includes(r[k]));return q},gte(k,v){rows=rows.filter(r=>r[k]>=v);return q},lte(k,v){rows=rows.filter(r=>r[k]<=v);return q},then(resolve,reject){return Promise.resolve({data:structuredClone(rows),error:null}).then(resolve,reject)}};return q;}};
   });
-  await page.addScriptTag({path:'history-recommendations.js'});await page.addScriptTag({path:'history-client-export.js'});await page.addScriptTag({path:'history-ui.js'});
+  await page.addScriptTag({path:'history-recommendations.js'});await page.addScriptTag({path:'client-workbook-layout.js'});await page.addScriptTag({path:'history-client-export.js'});await page.addScriptTag({path:'history-ui.js'});
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}})));
   await page.waitForSelector('.history-data-note');
   assert.equal(await page.locator('.history-grid>.history-chart').count(),3);
