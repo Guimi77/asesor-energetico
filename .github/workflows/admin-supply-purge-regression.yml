@@ -1,0 +1,24 @@
+name: Admin supply deletion safety
+on:
+  pull_request:
+    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
+  push:
+    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JS syntax
+        run: |
+          node --check history-ui.js
+          node --check history-supply-purge.js
+          node --check auth-bootstrap.js
+      - name: Fail-closed admin deletion tests
+        run: node --test tests/admin-supply-purge.test.cjs
