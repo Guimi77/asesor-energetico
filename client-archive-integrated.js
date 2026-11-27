@@ -326,6 +326,54 @@
     });
   }
 
+  function integratePurgeButtons() {
+    // Source archive buttons already carry the canonical database client ID.
+    // Never resolve a destructive target by a fuzzy name or a visible label.
+    $('#companyGrid .integrated-client-archive[data-id]').forEach((archive) => {
+      const clientId=archive.dataset.id;
+      const clientName=archive.dataset.integratedClientName ||
+        archive.closest('.company-card-tree')?.dataset.clientPrimary || '';
+      if (!clientId || !clientName || !archive.parentElement ||
+          archive.parentElement.querySelector('.integrated-client-purge')) return;
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='secondary integrated-client-purge';
+      button.textContent='Eliminar cliente';
+      button.title='Eliminar este cliente y todos sus titulares, suministros y facturas definitivamente';
+      button.addEventListener('click',async (event)=>{
+        event.preventDefault();
+        event.stopPropagation();
+        if(!isAdmin() || typeof window.IBTAdminPurge?.purgeClient!=='function') return;
+        button.disabled=true;
+        try { await window.IBTAdminPurge.purgeClient({id:clientId,name:clientName}); }
+        finally { button.disabled=false; }
+      });
+      archive.insertAdjacentElement('afterend',button);
+    });
+    $('#companyGrid .holder-supply-row[data-history-supply-id][data-cups]').forEach((row) => {
+      if(row.querySelector('.integrated-supply-purge')) return;
+      const supplyId=row.dataset.historySupplyId;
+      const cups=row.dataset.cups;
+      if(!supplyId || !cups) return;
+      const actions=row.querySelector('.holder-supply-actions');
+      if(!actions) return;
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='secondary integrated-supply-purge';
+      button.textContent='Eliminar';
+      button.title='Eliminar suministro, facturas y detalles definitivamente';
+      button.addEventListener('click',async (event)=>{
+        event.preventDefault();
+        event.stopPropagation();
+        if(!isAdmin() || typeof window.IBTAdminPurge?.purgeSupply!=='function') return;
+        button.disabled=true;
+        try { await window.IBTAdminPurge.purgeSupply({id:supplyId,cups}); }
+        finally { button.disabled=false; }
+      });
+      actions.appendChild(button);
+    });
+  }
+
   function integrateArchiveButtons() {
     if (syncing) return;
     hideCupsMenu();
@@ -340,6 +388,7 @@
       integrateSupplyArchiveButtons();
       integrateHolderChangeControls();
       placeClientActionsInHierarchy();
+      integratePurgeButtons();
     } finally {
       syncing = false;
     }
@@ -379,6 +428,12 @@
         line-height:1.2!important;
         white-space:nowrap;
       }
+      .integrated-supply-purge,.integrated-client-purge{
+        color:#a42c25!important;border:1px solid #dbb4b1!important;background:#fff8f7!important;
+        cursor:pointer;white-space:nowrap;
+      }
+      .integrated-supply-purge:hover,.integrated-client-purge:hover{background:#ffe9e5!important}
+      .integrated-client-purge{padding:5px 8px!important;border-radius:7px!important;font-size:11px!important}
       .holder-supply-actions .integrated-supply-archive{
         border-color:#d6a14a!important;
         color:#8a5a00!important;
