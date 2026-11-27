@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='fenie-2026.11.27.1';
+  const REVISION='fenie-2026.11.27.2';
   const RETAILER='FENIE ENERGIA';
 
   const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -102,14 +102,14 @@
       if(!trailing){errors.push('Regularización '+label+': importe final no identificable');continue}
       const signed=trailing[1].replace('−','-');
       const amount=num(signed);
-      const range=String(source).match(/(?:Periodo|Period)\s+(\d{2}\/\d{2}\/\d{4})\s+(?:al|a|to|-)\s+(\d{2}\/\d{2}\/\d{4})/i);
+      const range=String(source).match(/(?:Periodo|Period)\s+(?:del\s+)?(\d{2}[\/-]\d{2}[\/-]\d{4})\s+(?:al|a|to|-)\s+(\d{2}[\/-]\d{2}[\/-]\d{4})/i);
       if(!range){errors.push('Regularización '+label+': periodo afectado no identificable');continue}
       items.push({
         concept:label==='consumption'?'Regularización Consumo':'Regularización Reactiva',
         category:label==='consumption'?'consumption_regularization':'reactive_adjustment',
         amount_eur:amount,
         direction:amount>0?'charge':amount<0?'credit':'neutral',
-        affected_period:{start:range[1],end:range[2]},
+        affected_period:{start:range[1].replace(/-/g,'/'),end:range[2].replace(/-/g,'/')},
         source_text:String(source),
         status:'extracted'
       });
