@@ -81,7 +81,9 @@ test('successful history ingestion refreshes history scope and central client ca
 });
 
 test('browser cache markers force the post-save refresh code',()=>{
-  assert.match(bootstrap,/xtra-history\.js\?v=9e80b9ecbf03/);
+  const xtraBytes=fs.readFileSync(path.join(root,'xtra-history.js'));
+  const xtraHash=require('node:crypto').createHash('sha1').update('blob '+xtraBytes.length).update(Buffer.from([0])).update(xtraBytes).digest('hex').slice(0,12);
+  assert.ok(bootstrap.includes('xtra-history.js?v='+xtraHash));
   const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const crypto=require('node:crypto');
   const bytes=fs.readFileSync(path.join(root,'history-ui.js'));
