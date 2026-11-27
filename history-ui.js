@@ -1159,5 +1159,7 @@
     const supply=visibleSupplies().find(x=>x.id===id);
     return supply ? {id:supply.id,cups:supply.cups,holderId:supply.holder_id} : null;
   }
-  window.IBTHistoryUI = { reload: refreshRecords, focusSupply, getPurgeTarget, refreshScope:()=>init(window.ibtCurrentProfile) };
+  window.IBTHistoryUI = { reload: refreshRecords, focusSupply };
+  window.IBTHistoryUI.getPurgeTarget = getPurgeTarget;
+  window.IBTHistoryUI.refreshScope = ()=>init(window.ibtCurrentProfile);
 })();
