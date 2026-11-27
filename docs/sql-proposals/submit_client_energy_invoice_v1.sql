@@ -111,8 +111,15 @@ begin
           + coalesce((p_payload->>'vat_eur')::numeric,0)
           + coalesce((p_payload->>'igic_eur')::numeric,0)
           + coalesce((p_payload->>'other_cost_eur')::numeric,0);
+  -- Some supported legacy extractors (notably FENIE) include the
+  -- social bonus and meter rental inside "other_cost_eur" as well as exposing
+  -- those two concepts individually. Accept either documented normalization
+  -- convention, without altering the stored source values.
   if v_sum::text in ('NaN','Infinity','-Infinity')
-     or abs(v_total - v_sum) > 0.05
+     or (abs(v_total - v_sum) > 0.05
+         and abs(v_total - (v_sum -
+             (p_payload->>'social_bonus_eur')::numeric -
+             (p_payload->>'meter_rental_eur')::numeric)) > 0.05)
      or abs(v_accounted - v_total) > 0.05
      or abs((p_payload->>'difference_eur')::numeric) > 0.05 then
     return jsonb_build_object('ok', false, 'reason', 'economic_validation_failed');
