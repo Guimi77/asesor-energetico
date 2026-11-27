@@ -1,7 +1,7 @@
 name: Admin supply deletion safety
 on:
   pull_request:
-    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
+    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','tests/admin-client-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
   push:
     paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
 permissions:
@@ -21,4 +21,4 @@ jobs:
           node --check history-supply-purge.js
           node --check auth-bootstrap.js
       - name: Fail-closed admin deletion tests
-        run: node --test tests/admin-supply-purge.test.cjs
+        run: node --test tests/admin-supply-purge.test.cjs tests/admin-client-purge.test.cjs
