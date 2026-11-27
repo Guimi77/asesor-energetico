@@ -262,6 +262,7 @@
 
           sourceButton.classList.add('integrated-client-archive');
           sourceButton.dataset.integratedClientName = clientName;
+          sourceButton.dataset.purgeClientName = $('strong',sourceRow)?.textContent || '';
           sourceButton.textContent = 'Archivar cliente';
           sourceButton.title = 'Archivar este cliente legal conservando todo su histórico';
           actions.appendChild(sourceButton);
@@ -277,6 +278,7 @@
       if (!sourceButton || !actions) continue;
 
       sourceButton.classList.add('integrated-client-archive');
+      sourceButton.dataset.purgeClientName = $('strong',sourceRow)?.textContent || '';
       sourceButton.textContent = 'Archivar';
       sourceButton.title = 'Archivar cliente conservando todo su histórico';
       actions.appendChild(sourceButton);
@@ -331,7 +333,7 @@
     // Never resolve a destructive target by a fuzzy name or a visible label.
     $('#companyGrid .integrated-client-archive[data-id]').forEach((archive) => {
       const clientId=archive.dataset.id;
-      const clientName=archive.dataset.integratedClientName ||
+      const clientName=archive.dataset.purgeClientName || archive.dataset.integratedClientName ||
         archive.closest('.company-card-tree')?.dataset.clientPrimary || '';
       if (!clientId || !clientName || !archive.parentElement ||
           archive.parentElement.querySelector('.integrated-client-purge')) return;
