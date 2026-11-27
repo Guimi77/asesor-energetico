@@ -27,13 +27,14 @@ test('client can be deleted only after supply and last holder are deleted',()=>{
   assert.match(sql,/v_client_deleted := v_count=1/);
 });
 test('UI previews and clearly confirms client deletion as well as CUPS',()=>{
-  assert.match(ui,/db\.rpc\('admin_purge_supply_and_client_v2'/);
+  assert.match(ui,/rpc:'admin_purge_supply_and_client_v2'/);
+  assert.match(ui,/rpc:'admin_purge_client_v1'/);
   assert.match(ui,/preview\.client_will_be_deleted/);
-  assert.match(ui,/preview\.client_user_links_to_remove/);
+  assert.match(ui,/preview\.client_user_links/);
   assert.match(ui,/preview\.client/);
-  assert.match(ui,/typed !== preview\.cups/);
+  assert.match(ui,/typed!==confirmation/);
   assert.match(ui,/window\.confirm\(/);
-  assert.match(ui,/p_expected_signature:preview\.signature/);
-  assert.match(ui,/result\.client_deleted/);
+  assert.match(ui,/p_expected_signature:preview.signature/);
+  assert.match(ui,/client_deleted/);
   assert.match(index,/history-supply-purge\.js\?v=[a-f0-9]{12}/);
 });
