@@ -539,7 +539,7 @@ if(Array.isArray(x.compensationPeriods)){payload.compensation_periods=x.compensa
 if(profile.role==='client'){
   const {data:clientData,error:clientError}=await supabase.rpc('submit_client_energy_invoice_v1',{p_payload:payload});
   if(clientError)throw clientError;
-  return clientData||{ok:false,reason:'save_without_result'};
+  return {...(clientData||{ok:false,reason:'save_without_result'}),completeness:clientData?.ok?x.assessment:null,historyReview:clientData?.ok&&x.assessment==='needs_review'?{invoiceNumber:x.invoiceNumber,reasons:reviewReasons(x.completeness)}:null};
  }
  const {data,error}=await supabase.rpc('upsert_xtra_energy_history_v3',{p_payload:payload});if(error)throw error;
 let result=data||{ok:false};
