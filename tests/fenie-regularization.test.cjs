@@ -9,7 +9,7 @@ function invoice(regLines,total){
   const page=[
     'FENIE ENERGIA',
     'Razón Social: EMPRESA SINTETICA',
-    'Nº Factura: TEST-REG-001',
+    'Nº Factura: TEST000001',
     'CUPS: ES0000000000000000AA',
     'Tarifa: 2.0TD',
     'Periodo Facturación: 01/09/2026 - 14/09/2026 (14 días)',
