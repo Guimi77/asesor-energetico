@@ -1,9 +1,9 @@
 name: Admin supply deletion safety
 on:
   pull_request:
-    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','tests/admin-client-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
+    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','supabase/migrations/*admin_purge_orphan_client*','tests/admin-supply-purge.test.cjs','tests/admin-client-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
   push:
-    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
+    paths: ['history-ui.js','history-supply-purge.js','auth-bootstrap.js','index.html','supabase/migrations/*admin_purge_supply*','supabase/migrations/*admin_purge_orphan_client*','tests/admin-supply-purge.test.cjs','.github/workflows/admin-supply-purge-regression.yml']
 permissions:
   contents: read
 jobs:
