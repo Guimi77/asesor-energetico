@@ -21,11 +21,18 @@ test('Customer RPC uses explicit backend client and supply authorization',()=>{
   assert.match(sql,/security definer/);
   assert.match(sql,/p\.id = v_user and p\.role = 'client' and p\.active = true/);
   assert.match(sql,/join public\.client_users cu on cu\.client_id = c\.id and cu\.user_id = v_user/);
-  assert.match(sql,/s\.cups_key = left\(v_cups,20\) and s\.status = 'active'/);
+  assert.match(sql,/left\(s\.cups_key,20\) = left\(v_cups,20\) and s\.status = 'active'/);
   assert.match(sql,/cups_not_assigned_to_account/);
   assert.match(sql,/holder_identity_mismatch/);
   assert.match(sql,/revoke all on function public\.submit_client_energy_invoice_v1\(jsonb\) from public, anon, authenticated/);
   assert.match(sql,/grant execute on function public\.submit_client_energy_invoice_v1\(jsonb\) to authenticated/);
+});
+
+test('Full 22-character CUPS is matched by the canonical first 20 without relaxing the assigned-user check',()=>{
+  const patch=fs.readFileSync(path.join(root,'supabase/migrations/20261127075939_client_invoice_match_canonical_cups20.sql'),'utf8');
+  assert.match(patch,/left\(s\.cups_key,20\) = left\(v_cups,20\)/);
+  assert.match(patch,/raise exception 'Expected client CUPS lookup not found; refusing patch'/);
+  assert.match(sql,/join public\.client_users cu on cu\.client_id = c\.id and cu\.user_id = v_user/);
 });
 
 test('SQL never updates invoices, supply/holder identities, or invokes privileged legacy writers',()=>{
