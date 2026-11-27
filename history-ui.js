@@ -1160,6 +1160,8 @@
     return supply ? {id:supply.id,cups:supply.cups,holderId:supply.holder_id} : null;
   }
   window.IBTHistoryUI = { reload: refreshRecords, focusSupply };
-  window.IBTHistoryUI.getPurgeTarget = getPurgeTarget;
-  window.IBTHistoryUI.refreshScope = ()=>init(window.ibtCurrentProfile);
+  if (window.IBTHistoryUI) {
+    window.IBTHistoryUI.getPurgeTarget = getPurgeTarget;
+    window.IBTHistoryUI.refreshScope = ()=>init(window.ibtCurrentProfile);
+  }
 })();
