@@ -331,7 +331,7 @@
   function integratePurgeButtons() {
     // Source archive buttons already carry the canonical database client ID.
     // Never resolve a destructive target by a fuzzy name or a visible label.
-    $('#companyGrid .integrated-client-archive[data-id]').forEach((archive) => {
+    $$('#companyGrid .integrated-client-archive[data-id]').forEach((archive) => {
       const clientId=archive.dataset.id;
       const clientName=archive.dataset.purgeClientName || archive.dataset.integratedClientName ||
         archive.closest('.company-card-tree')?.dataset.clientPrimary || '';
@@ -352,7 +352,7 @@
       });
       archive.insertAdjacentElement('afterend',button);
     });
-    $('#companyGrid .holder-supply-row[data-history-supply-id][data-cups]').forEach((row) => {
+    $$('#companyGrid .holder-supply-row[data-history-supply-id][data-cups]').forEach((row) => {
       if(row.querySelector('.integrated-supply-purge')) return;
       const supplyId=row.dataset.historySupplyId;
       const cups=row.dataset.cups;
