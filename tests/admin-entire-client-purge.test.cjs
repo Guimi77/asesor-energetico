@@ -1,0 +1,44 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261127170000_admin_purge_client_v1.sql'),'utf8');
+const ui=fs.readFileSync(path.join(root,'history-supply-purge.js'),'utf8');
+const portfolio=fs.readFileSync(path.join(root,'client-archive-integrated.js'),'utf8');
+test('entire client deletion requires active administrator and fresh preview',()=>{
+ assert.match(sql,/p_execute boolean default false/);
+ assert.match(sql,/active=true and role::text='admin'/);
+ assert.match(sql,/raise exception 'not_authorized'/);
+ assert.match(sql,/if not p_execute then/);
+ assert.match(sql,/p_confirm_name is distinct from v_client.name/);
+ assert.match(sql,/coalesce\(p_expected_signature,''\)<>v_signature/);
+ assert.match(sql,/from public\.holders where client_id=p_client_id/);
+ assert.match(sql,/where h.client_id=p_client_id order by s.id for update of s/);
+});
+test('client deletion is one transactional operation and retains auth user accounts',()=>{
+ assert.match(sql,/public\.admin_purge_supply_v1\(/);
+ assert.match(sql,/raise exception 'supply_deletion_failed'/);
+ assert.match(sql,/raise exception 'deleted_count_mismatch'/);
+ assert.match(sql,/delete from public\.holders where client_id=p_client_id/);
+ assert.match(sql,/not exists\(select 1 from public\.supplies where holder_id=public\.holders.id\)/);
+ assert.match(sql,/delete from public\.clients where id=p_client_id/);
+ assert.doesNotMatch(sql,/delete from auth\.users/);
+ assert.match(sql,/client_user_links_removed/);
+});
+test('client and supply controls are next to Archive and use exact database IDs',()=>{
+ assert.match(portfolio,/integratePurgeButtons/);
+ assert.match(portfolio,/integrated-client-archive\[data-id\]/);
+ assert.match(portfolio,/archive\.dataset\.id/);
+ assert.match(portfolio,/row\.dataset\.historySupplyId/);
+ assert.match(portfolio,/button\.textContent='Eliminar cliente'/);
+ assert.match(portfolio,/button\.textContent='Eliminar'/);
+ assert.match(ui,/rpc:'admin_purge_client_v1'/);
+ assert.match(ui,/rpc:'admin_purge_supply_and_client_v2'/);
+ assert.match(ui,/p_confirm_name:typed/);
+ assert.match(ui,/p_confirm_cups:typed/);
+ assert.match(ui,/window\.confirm/);
+ assert.match(ui,/window\.prompt/);
+ assert.doesNotMatch(ui,/historyPurgeSupply/);
+});
