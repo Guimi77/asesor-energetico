@@ -50,3 +50,30 @@ test('Input records and master are not mutated',()=>{const x=input([r('b'),r('a'
 test('Stale session or changed filters cannot start a download',async()=>{await assert.rejects(api.exportSelection(input([r('a')]),{stillCurrent:()=>false}),/cambiado/);});
 test('Export performs no PDF read, data fetching, master or persisted-data writes',()=>{const fs=require('node:fs'),s=fs.readFileSync(__dirname+'/../history-client-export.js','utf8');for(const pattern of [/getDocument\s*\(/,/\.rpc\s*\(/,/fetch\s*\(/,/localStorage/,/EnergyMaster/,/XLSX\.writeFile/,/setInterval\s*\(/,/MutationObserver/])assert(!pattern.test(s),String(pattern));});
 test('History client Excel keeps total cost and adds conditional excess charts',()=>{const fs=require('node:fs'),s=fs.readFileSync(__dirname+'/../history-client-export.js','utf8');assert(s.includes("['totalUnit','Coste total \\u20ac/kWh','\\u20ac/kWh']"));assert(s.includes("['exportedKwh','Excedentes compensados','kWh']"));assert(s.includes("['compensation','Compensaci\\u00f3n econ\\u00f3mica','\\u20ac']"));assert(s.includes("'Excedentes compensados kWh','Compensaci\\u00f3n \\u20ac'"));assert(s.includes("price=key==='energyPrice'||key==='totalUnit'"));});
+
+test('Legacy Otros containing separately displayed charges is reconciled only on exact evidence',()=>{
+ const entry=r('legacy',{consumption_kwh:500,total_eur:133.33,energy_cost_eur:80,power_cost_eur:15,excess_cost_eur:0,reactive_cost_eur:0,compensation_eur:0,social_bonus_eur:0.77,meter_rental_eur:6.14,distributor_charges_eur:0,other_cost_eur:11.40,electricity_tax_eur:2,vat_eur:24.93,igic_eur:0});
+ // Original component sum is 140.24; 6.91 more than the invoice.
+ const x=api.exportFinancialReconciliation(entry);
+ assert.equal(x.adjusted,true);
+ assert.equal(x.originalOther,11.4);
+ assert.equal(x.values[9],4.49);
+ assert.equal(x.difference,0);
+ assert.equal(x.balanced,true);
+ assert.equal(entry.other_cost_eur,11.4);
+});
+test('Unrelated reconciliation differences are never hidden in Otros',()=>{
+ const entry=r('unmatched',{total_eur:100,energy_cost_eur:70,power_cost_eur:10,excess_cost_eur:0,reactive_cost_eur:0,compensation_eur:0,social_bonus_eur:0.5,meter_rental_eur:1.5,distributor_charges_eur:0,other_cost_eur:2,electricity_tax_eur:2,vat_eur:10,igic_eur:0});
+ const x=api.exportFinancialReconciliation(entry);
+ assert.equal(x.adjusted,false);
+ assert.equal(x.values[9],2);
+ assert.equal(x.difference,4);
+ assert.equal(x.balanced,false);
+ assert.match(x.control,/REVISAR/);
+});
+test('No silent balance when financial fields are missing',()=>{
+ const x=api.exportFinancialReconciliation(r('partial',{total_eur:20,energy_cost_eur:10,power_cost_eur:2,excess_cost_eur:0,reactive_cost_eur:0,compensation_eur:0,social_bonus_eur:0,meter_rental_eur:0,distributor_charges_eur:0,other_cost_eur:null,electricity_tax_eur:0,vat_eur:1,igic_eur:0}));
+ assert.equal(x.balanced,false);
+ assert.equal(x.difference,null);
+ assert.match(x.control,/incompletos/);
+});
