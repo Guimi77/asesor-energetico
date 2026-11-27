@@ -32,6 +32,13 @@ test('Explicit missing distributor reading is kept separate from zero consumptio
   assert.equal(api.classify('La distribuidora no ha facilitado la lectura').status,'no_distributor_reading');
 });
 
+test('FENIE Sin Lectura is explicit missing-reading evidence, not a real zero',()=>{
+  const x=api.classify('Lecturas desde 01/04/2026 a 30/04/2026 Sin Lectura Consumo: 0,00 kWh');
+  assert.equal(x.status,'no_distributor_reading');
+  assert.match(x.sourceLabel,/Sin Lectura/i);
+  assert.equal(api.classify('Visual Distribuidora').status,'unknown');
+});
+
 test('Ambiguous invoice text fails closed as unknown',()=>{
   const x=api.classify('Lecturas desde 01/06/2026 a 30/06/2026 Consumo 0,00 kWh');
   assert.deepEqual(x,{status:'unknown',sourceLabel:null});

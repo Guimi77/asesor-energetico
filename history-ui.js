@@ -447,7 +447,9 @@
     return [...map.values()].sort((a,b) => a.key.localeCompare(b.key));
   }
 
+  const missingDistributorReading = r => r?.reading_status === 'no_distributor_reading';
   const chartNumeric = v => v != null && String(v).trim() !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v));
+  const chartConsumption = r => missingDistributorReading(r) ? null : (chartNumeric(r?.consumption_kwh) ? Number(r.consumption_kwh) : null);
   function billingSpanDays(r) {
     const explicit = Number(r?.billing_days);
     if (Number.isFinite(explicit) && explicit > 0) return explicit;
@@ -482,7 +484,7 @@
   }
   function chartPeriods(records) {
     return [...(records||[])].filter(r=>r?.billing_start&&r?.billing_end).sort((a,b)=>String(a.billing_start).localeCompare(String(b.billing_start))||String(a.billing_end).localeCompare(String(b.billing_end))).map((r,index)=>{
-      const kwh=chartNumeric(r.consumption_kwh)?Number(r.consumption_kwh):null,eur=chartNumeric(r.total_eur)?Number(r.total_eur):null,days=billingSpanDays(r);
+      const kwh=chartConsumption(r),eur=chartNumeric(r.total_eur)?Number(r.total_eur):null,days=billingSpanDays(r);
       const detail=Array.isArray(r.invoice_compensation_periods)?r.invoice_compensation_periods:[],compensation=chartNumeric(r.compensation_eur)?Number(r.compensation_eur):0;
       const exported=detail.length?detail.reduce((sum,item)=>sum+n(item.exported_kwh),0):(compensation!==0?null:0);
       return{
@@ -536,14 +538,14 @@
     for (let key = first; key <= last;) {
       const rows = groups.get(key) || [], total = totals.get(key);
       const ids = [...new Set(rows.map(r => r.supply_id).filter(Boolean))].sort();
-      const missingKwh = rows.filter(r => !numeric(r.consumption_kwh)).length;
+      const missingKwh = rows.filter(r => chartConsumption(r) === null).length;
       const missingEur = rows.filter(r => !numeric(r.total_eur)).length;
       result.push({ key, kwh: rows.length && !missingKwh ? total.kwh : null, eur: rows.length && !missingEur ? total.eur : null,
         exportedKwh: rows.length ? (total.compensationDetailComplete ? total.exportedKwh : null) : null,
         compensationEur: rows.length ? total.compensationEur : null,
         hasCompensation: !!total?.hasCompensation,
         supplies: ids.length, supplySet: JSON.stringify(ids), records: rows.length, missingKwh, missingEur,
-        zeroRecords: rows.filter(r => numeric(r.consumption_kwh) && Number(r.consumption_kwh) === 0).length });
+        zeroRecords: rows.filter(r => chartConsumption(r) === 0).length });
       let y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) + 1;
       if (m === 13) { y++; m = 1; }
       key = String(y).padStart(4,'0') + '-' + String(m).padStart(2,'0');
@@ -913,6 +915,7 @@
         ${showCompensation ? `<div class="history-kpi"><small>Excedentes compensados</small><strong>${compensationDetailComplete ? qty(totalExportedKwh,2)+' kWh' : 'Detalle parcial'}</strong></div><div class="history-kpi"><small>Compensación acumulada</small><strong>${money(Math.abs(totalCompensationEur))} €</strong></div>` : ''}
         <div class="history-kpi"><small>Tarifa(s) más reciente(s)</small><strong>${esc(latestTariff)}</strong></div>
       </section>
+      ${(records||[]).some(missingDistributorReading) ? '<div class="history-data-note history-data-note-neutral" role="status"><strong>Consumo pendiente de lectura.</strong>Los periodos «Sin Lectura» dejan un hueco en las gráficas de consumo y coste medio. Se conservan los importes facturados y no se distribuyen regularizaciones entre meses sin evidencia.</div>' : ''}
       <section class="history-grid">
         <div class="history-chart"><h3>Evolución del consumo</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'kwh',v=>`${qty(v,0)} kWh`)}</div>
         <div class="history-chart"><h3>Evolución del gasto</h3><p>${esc(scope)}</p>${svgChart(chartPoints,'eur',v=>`${money(v)} €`)}</div>

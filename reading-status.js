@@ -20,6 +20,7 @@
     if(!text) return {status:'unknown', sourceLabel:null};
 
     const noReading=first(text,[
+      /\bsin\s+lectura(?:s)?\b/i,
       /\bsin\s+lectura(?:s)?(?:\s+(?:de|por)\s+(?:la\s+)?)?distribuidora\b/i,
       /\blectura(?:s)?\s+no\s+(?:disponible|disponibles|facilitada|facilitadas|aportada|aportadas)(?:\s+(?:por|de)\s+(?:la\s+)?)?distribuidora\b/i,
       /\bdistribuidora\s+no\s+(?:ha\s+)?(?:facilitado|facilitada|aportado|aportada)\s+(?:la\s+)?lectura(?:s)?\b/i,
