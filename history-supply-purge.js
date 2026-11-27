@@ -54,7 +54,7 @@
     renderControl();
     try {
       status('Comprobando las relaciones del suministro...');
-      const {data:preview,error:previewError} = await db.rpc('admin_purge_supply_v1',{
+      const {data:preview,error:previewError} = await db.rpc('admin_purge_supply_and_client_v2',{
         p_supply_id:target.id,p_execute:false
       });
       if (previewError) throw previewError;
@@ -67,6 +67,7 @@
         '',
         'CUPS: '+preview.cups,
         'Titular: '+preview.holder,
+        'Cliente: '+preview.client,
         'Facturas: '+preview.invoice_count,
         'Detalles de factura: '+preview.detail_count,
         'Incidencias: '+preview.incident_count,
@@ -77,7 +78,10 @@
         preview.holder_will_be_deleted
           ? 'El titular también será eliminado porque no tiene otros suministros.'
           : 'El titular se conservará porque tiene '+preview.other_holder_supplies+' suministros adicionales.',
-        'No se eliminarán el cliente ni otros suministros.',
+        preview.client_will_be_deleted
+          ? 'El cliente TAMBIÉN será eliminado: no tiene otros titulares. Se desvincularán '+preview.client_user_links_to_remove+' accesos de usuarios, sin borrar sus cuentas.'
+          : 'El cliente se conservará porque tiene otros '+preview.other_client_holders+' titulares o el titular mantiene otros suministros.',
+        'Los demás titulares y suministros nunca se eliminan.',
         '',
         'Comprueba que tienes una copia de los datos y que no existen obligaciones de conservación.',
         '¿Deseas continuar?'
@@ -92,7 +96,10 @@
         return;
       }
       if (!window.confirm('CONFIRMACIÓN FINAL: eliminar '+preview.invoice_count+
-        ' facturas y el suministro '+preview.cups+' definitivamente. ¿Confirmar?')) {
+        ' facturas, el suministro '+preview.cups+
+        (preview.holder_will_be_deleted ? ', su titular' : '')+
+        (preview.client_will_be_deleted ? ' Y EL CLIENTE '+preview.client : '')+
+        ' definitivamente. ¿Confirmar?')) {
         status('Cancelado sin eliminar datos.');
         return;
       }
@@ -101,7 +108,7 @@
         throw new Error('La selección o el acceso han cambiado. Vuelve a empezar.');
       }
       status('Ejecutando la operación confirmada...');
-      const {data:result,error} = await db.rpc('admin_purge_supply_v1',{
+      const {data:result,error} = await db.rpc('admin_purge_supply_and_client_v2',{
         p_supply_id:preview.supply_id,p_execute:true,
         p_confirm_cups:typed,p_expected_signature:preview.signature
       });
@@ -112,7 +119,9 @@
           : (result?.reason || 'No se confirmó la eliminación.'));
       }
       status('Eliminado: '+result.invoice_count+' facturas. Titular '+
-        (result.holder_deleted ? 'eliminado.' : 'conservado.'));
+        (result.holder_deleted ? 'eliminado' : 'conservado')+
+        '. Cliente '+(result.client_deleted ? 'eliminado.' : 'conservado.'));
+      if (result.client_deleted) window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
       window.dispatchEvent(new CustomEvent('ibt-central-data-changed',{
         detail:{action:'admin_supply_deleted'}
       }));
