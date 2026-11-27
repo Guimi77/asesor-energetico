@@ -6,7 +6,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261127150000_admin_purge_supply_v1.sql'),'utf8');
 const ui=fs.readFileSync(path.join(root,'history-supply-purge.js'),'utf8');
-const history=fs.readFileSync(path.join(root,'history-ui.js'),'utf8');
+const portfolio=fs.readFileSync(path.join(root,'client-archive-integrated.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
 test('default RPC is preview-only and checks administrator from database',()=>{
@@ -29,13 +29,19 @@ test('deletion requires exact CUPS, fresh preview and cascades details only insi
  assert.match(sql,/not exists\(select 1 from public\.supplies where holder_id=v_holder\.id\)/);
  assert.doesNotMatch(sql,/delete from public\.clients/i);
 });
-test('admin UI requires one CUPS and two independent confirmations',()=>{
- assert.match(history,/state\.selectedSupplies\.length !== 1/);
- assert.match(history,/state\.role !== 'admin'/);
- assert.match(ui,/window\.ibtCurrentProfile\?\.role !== 'admin'/);
+test('portfolio-only buttons use canonical supply IDs and administrator checks',()=>{
+ assert.match(portfolio,/integratePurgeButtons\(\)/);
+ assert.match(portfolio,/holder-supply-row\[data-history-supply-id\]/);
+ assert.match(portfolio,/dataset\.historySupplyId/);
+ assert.match(portfolio,/dataset\.id/);
+ assert.match(portfolio,/isAdmin\(\)/);
+ assert.match(portfolio,/IBTAdminPurge\.purgeSupply/);
+ assert.match(portfolio,/IBTAdminPurge\.purgeClient/);
+ assert.doesNotMatch(ui,/historyPurgeSupply/);
+ assert.match(ui,/window\.ibtCurrentProfile\?\.role === 'admin'/);
  assert.match(ui,/window\.confirm\(/);
  assert.match(ui,/window\.prompt\(/);
- assert.match(ui,/typed !== preview\.cups/);
+ assert.match(ui,/typed!==confirmation/);
  assert.match(ui,/p_expected_signature:preview\.signature/);
  assert.match(ui,/p_execute:false/);
  assert.match(ui,/p_execute:true/);
