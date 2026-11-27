@@ -173,16 +173,36 @@
     for(let r=5;r<=t;r++){ws.getCell(r,2).numFmt='#,##0.00 "kWh"';ws.getCell(r,3).numFmt='#,##0.00 "€"';for(const col of [4,5])ws.getCell(r,col).numFmt='0.000000 "€/kWh"';ws.getCell(r,8).numFmt='#,##0.00 "kWh"';ws.getCell(r,9).numFmt='#,##0.00 "€"';}
     addCharts(wb,ws,coverage.months,t,series.mode);return ws;
   }
+  function exportFinancialReconciliation(r){
+    const keys=['consumption_kwh','energy_cost_eur','power_cost_eur','excess_cost_eur','reactive_cost_eur','compensation_eur','social_bonus_eur','meter_rental_eur','distributor_charges_eur','other_cost_eur','electricity_tax_eur','vat_eur','igic_eur'];
+    const values=keys.map(k=>k==='excess_cost_eur'&&excessNotApplicable(r.tariff)?0:number(r[k]));
+    const originalOther=values[9],total=number(r.total_eur);
+    if(total==null||values.slice(1).some(v=>v==null))return{values,adjusted:false,balanced:false,difference:null,originalOther,control:'REVISAR: datos incompletos'};
+    const round=v=>Math.round((v+Number.EPSILON)*100)/100;
+    const gap=round(total-values.slice(1).reduce((a,b)=>a+b,0));
+    const overlap=round(values[6]+values[7]);
+    // Adjust only where invoice balance proves the exact overlapping named charges.
+    // Never bury an unexplained difference in Otros or change historical records.
+    const adjusted=Math.abs(overlap)>=0.01&&Math.abs(gap+overlap)<=0.02;
+    if(adjusted)values[9]=round(originalOther-overlap);
+    const difference=round(total-values.slice(1).reduce((a,b)=>a+b,0));
+    const balanced=Math.abs(difference)<=0.02;
+    return{values,adjusted,balanced,difference,originalOther,control:balanced?(adjusted?'CUADRA: conceptos separados':'CUADRA'):'REVISAR: descuadre'};
+  }
   function addDetails(wb,g,subtitle){
-    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos potencia \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura','Excedentes compensados kWh'];
+    const headers=['Referencia','Titular','CUPS','MES','Desde','Hasta','Consumo kWh','Energ\u00eda \u20ac','Potencia \u20ac','Excesos potencia \u20ac','Reactiva \u20ac','Compensaci\u00f3n \u20ac','Bono social \u20ac','Alquiler \u20ac','Derechos \u20ac','Otros \u20ac','Imp. electricidad \u20ac','IVA \u20ac','IGIC \u20ac','Suma conceptos \u20ac','Total \u20ac','Diferencia \u20ac','Coste total \u20ac/kWh','Tarifa','Comercializadora','Distribuidora','Estado','ID origen','Lectura','Origen lectura','Excedentes compensados kWh','Control desglose'];
     const ws=sheet(wb,'PERIODOS',g.holder.legal_name+' \u00b7 PERIODOS',subtitle,headers,[22,28,28,20,14,14,...Array(17).fill(19),12,24,24,14,38,20,34,24]);
     const fields=['consumption_kwh','energy_cost_eur','power_cost_eur','excess_cost_eur','reactive_cost_eur','compensation_eur','social_bonus_eur','meter_rental_eur','distributor_charges_eur','other_cost_eur','electricity_tax_eur','vat_eur','igic_eur'];
-    for(const r of g.records){const i=ws.rowCount+1,na=excessNotApplicable(r.tariff),vals=fields.map(k=>k==='excess_cost_eur'&&na?0:number(r[k])),complete=vals.slice(1).every(v=>v!=null),accounted=complete?vals.slice(1).reduce((a,b)=>a+b,0):null,exportedKwh=(r.invoice_compensation_periods||[]).reduce((s,x)=>s+(number(x.exported_kwh)||0),0);
-      const row=dataRow(ws,[text(r.invoice_number),text(r.source_holder_name)||text(g.holder.legal_name),text(g.supplies.get(r.supply_id).cups),monthName(r.billing_end.slice(0,7)),dateES(r.billing_start),dateES(r.billing_end),...vals,formula(`IF(COUNT(H${i}:S${i})=12,SUM(H${i}:S${i}),"")`,accounted),number(r.total_eur),formula(`IF(ISNUMBER(T${i}),U${i}-T${i},"")`,accounted==null?null:Number(r.total_eur)-accounted),formula(`IF(G${i}>0,U${i}/G${i},"")`,Number(r.consumption_kwh)>0?Number(r.total_eur)/Number(r.consumption_kwh):null),text(r.tariff),text(r.retailer),text(r.distributor),text(r.validation_status),text(r.id),readingLabel(r),text(r.reading_source_label)||'\u2014',exportedKwh||null]);
-      row.getCell(1).note=sourceNote(r);for(let c=7;c<=23;c++)row.getCell(c).numFmt=c===23?'0.000000':'#,##0.00';row.getCell(31).numFmt='#,##0.00 "kWh"';
+    for(const r of g.records){
+      const i=ws.rowCount+1,na=excessNotApplicable(r.tariff),rec=exportFinancialReconciliation(r),vals=rec.values,accounted=rec.difference==null?null:Number(r.total_eur)-rec.difference,exportedKwh=(r.invoice_compensation_periods||[]).reduce((s,x)=>s+(number(x.exported_kwh)||0),0);
+      const row=dataRow(ws,[text(r.invoice_number),text(r.source_holder_name)||text(g.holder.legal_name),text(g.supplies.get(r.supply_id).cups),monthName(r.billing_end.slice(0,7)),dateES(r.billing_start),dateES(r.billing_end),...vals,formula(`IF(COUNT(H${i}:S${i})=12,SUM(H${i}:S${i}),"")`,accounted),number(r.total_eur),formula(`IF(ISNUMBER(T${i}),U${i}-T${i},"")`,rec.difference),formula(`IF(G${i}>0,U${i}/G${i},"")`,Number(r.consumption_kwh)>0?Number(r.total_eur)/Number(r.consumption_kwh):null),text(r.tariff),text(r.retailer),text(r.distributor),text(r.validation_status),text(r.id),readingLabel(r),text(r.reading_source_label)||'\u2014',exportedKwh||null,rec.control]);
+      row.getCell(1).note=sourceNote(r);
+      row.getCell(16).note=rec.adjusted?'Otros original del historico: '+fmt(rec.originalOther)+' EUR. Bono social y alquiler separados para evitar doble contabilizacion; descuadre original igual a suma de ambos. Historico sin cambios.':'Otros original del historico, sin ajuste automatico.';
+      for(let c=7;c<=23;c++)row.getCell(c).numFmt=c===23?'0.000000':'#,##0.00';row.getCell(31).numFmt='#,##0.00 "kWh"';
+      if(!rec.balanced){row.getCell(32).font={name:'Calibri',bold:true,color:{argb:'FFB42318'}};row.getCell(22).font={name:'Calibri',bold:true,color:{argb:'FFB42318'}};}
       if(na){row.getCell(10).numFmt='"'+excessLabel+'"';row.getCell(10).note='Tarifa 2.0: el cargo por excesos de potencia mediante max\u00edmetro no aplica.';}
     }
-    ws.autoFilter={from:'A4',to:'AE'+ws.rowCount};
+    ws.getColumn(32).width=30;ws.autoFilter={from:'A4',to:'AF'+ws.rowCount};
     const pws=sheet(wb,'DETALLE P1-P6','DETALLE POR PERIODOS',subtitle,['Referencia','CUPS','Desde','Hasta','Tarifa','Periodo','Consumo kWh','Energ\u00eda \u20ac','Precio \u20ac/kWh','Contratada kW','Potencia \u20ac','Precio \u20ac/kW/d\u00eda','Max\u00edmetro kW','Max\u00edmetro fiable','Exceso kW','Excesos potencia \u20ac','Reactiva kvarh','Reactiva \u20ac','Excedente compensado kWh','Precio compensaci\u00f3n \u20ac/kWh','Compensaci\u00f3n \u20ac','IVA compensaci\u00f3n %'],[22,28,14,14,12,12,...Array(16).fill(19)]);
     for(const r of g.records)for(let p=1;p<=6;p++){
       const en=(r.invoice_energy_periods||[]).filter(v=>Number(v.period)===p),pw=(r.invoice_power_periods||[]).filter(v=>Number(v.period)===p),mx=(r.invoice_maximeters||[]).filter(v=>Number(v.period)===p),ex=(r.invoice_excesses||[]).filter(v=>Number(v.period)===p),re=(r.invoice_reactive||[]).filter(v=>Number(v.period)===p),cp=(r.invoice_compensation_periods||[]).filter(v=>Number(v.period)===p),na=excessNotApplicable(r.tariff);
@@ -216,5 +236,5 @@
     ensure();if(options.save)await options.save(blob,name);else{const a=root.document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;root.document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1000);}
     return {files:files.length,records:scope.groups.reduce((s,g)=>s+g.records.length,0),name};
   }
-  const api=Object.freeze({selection,monthly,chartSeries,chartCadence,billingSpanDays,realPeriodLabel,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
+  const api=Object.freeze({exportFinancialReconciliation,selection,monthly,chartSeries,chartCadence,billingSpanDays,realPeriodLabel,reportCoverage,workbook,exportSelection,excessNotApplicable,excessLabel});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IBTHistoryClientExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
