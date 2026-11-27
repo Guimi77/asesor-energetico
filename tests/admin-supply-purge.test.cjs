@@ -7,7 +7,7 @@ const root=path.join(__dirname,'..');
 const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261127150000_admin_purge_supply_v1.sql'),'utf8');
 const ui=fs.readFileSync(path.join(root,'history-supply-purge.js'),'utf8');
 const history=fs.readFileSync(path.join(root,'history-ui.js'),'utf8');
-const bootstrap=fs.readFileSync(path.join(root,'auth-bootstrap.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
 test('default RPC is preview-only and checks administrator from database',()=>{
  assert.match(sql,/p_execute boolean default false/);
@@ -39,5 +39,5 @@ test('admin UI requires one CUPS and two independent confirmations',()=>{
  assert.match(ui,/p_expected_signature:preview\.signature/);
  assert.match(ui,/p_execute:false/);
  assert.match(ui,/p_execute:true/);
- assert.match(bootstrap,/history-supply-purge\.js\?v=[a-f0-9]{12}/);
+ assert.match(index,/history-supply-purge\.js\?v=[a-f0-9]{12}/);
 });
