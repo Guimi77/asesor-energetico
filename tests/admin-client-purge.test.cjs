@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
-const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261127113000_admin_purge_orphan_client_v2.sql'),'utf8');
+const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261127160000_admin_purge_orphan_client_v2.sql'),'utf8');
 const ui=fs.readFileSync(path.join(root,'history-supply-purge.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
