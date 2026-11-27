@@ -15,7 +15,7 @@ if(!document.querySelector('script[data-admin-data-management]')){
 }
 if(!document.querySelector('script[data-client-archive-integrated]')){
   const script=document.createElement('script');
-  script.src='client-archive-integrated.js?v=3b2e4d8ee3bd';
+  script.src='client-archive-integrated.js?v=7579cef9815d';
   script.dataset.clientArchiveIntegrated='1';
   document.head.appendChild(script);
 }
