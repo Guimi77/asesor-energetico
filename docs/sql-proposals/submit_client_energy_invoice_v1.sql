@@ -51,7 +51,7 @@ begin
   join public.holders h on h.id = s.holder_id and h.status = 'active'
   join public.clients c on c.id = h.client_id and c.status = 'active'
   join public.client_users cu on cu.client_id = c.id and cu.user_id = v_user
-  where s.cups_key = left(v_cups,20) and s.status = 'active'
+  where left(s.cups_key,20) = left(v_cups,20) and s.status = 'active'
   limit 1;
 
   if v_supply is null then
