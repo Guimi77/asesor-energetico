@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
 
-  const REVISION='fenie-2026.11.12.2';
+  const REVISION='fenie-2026.11.27.1';
   const RETAILER='FENIE ENERGIA';
 
   const money=n=>(Number(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -89,6 +89,34 @@
     return out;
   }
 
+  // Only invoice-line amounts (two decimals, at the end) are monetary effects.
+  // The four-decimal value in parentheses describes the original calculation and
+  // must never be substituted when the billed amount is missing.
+  function regularizationLines(a){
+    const items=[],errors=[];
+    const re=/^\s*Regularizaci[oó]n\s+(Consumo|Reactiva)\b/i;
+    for(const source of a||[]){
+      const m=String(source).match(re);if(!m)continue;
+      const label=m[1].toLowerCase()==='consumo'?'consumption':'reactive';
+      const trailing=String(source).match(/(?:^|\s)([+\-−]?\d[\d.]*,\d{2})\s*€\s*\.?\s*$/);
+      if(!trailing){errors.push('Regularización '+label+': importe final no identificable');continue}
+      const signed=trailing[1].replace('−','-');
+      const amount=num(signed);
+      const range=String(source).match(/(?:Periodo|Period)\s+(\d{2}\/\d{2}\/\d{4})\s+(?:al|a|to|-)\s+(\d{2}\/\d{2}\/\d{4})/i);
+      if(!range){errors.push('Regularización '+label+': periodo afectado no identificable');continue}
+      items.push({
+        concept:label==='consumption'?'Regularización Consumo':'Regularización Reactiva',
+        category:label==='consumption'?'consumption_regularization':'reactive_adjustment',
+        amount_eur:amount,
+        direction:amount>0?'charge':amount<0?'credit':'neutral',
+        affected_period:{start:range[1],end:range[2]},
+        source_text:String(source),
+        status:'extracted'
+      });
+    }
+    return {items,errors};
+  }
+
   function parse(d,file,options={}){
     const a=d?.pages?.[0]||[],text=String(d?.text||a.join('\n')),
       companyLine=find(a,/(?:Raz[oó]n Social|Company Name)\s*:/i),
@@ -150,7 +178,9 @@
       integratorAdjustment=neg??(v.length===1?v[0]:0);
     }
 
-    const regularizationReactive=lastEuro(find(a,/Regularizaci[oó]n\s+Reactiva/i));
+    const regularization=regularizationLines(a),
+      regularizationConsumption=round2(regularization.items.filter(x=>x.category==='consumption_regularization').reduce((v,x)=>v+x.amount_eur,0)),
+      regularizationReactive=round2(regularization.items.filter(x=>x.category==='reactive_adjustment').reduce((v,x)=>v+x.amount_eur,0));
     const vat=round2(a.filter(l=>/^\s*(?:IVA|VAT|VAC)\b/i.test(l)).reduce((s,l)=>s+lastEuro(l),0)),
       igic=round2(a.filter(l=>/^\s*IGIC\b/i.test(l)).reduce((s,l)=>s+lastEuro(l),0));
 
@@ -163,10 +193,10 @@
     }
 
     const dv=euros(db),distributorCharges=dv.length?Math.max(...dv):0,
-      other=round2(social+rental+billingFee+discounts+integratorAdjustment+regularizationReactive),
+      other=round2(social+rental+billingFee+discounts+integratorAdjustment+regularizationConsumption+regularizationReactive),
       accounted=round2(energy+power+excess+reactive+compensation+other+tax+vat+igic+distributorCharges),
       diff=round2(total-accounted),
-      balanced=total>0&&Math.abs(diff)<=.05,
+      balanced=total!==0&&Math.abs(diff)<=.05&&regularization.errors.length===0,
       missing=[];
 
     if(!company)missing.push('empresa');
@@ -174,6 +204,7 @@
     if(period==='Por identificar')missing.push('periodo');
     if(!total)missing.push('total');
     if(!powerDetail.reliable)missing.push(powerDetail.message);
+    missing.push(...regularization.errors);
 
     const readOk=balanced&&!missing.length,alerts=[];
     if(excess>0)alerts.push(`Exceso de potencia: ${money(excess)} €`);
@@ -209,6 +240,8 @@
       discounts,
       integratorAdjustment,
       regularizationReactive,
+      regularizationConsumption,
+      regularizations:regularization.items,
       other,
       tax,
       vat,
@@ -366,7 +399,7 @@
     if(row.billingFee)adjustments.push({concept:'Cuota Facturación Indexado',amount_eur:row.billingFee,category:'billing_fee',source_text:billingFeeLine});
     if(row.discounts)adjustments.push({concept:'Descuento FENIE',amount_eur:row.discounts,category:'discount',source_text:discountLines.join(' | ')});
     if(row.integratorAdjustment)adjustments.push({concept:'Ajuste por Integrador',amount_eur:row.integratorAdjustment,category:'adjustment'});
-    if(row.regularizationReactive)adjustments.push({concept:'Regularización Reactiva',amount_eur:row.regularizationReactive,category:'reactive_adjustment'});
+    adjustments.push(...(row.regularizations||[]));
 
     const reactiveApplicable=!/^2\.0TD$/i.test(tariff),
       completeness={
@@ -382,7 +415,8 @@
         billing_fee:billingFeeLine?'extracted':'not_present',discounts:discountLines.length?'extracted':'not_present',
         meter_rental:find(a,/(?:Alquiler Equipo medida|Metering Equipment lease)/i)?'extracted':'unreliable',electricity_tax:find(a,/(?:Impuesto electricidad|Electricity tax)/i)?'extracted':'unreliable',
         tax_lines:taxes.length?'extracted':'unreliable',distributor_rights:rights.status,
-        integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?'extracted':'not_present'
+        integrator_adjustment:find(a,/Ajuste por Integrador/i)?'extracted':'not_present',reactive_regularization:find(a,/Regularizaci[oó]n\s+Reactiva/i)?(row.regularizations?.some(x=>x.category==='reactive_adjustment')?'extracted':'unreliable'):'not_present',
+        consumption_regularization:find(a,/Regularizaci[oó]n\s+Consumo/i)?(row.regularizations?.some(x=>x.category==='consumption_regularization')?'extracted':'unreliable'):'not_present'
       },
       assessment=Object.values(completeness).some(v=>v==='unreliable'||v==='needs_review')?'needs_review':'complete';
 
@@ -404,6 +438,7 @@
       taxLines:taxes,
       distributorRights:rights.items,
       adjustments,
+      regularizations:row.regularizations||[],
       reading:{status:row.readingStatus,sourceLabel:row.readingSourceLabel},
       validation:{balanced:row.balanced,readOk:row.readOk,message:row.readMessage,completeness,assessment}
     };
