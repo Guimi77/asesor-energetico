@@ -24,7 +24,7 @@ test('deletion requires exact CUPS, fresh preview and cascades details only insi
  assert.match(sql,/p_expected_signature.*<>v_signature/);
  assert.match(sql,/delete from private\.history_change_reviews where supply_id=p_supply_id/);
  for(const table of ['incidents','recommendations','supply_events','invoices','supplies'])
-  assert.match(sql,new RegExp('delete from public\\\\.'+table+' where (supply_id|id)=p_supply_id'));
+  assert.match(sql,new RegExp('delete from public\\.'+table+' where (supply_id|id)=p_supply_id'));
  assert.match(sql,/delete from public\.holders where id=v_holder\.id/);
  assert.match(sql,/not exists\(select 1 from public\.supplies where holder_id=v_holder\.id\)/);
  assert.doesNotMatch(sql,/delete from public\.clients/i);
