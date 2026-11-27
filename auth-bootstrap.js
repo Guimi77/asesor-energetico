@@ -185,9 +185,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.IBTRecommendationResolution?.installPresentation?.();
     if(document.querySelector('script[data-history-ui]')){loadAnalysisUi();return;}
     const script=document.createElement('script');
-    script.src='history-ui.js?v=bd7da518c5c5';
+    script.src='history-ui.js?v=17898af2f283';
     script.dataset.historyUi='1';
     script.onload=()=>{
+      const purge=document.createElement('script');
+      purge.src='history-supply-purge.js?v=7c8288';
+      purge.dataset.historyPurge='1';
+      if(!document.querySelector('script[data-history-purge]'))document.body.appendChild(purge);
       loadAnalysisUi();
       if(window.ibtCurrentProfile){
         window.dispatchEvent(new CustomEvent('ibt-role-changed',{detail:{profile:window.ibtCurrentProfile}}));
