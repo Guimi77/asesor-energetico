@@ -280,7 +280,25 @@ function extractFenie(d,file){
  try{
   const model=parser.parseNormalized(d,file,{parserVersion:window.IBT_PARSER_VERSION||parser.revision||'FENIE',readingClassifier:window.IBTReadingStatus?.classify,completenessVersion:COMPLETENESS_VERSION});
   const portable=fenieHistoryFromNormalized(model,file),comparison=compareFenieHistoryModels(legacy,portable);
+  // A proven monetary correction may supersede the legacy fallback only when
+  // every other field retains parity. Invoices with unrelated differences
+  // continue using the unchanged legacy protection.
+  const regularizations=Array.isArray(model.regularizations)?model.regularizations:[],
+    consumptionRegularizations=regularizations.filter(x=>x.category==='consumption_regularization'),
+    consumptionDelta=consumptionRegularizations.reduce((sum,x)=>sum+Number(x.amount_eur||0),0),
+    allowedDifferences=new Set(['other','accounted','diff','adjustments','completeness','assessment']),
+    unrelatedAdjustments=x=>(x.adjustments||[]).filter(v=>!['consumption_regularization','reactive_adjustment'].includes(v.category));
+  const signedCorrectionSafe=consumptionRegularizations.length>0
+    &&model.validation?.readOk===true&&model.validation?.balanced===true
+    &&regularizations.every(x=>x.status==='extracted'&&x.affected_period?.start&&x.affected_period?.end&&['charge','credit','neutral'].includes(x.direction))
+    &&comparison.fields.length>0&&comparison.fields.every(field=>allowedDifferences.has(field))
+    &&JSON.stringify(unrelatedAdjustments(legacy))===JSON.stringify(unrelatedAdjustments(portable))
+    &&Math.abs((portable.other-legacy.other)-consumptionDelta)<=.05
+    &&Math.abs((portable.accounted-legacy.accounted)-consumptionDelta)<=.05
+    &&Math.abs((legacy.diff-portable.diff)-consumptionDelta)<=.05
+    &&Math.abs(portable.diff)<=.05;
   recordFenieHistoryShadow(legacy,portable);
+  if(signedCorrectionSafe)comparison.ok=true;
   return comparison.ok?portable:legacy;
  }catch(error){recordFenieHistoryShadow(legacy,null,error);return legacy}
 }
