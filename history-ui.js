@@ -1152,5 +1152,12 @@
     if (window.ibtCurrentProfile) init(window.ibtCurrentProfile);
   });
 
-  window.IBTHistoryUI = { reload: refreshRecords, focusSupply };
+  function getPurgeTarget() {
+    if (state.role !== 'admin' || window.ibtCurrentProfile?.role !== 'admin' ||
+      state.loading || state.scopeLoading || state.selectedSupplies.length !== 1) return null;
+    const id=state.selectedSupplies[0];
+    const supply=visibleSupplies().find(x=>x.id===id);
+    return supply ? {id:supply.id,cups:supply.cups,holderId:supply.holder_id} : null;
+  }
+  window.IBTHistoryUI = { reload: refreshRecords, focusSupply, getPurgeTarget, refreshScope:()=>init(window.ibtCurrentProfile) };
 })();
