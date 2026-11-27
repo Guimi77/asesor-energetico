@@ -189,7 +189,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     script.dataset.historyUi='1';
     script.onload=()=>{
       const purge=document.createElement('script');
-      purge.src='history-supply-purge.js?v=7c8288';
+      purge.src='history-supply-purge.js?v=8b8eca4693ad';
       purge.dataset.historyPurge='1';
       if(!document.querySelector('script[data-history-purge]'))document.body.appendChild(purge);
       loadAnalysisUi();
